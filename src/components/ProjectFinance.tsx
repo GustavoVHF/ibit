@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
@@ -23,8 +23,7 @@ import {
   Calendar,
   Pencil,
   Paperclip,
-  Loader2,
-  Printer
+  Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
@@ -33,6 +32,10 @@ import { toPng } from 'html-to-image';
 import { PieChart as RechartsPieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { buildOfficialHeaderHTML, buildOfficialFooterHTML, PdfExportOptions, pixelRatioFromDpi } from '../utils/export/pdfEngine';
+import { exportLedgerToExcel } from '../utils/export/ledgerTemplateEngine';
+import { logAutomaticChange } from '../utils/changeHistory';
 
 type FinanceTab = 'Dashboard' | 'Transações' | 'Orçamento';
 
@@ -174,12 +177,13 @@ export default function ProjectFinance() {
   }
 
   const handleTransactionSubmit = async (
-    data: { id?: string, title: string, amount: number, date: Date, category: string, budgetId: string, receiptUrl: string, createInventoryItem: boolean }, 
+    data: { id?: string, title: string, amount: number, date: Date, category: string, budgetId: string, receiptUrl: string, createInventoryItem: boolean, isExternal: boolean }, 
     type: 'income' | 'expense'
   ) => {
     if (!projectId || !user) return;
     try {
       if (data.id) {
+        const previous = transactions.find(t => t.id === data.id);
         // Edit existing
         await updateDoc(doc(db, 'transactions', data.id), {
           title: data.title,
@@ -188,6 +192,20 @@ export default function ProjectFinance() {
           category: data.category,
           budgetId: data.budgetId,
           receiptUrl: data.receiptUrl,
+          isExternal: data.isExternal,
+        });
+
+        // Diferença de valor entra como impacto no histórico
+        const previousAmount = previous ? (previous.type === 'expense' ? previous.amount : -previous.amount) : 0;
+        const currentAmount = type === 'expense' ? data.amount : -data.amount;
+        await logAutomaticChange({
+          projectId,
+          source: 'Orçamento',
+          title: `Lançamento "${data.title}" foi ajustado`,
+          description: `${type === 'expense' ? 'Despesa' : 'Entrada'} atualizada para ${formatCurrency(data.amount)}${data.isExternal ? ' (conta externa)' : ''}`,
+          actorUid: user?.uid,
+          actorName: user?.displayName || user?.email || undefined,
+          impactAmount: data.isExternal ? 0 : currentAmount - previousAmount,
         });
       } else {
         // Create new
@@ -200,7 +218,18 @@ export default function ProjectFinance() {
           type,
           budgetId: data.budgetId,
           receiptUrl: data.receiptUrl,
+          isExternal: data.isExternal,
           createdAt: serverTimestamp()
+        });
+
+        await logAutomaticChange({
+          projectId,
+          source: 'Orçamento',
+          title: `${type === 'expense' ? 'Nova despesa' : 'Nova entrada'}: ${data.title}`,
+          description: `${formatCurrency(data.amount)}${data.category ? ` · ${data.category}` : ''}${data.isExternal ? ' · conta externa (não afeta o saldo)' : ''}`,
+          actorUid: user?.uid,
+          actorName: user?.displayName || user?.email || undefined,
+          impactAmount: data.isExternal ? 0 : type === 'expense' ? data.amount : -data.amount,
         });
 
         // Add to inventory if requested
@@ -246,6 +275,15 @@ export default function ProjectFinance() {
           date: monthStr,
           createdAt: serverTimestamp()
         });
+
+        await logAutomaticChange({
+          projectId,
+          source: 'Orçamento',
+          title: `Orçamento "${data.name}" definido`,
+          description: `${formatCurrency(data.amount)} previstos para ${monthStr}`,
+          actorUid: user?.uid,
+          actorName: user?.displayName || user?.email || undefined,
+        });
       }
     } catch (e) {
       console.error(e);
@@ -271,10 +309,10 @@ export default function ProjectFinance() {
   transactions.forEach(t => {
     const tDate = t.date?.toDate ? t.date.toDate() : new Date();
     if (t.type === 'income') {
-      balance += t.amount;
+      if (!t.isExternal) balance += t.amount;
       if (tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear) incomeMonth += t.amount;
     } else {
-      balance -= t.amount;
+      if (!t.isExternal) balance -= t.amount;
       if (tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear) expenseMonth += t.amount;
     }
   });
@@ -287,7 +325,7 @@ export default function ProjectFinance() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting) return;
     setIsExporting(true);
 
@@ -324,28 +362,29 @@ export default function ProjectFinance() {
 
     try {
       console.log('[PDF Export] Building footer...');
-      // 1. Build footer and append to ORIGINAL element
+      // 1. Build footer and append to ORIGINAL element (only when chrome is enabled)
       const dateStr = new Date().toLocaleDateString('pt-BR');
-      const logoImg = new Image();
-      logoImg.src = logoIbit;
-      logoImg.style.cssText = 'height: 44px; object-fit: contain; display: block;';
-      await new Promise<void>((resolve) => {
-        logoImg.onload = () => resolve();
-        logoImg.onerror = () => resolve();
-      });
-
-      const footer = document.createElement('div');
-      footer.setAttribute('data-pdf-footer', 'true');
-      footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:32px;padding-top:20px;border-top:1px solid #e5e7eb;box-sizing:border-box;';
-
-      const labelSpan = document.createElement('span');
-      labelSpan.style.cssText = `font-family:'lufga','Inter',sans-serif;font-size:16px;color:#6b7280;font-weight:500;`;
-      labelSpan.textContent = `Relatório de ${activeTab} exportado em ${dateStr}`;
-
-      footer.appendChild(labelSpan);
-      footer.appendChild(logoImg);
-      original.appendChild(footer);
+      let footer: HTMLDivElement | null = null;
+      if (options.chrome) {
+        footer = document.createElement('div');
+        footer.setAttribute('data-pdf-footer', 'true');
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Relatório de ${activeTab} exportado em ${dateStr}`);
+        original.appendChild(footer);
+      }
       console.log('[PDF Export] Footer appended to original');
+
+      // Optional official header block (title + metadata) prepended above the captured content
+      let headerBlock: HTMLDivElement | null = null;
+      if (options.chrome) {
+        headerBlock = document.createElement('div');
+        headerBlock.setAttribute('data-pdf-header', 'true');
+        headerBlock.innerHTML = buildOfficialHeaderHTML({
+          title: project?.name || 'Projeto',
+          subtitle: `Relatório Financeiro — ${activeTab}`,
+          responsibleName: user?.displayName || undefined,
+        });
+        original.insertBefore(headerBlock, original.firstChild);
+      }
 
       // 2. Apply style fixes to ORIGINAL element
       console.log('[PDF Export] Applying style fixes...');
@@ -371,7 +410,7 @@ export default function ProjectFinance() {
       const dataUrl = await toPng(original, {
         cacheBust: true,
         backgroundColor: '#f8f9fa',
-        pixelRatio: 2,
+        pixelRatio: pixelRatioFromDpi(options.dpi),
       });
       console.log('[PDF Export] Captured! DataUrl length:', dataUrl.length);
 
@@ -381,62 +420,62 @@ export default function ProjectFinance() {
         cashFlowChart.style.height = originalChartHeight;
       }
 
-      // 6. Remove footer
-      original.removeChild(footer);
+      // 6. Remove footer / header
+      if (footer) original.removeChild(footer);
+      if (headerBlock) original.removeChild(headerBlock);
       console.log('[PDF Export] Styles restored, footer removed');
 
       // 7. Generate PDF
       console.log('[PDF Export] Generating PDF...');
 
-      // --- Compose PDF (1920x1080 landscape) ---
-      const pdfWidth = 1920;
-      const pdfHeight = 1080;
-      const margin = 60;
+      // --- Compose PDF at the exact widthPx/heightPx the user chose ---
+      const pdfWidth = options.widthPx;
+      const pdfHeight = options.heightPx;
+      const margin = options.chrome ? 60 : 0;
 
       const pdf = new jsPDF({
-        orientation: 'landscape',
+        orientation: pdfWidth >= pdfHeight ? 'landscape' : 'portrait',
         unit: 'px',
         format: [pdfWidth, pdfHeight]
       });
 
       const availableWidth = pdfWidth - margin * 2;
       const availableHeight = pdfHeight - margin * 2;
+      const xOffset = margin;
 
-      const imgProps = pdf.getImageProperties(dataUrl);
-      const imgRatio = imgProps.height / imgProps.width;
+      if (activeTab === 'Dashboard') {
+        // Dashboard always fits on a single page: content is stretched to
+        // fill the full declared page (width AND height), so orientation or
+        // size changes always make it occupy the new space instead of
+        // floating in whitespace.
+        pdf.setFillColor(248, 249, 250);
+        pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+        pdf.addImage(dataUrl, 'PNG', xOffset, margin, availableWidth, availableHeight);
+      } else {
+        // Transactions can be arbitrarily long: width always fills the page,
+        // height paginates across as many pages as needed (aspect-correct
+        // per page so rows never get cropped mid-line).
+        const imgProps = pdf.getImageProperties(dataUrl);
+        const imgRatio = imgProps.height / imgProps.width;
+        const drawWidth = availableWidth;
+        const drawHeight = drawWidth * imgRatio;
 
-      let drawWidth = availableWidth;
-      let drawHeight = drawWidth * imgRatio;
+        let heightLeft = drawHeight;
+        let position = margin;
 
-      // For Dashboard: scale down to fit in a single page
-      if (activeTab === 'Dashboard' && drawHeight > availableHeight) {
-        drawHeight = availableHeight;
-        drawWidth = drawHeight / imgRatio;
-      }
-
-      const xOffset = margin + (availableWidth - drawWidth) / 2;
-      let yOffset = margin;
-      if (drawHeight <= availableHeight) {
-        yOffset = margin + (availableHeight - drawHeight) / 2;
-      }
-
-      let heightLeft = drawHeight;
-      let position = yOffset;
-
-      // Page 1
-      pdf.setFillColor(248, 249, 250);
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-      pdf.addImage(dataUrl, 'PNG', xOffset, position, drawWidth, drawHeight);
-      heightLeft -= availableHeight;
-
-      // Additional pages for long transactions
-      while (heightLeft > 0) {
-        position -= availableHeight;
-        pdf.addPage();
         pdf.setFillColor(248, 249, 250);
         pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
         pdf.addImage(dataUrl, 'PNG', xOffset, position, drawWidth, drawHeight);
         heightLeft -= availableHeight;
+
+        while (heightLeft > 0) {
+          position -= availableHeight;
+          pdf.addPage();
+          pdf.setFillColor(248, 249, 250);
+          pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+          pdf.addImage(dataUrl, 'PNG', xOffset, position, drawWidth, drawHeight);
+          heightLeft -= availableHeight;
+        }
       }
 
       pdf.save(fileName);
@@ -758,6 +797,11 @@ export default function ProjectFinance() {
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col gap-1 items-start">
+                      {t.isExternal && (
+                        <span className="text-[9px] font-bold uppercase tracking-widest bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100">
+                          RECURSO EXTERNO
+                        </span>
+                      )}
                       {t.category && (
                         <span className="text-[9px] font-bold uppercase tracking-widest bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200">
                           {t.category}
@@ -856,34 +900,62 @@ export default function ProjectFinance() {
     );
   };
 
+  const handleExportTransactionsExcel = async () => {
+    const projectNameFormatted = project?.name?.replace(/\s+/g, '-') || 'Projeto';
+
+    // Group by category, same "sectioned ledger" layout as the platform's own budget template.
+    const groupsMap = new Map<string, Transaction[]>();
+    transactions.forEach((t) => {
+      const key = t.category?.trim() || 'Sem Categoria';
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(t);
+    });
+
+    await exportLedgerToExcel({
+      filename: `${projectNameFormatted}-Transacoes-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: 'Transações',
+      title: `Transações Financeiras — ${project?.name || 'Projeto'}`,
+      totalColumnIndex: 2,
+      columns: [
+        { header: 'Descrição', type: 'string', width: 28, value: (r: Transaction) => r.title },
+        { header: 'Tipo', type: 'string', width: 12, value: (r: Transaction) => (r.type === 'income' ? 'Entrada' : 'Despesa') },
+        { header: 'Valor', type: 'currency', width: 16, value: (r: Transaction) => (r.type === 'expense' ? -Math.abs(r.amount) : r.amount) },
+        { header: 'Data', type: 'string', width: 14, value: (r: Transaction) => (r.date?.toDate ? r.date.toDate().toLocaleDateString('pt-BR') : '-') },
+        {
+          header: 'Orçamento Vinculado',
+          type: 'string',
+          width: 22,
+          value: (r: Transaction) => (r.budgetId ? budgets.find(b => b.id === r.budgetId)?.name || '-' : '-'),
+        },
+      ],
+      groups: Array.from(groupsMap.entries()).map(([name, rows]) => ({ name, rows })),
+    });
+  };
+
   const getSubheaderActions = () => {
     switch (activeTab) {
       case 'Dashboard':
         return (
           <div className="flex items-center gap-3">
-             <button 
-               onClick={handleExportPDF}
-               disabled={isExporting}
-               className="flex flex-col md:flex-row items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-200 transition-colors shadow-sm disabled:opacity-50"
-               title="Exportar Dashboard"
-             >
-               {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" /> : <Printer className="w-4 h-4 text-gray-500" />}
-               {isExporting ? <span className="hidden md:inline">GERANDO PDF...</span> : <span className="hidden md:inline">EXPORTAR PDF</span>}
-             </button>
+             <ExportButton
+               formats={['pdf']}
+               title="Exportar Dashboard Financeiro"
+               onExportPdf={handleExportPDF}
+               className="px-4 py-2 bg-gray-100 hover:bg-gray-200"
+             />
           </div>
         );
       case 'Transações':
         return (
           <div className="flex flex-wrap items-center justify-end gap-3">
-             <button 
-               onClick={handleExportPDF}
-               disabled={isExporting}
-               className="flex flex-col md:flex-row items-center gap-2 px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-200 transition-colors shadow-sm disabled:opacity-50"
+             <ExportButton
+               formats={['pdf', 'excel']}
                title="Exportar Transações"
-             >
-               {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-gray-400" /> : <Printer className="w-4 h-4 text-gray-500" />}
-               {isExporting ? <span className="hidden md:inline">GERANDO PDF...</span> : <span className="hidden md:inline">EXPORTAR PDF</span>}
-             </button>
+               onExportPdf={handleExportPDF}
+               onExportExcel={handleExportTransactionsExcel}
+               disabledFormats={{ excel: transactions.length === 0 }}
+               className="px-4 py-2 bg-gray-100 hover:bg-gray-200"
+             />
             <button 
               onClick={() => { setEditingTransaction(null); setIsOpenExpenseModal(true); }}
               className="bg-white text-gray-700 border border-gray-300 px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-gray-50 active:scale-95 shadow-sm"
@@ -1073,6 +1145,7 @@ export default function ProjectFinance() {
         {isOpenFlowModal && (
           <CashFlowDetailsModal 
             cashFlowData={cashFlowData}
+            transactions={transactions}
             onClose={() => setIsOpenFlowModal(false)}
           />
         )}
@@ -1105,7 +1178,7 @@ interface FinanceTransactionModalProps {
   initialData: Transaction | null;
   budgets: Budget[];
   onClose: () => void;
-  onSubmit: (data: { id?: string, title: string, amount: number, date: Date, category: string, budgetId: string, receiptUrl: string, createInventoryItem: boolean }) => void;
+  onSubmit: (data: { id?: string, title: string, amount: number, date: Date, category: string, budgetId: string, receiptUrl: string, createInventoryItem: boolean, isExternal: boolean }) => void;
 }
 
 function FinanceTransactionModal({ title, type, initialData, budgets, onClose, onSubmit }: FinanceTransactionModalProps) {
@@ -1118,7 +1191,8 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
     category: initialData?.category || '',
     budgetId: initialData?.budgetId || '',
     receiptUrl: initialData?.receiptUrl || '',
-    createInventoryItem: false
+    createInventoryItem: false,
+    isExternal: initialData?.isExternal || false
   });
 
   const [isUploading, setIsUploading] = useState(false);
@@ -1135,7 +1209,8 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
       category: formData.category,
       budgetId: formData.budgetId,
       receiptUrl: formData.receiptUrl,
-      createInventoryItem: formData.createInventoryItem
+      createInventoryItem: formData.createInventoryItem,
+      isExternal: formData.isExternal
     });
   };
 
@@ -1254,6 +1329,21 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
               </div>
             )}
           </div>
+
+          {type === 'expense' && (
+            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
+              <input 
+                type="checkbox" 
+                checked={formData.isExternal}
+                onChange={e => setFormData({ ...formData, isExternal: e.target.checked })}
+                className="w-5 h-5 accent-[#ff7f00] cursor-pointer rounded border-gray-300"
+              />
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-gray-900">Recurso de conta externa</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Verba de parceiros/investimento (ex: SESI) que não sai do nosso caixa — não afeta o saldo</span>
+              </div>
+            </label>
+          )}
 
           {type === 'expense' && !initialData && (
             <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 transition-colors">
@@ -1610,8 +1700,60 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
 // Modal for Large Cash Flow
 // ---------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-function CashFlowDetailsModal({ cashFlowData, onClose }: { cashFlowData: any[], onClose: () => void }) {
+function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlowData: any[], transactions: Transaction[], onClose: () => void }) {
+  const [granularity, setGranularity] = useState<'dia' | 'semana' | 'mes'>('mes');
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
+
+  // Build cumulative Entrada/Saída series bucketed by day or week, with the
+  // same running-total semantics as the monthly `cashFlowData`.
+  const buildSeries = (mode: 'dia' | 'semana') => {
+    const sorted = [...transactions].sort((a, b) => {
+      const da = a.date?.toDate ? a.date.toDate() : new Date(0);
+      const dbb = b.date?.toDate ? b.date.toDate() : new Date(0);
+      return da.getTime() - dbb.getTime();
+    });
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    const buckets: { name: string; key: string; income: number; expense: number }[] = [];
+    sorted.forEach((t) => {
+      const date = t.date?.toDate ? t.date.toDate() : new Date();
+      let key: string;
+      let name: string;
+      if (mode === 'dia') {
+        key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+        name = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
+      } else {
+        // Week bucket keyed by the week's Monday.
+        const monday = new Date(date);
+        const dow = (monday.getDay() + 6) % 7; // 0 = Monday
+        monday.setDate(monday.getDate() - dow);
+        monday.setHours(0, 0, 0, 0);
+        key = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
+        name = `Sem ${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`;
+      }
+      let row = buckets.find((b) => b.key === key);
+      if (!row) {
+        row = { name, key, income: 0, expense: 0 };
+        buckets.push(row);
+      }
+      if (t.type === 'income') row.income += t.amount;
+      if (t.type === 'expense') row.expense += t.amount;
+    });
+
+    let accIncome = 0;
+    let accExpense = 0;
+    return buckets.map((row) => {
+      accIncome += row.income;
+      accExpense += row.expense;
+      return { name: row.name, Entrada: accIncome, Saída: accExpense };
+    });
+  };
+
+  const dayData = useMemo(() => buildSeries('dia'), [transactions]);
+  const weekData = useMemo(() => buildSeries('semana'), [transactions]);
+
+  const chartData = granularity === 'dia' ? dayData : granularity === 'semana' ? weekData : cashFlowData;
 
   const CustomizedFlowLabel = (props: any) => {
     const { x, y, value, fill, position = 'top' } = props;
@@ -1653,14 +1795,35 @@ function CashFlowDetailsModal({ cashFlowData, onClose }: { cashFlowData: any[], 
                FLUXO DE CAIXA
              </h3>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-2 hover:bg-gray-200 rounded-full">
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              {([
+                { id: 'dia', label: 'Dia' },
+                { id: 'semana', label: 'Semana' },
+                { id: 'mes', label: 'Mês' },
+              ] as const).map((opt) => (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setGranularity(opt.id)}
+                  className={clsx(
+                    'px-3 py-1.5 rounded-md font-bold text-xs uppercase tracking-widest transition-all',
+                    granularity === opt.id ? 'bg-white text-[#ff7f00] shadow-sm' : 'text-gray-500 hover:text-gray-900'
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors p-2 hover:bg-gray-200 rounded-full">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
         
         <div className="flex-1 p-8 bg-white min-h-0 flex flex-col relative w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={cashFlowData} margin={{ top: 40, right: 80, left: 10, bottom: 10 }}>
+              <LineChart data={chartData} margin={{ top: 40, right: 80, left: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis dataKey="name" tick={{ fontSize: 12, fontWeight: 'bold', fill: '#6b7280' }} axisLine={{ stroke: '#e5e7eb' }} tickLine={false} dy={10} />
                 <YAxis 
