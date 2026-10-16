@@ -1,0 +1,31 @@
+{
+  "name": "ibit-whatsapp-automation",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "groups": "node dist/cli.js groups",
+    "select-group": "node dist/cli.js select-group",
+    "projects": "node dist/cli.js projects",
+    "run:deadlines": "node dist/cli.js deadlines",
+    "run:weekly": "node dist/cli.js weekly",
+    "status": "node dist/cli.js status"
+  },
+  "dependencies": {
+    "express": "5.2.1",
+    "firebase-admin": "14.5.0",
+    "node-cron": "4.6.0"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "22.20.4",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

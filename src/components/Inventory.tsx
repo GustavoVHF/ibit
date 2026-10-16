@@ -37,19 +37,20 @@ import {
   AlertTriangle,
   User as UserIcon,
   CheckSquare,
-  Loader2,
-  Printer
+  Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import { TAG_COLORS } from './TaskDetailsModal';
-import { jsPDF } from 'jspdf';
-import { toPng } from 'html-to-image';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { buildOfficialHeaderHTML, buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
+import { exportLedgerToExcel } from '../utils/export/ledgerTemplateEngine';
 
 export default function Inventory() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -199,7 +200,7 @@ export default function Inventory() {
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting) return;
     setIsExporting(true);
 
@@ -219,15 +220,14 @@ export default function Inventory() {
       `;
       document.body.appendChild(container);
 
-      // Header block
-      container.innerHTML = `
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #ff7f00;">
-          <div>
-            <div style="font-size: 20px; font-weight: 800; color: #111; text-transform: uppercase; letter-spacing: 0.1em; font-family: 'lufga', 'Inter', sans-serif; line-height: 1;">${project?.name || 'Project'}</div>
-            <div style="font-size: 11px; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px; font-family: 'lufga', 'Inter', sans-serif;">Inventory Report</div>
-          </div>
-        </div>
-      `;
+      // Header block (only when chrome is enabled)
+      container.innerHTML = options.chrome
+        ? buildOfficialHeaderHTML({
+            title: project?.name || 'Project',
+            subtitle: 'Inventory Report',
+            responsibleName: user?.displayName || undefined,
+          })
+        : '';
 
       // Create Table Wrapper
       const tableWrapper = document.createElement('div');
@@ -326,44 +326,23 @@ export default function Inventory() {
       `;
       container.appendChild(totalSection);
 
-      // Footer
-      const footer = document.createElement('div');
-      footer.style.cssText = 'display: flex; justify-content: space-between; align-items: center; width: 100%; margin-top: 16px; padding-top: 10px; border-top: 1px solid #e5e7eb;';
-      footer.innerHTML = `<span style="font-size: 8px; color: #9ca3af; font-weight: 500;">Inventory report exported from the IBIT platform on ${new Date().toLocaleDateString('en-US')}</span>`;
-      
-      const fLogo = new window.Image();
-      fLogo.src = logoIbit;
-      fLogo.style.cssText = 'height: 24px; object-fit: contain;';
-      
-      await new Promise<void>((resolve) => {
-        fLogo.onload = () => resolve();
-        fLogo.onerror = () => resolve();
-      });
-      footer.appendChild(fLogo);
-      container.appendChild(footer);
+      // Footer (logo + export date), only when chrome is enabled
+      if (options.chrome) {
+        const footer = document.createElement('div');
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Inventory report exported from the IBIT platform on ${new Date().toLocaleDateString('en-US')}`);
+        container.appendChild(footer);
+      }
 
-      // Capture and generate PDF (high-res 1:1 scale)
+      // Capture and generate PDF (page size = exact widthPx/heightPx at chosen DPI, content stretched to fill it)
       await new Promise(r => setTimeout(r, 500));
-      const dataUrl = await toPng(container, { cacheBust: true, backgroundColor: '#ffffff', pixelRatio: 2.5 });
-
-      const tempPdf = new jsPDF();
-      const ip = tempPdf.getImageProperties(dataUrl);
-      const mg = 30;
-      const pdfWidth = 564; // Adjusted to narrow width requested (564 points)
-      const pdfHeight = (pdfWidth - mg * 2) * (ip.height / ip.width) + mg * 2;
-
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
-        unit: 'pt',
-        format: [pdfWidth, pdfHeight]
-      });
-
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-      pdf.addImage(dataUrl, 'PNG', mg, mg, pdfWidth - mg * 2, pdfHeight - mg * 2);
-
       const projectNameStr = (project?.name || 'project').replace(/\s+/g, '-');
-      pdf.save(`inventory-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.pdf`);
+      await captureContainerAsPdf(container, {
+        filename: `inventory-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        widthPx: options.widthPx,
+        heightPx: options.heightPx,
+        dpi: options.dpi,
+        chrome: options.chrome,
+      });
 
       document.body.removeChild(container);
     } catch (err) {
@@ -372,6 +351,38 @@ export default function Inventory() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    const projectNameStr = (project?.name || 'project').replace(/\s+/g, '-');
+
+    // Group items by location, same "sectioned ledger" layout as the platform's own budget template.
+    const groupsMap = new Map<string, InventoryItem[]>();
+    selectedOrFilteredItems.forEach((item) => {
+      const key = item.location?.trim() || 'Sem Localização';
+      if (!groupsMap.has(key)) groupsMap.set(key, []);
+      groupsMap.get(key)!.push(item);
+    });
+
+    await exportLedgerToExcel({
+      filename: `inventario-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: 'Inventário',
+      title: `Inventário — ${project?.name || 'Projeto'}`,
+      totalColumnIndex: 4,
+      columns: [
+        { header: 'Produto', type: 'string', width: 28, value: (r: InventoryItem) => r.name },
+        { header: 'Quantidade', type: 'number', width: 14, value: (r: InventoryItem) => r.quantity },
+        { header: 'Preço Unit.', type: 'currency', width: 16, value: (r: InventoryItem) => r.unitPrice },
+        {
+          header: 'Tags',
+          type: 'string',
+          width: 24,
+          value: (r: InventoryItem) => (r.tags || []).map((tagId: string) => projectTags.find(t => t.id === tagId)?.label).filter(Boolean).join(', '),
+        },
+        { header: 'Total', type: 'currency', width: 16, value: (r: InventoryItem) => r.quantity * r.unitPrice },
+      ],
+      groups: Array.from(groupsMap.entries()).map(([name, rows]) => ({ name, rows })),
+    });
   };
 
   if (loading || !project) {
@@ -468,14 +479,14 @@ export default function Inventory() {
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={handleExportPDF}
-                  disabled={isExporting}
-                  className="bg-white text-gray-700 border border-gray-300 px-4 py-2.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50"
-                >
-                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-[#ff7f00]" /> : <Printer className="w-4 h-4" />}
-                  <span>EXPORTAR PDF</span>
-                </button>
+                <ExportButton
+                  formats={['pdf', 'excel']}
+                  title="Exportar Inventário"
+                  onExportPdf={handleExportPDF}
+                  onExportExcel={handleExportExcel}
+                  disabledFormats={{ excel: selectedOrFilteredItems.length === 0 }}
+                  className="px-4 py-2.5"
+                />
                 <button
                   onClick={() => setIsBulkDeleteConfirmOpen(true)}
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-red-100"
@@ -508,15 +519,15 @@ export default function Inventory() {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  onClick={handleExportPDF}
-                  disabled={isExporting || filteredItems.length === 0}
-                  className="bg-white text-gray-700 border border-gray-300 px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50 justify-center w-full sm:w-auto animate-fade-in"
-                >
-                  {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-[#ff7f00]" /> : <Printer className="w-4 h-4" />}
-                  <span className="hidden sm:inline">EXPORTAR PDF</span>
-                  <span className="sm:hidden">EXPORTAR</span>
-                </button>
+                <ExportButton
+                  formats={['pdf', 'excel']}
+                  title="Exportar Inventário"
+                  onExportPdf={handleExportPDF}
+                  onExportExcel={handleExportExcel}
+                  disabledFormats={{ excel: filteredItems.length === 0, pdf: filteredItems.length === 0 }}
+                  compact
+                  className="w-full sm:w-auto justify-center"
+                />
                 <button
                   onClick={() => {
                     if (isSelectionMode) {
@@ -795,7 +806,7 @@ export default function Inventory() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando PDF</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
               <p className="text-sm text-gray-500 font-medium">Gerando relatório do inventário...</p>
             </div>
           </motion.div>
@@ -861,6 +872,7 @@ interface ItemModalProps {
 }
 
 function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: ItemModalProps) {
+  const { user } = useAuth();
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
   const [quantity, setQuantity] = useState(item?.quantity.toString() || '');
@@ -902,6 +914,15 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
       } else {
         await addDoc(collection(db, 'inventory'), { ...data, createdAt: serverTimestamp() });
       }
+      await logAutomaticChange({
+        projectId,
+        source: 'Inventário',
+        title: `${item ? 'Item atualizado' : 'Novo item'}: ${data.name}`,
+        description: `${data.quantity} un. · ${data.location || 'Local não definido'} · ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.totalPrice)}`,
+        actorUid: user?.uid,
+        actorName: user?.displayName || user?.email || undefined,
+        impactAmount: item ? data.totalPrice - item.totalPrice : data.totalPrice,
+      });
       onClose();
     } catch (error) {
       handleFirestoreError(error, OperationType.CREATE, 'inventory');

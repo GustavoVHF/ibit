@@ -222,6 +222,7 @@ export default function ProjectDashboard() {
   // Calculate financial balance
   const balance = useMemo(() => {
     return transactions.reduce((acc, t) => {
+      if (t.isExternal) return acc;
       return t.type === 'income' ? acc + t.amount : acc - t.amount;
     }, 0);
   }, [transactions]);

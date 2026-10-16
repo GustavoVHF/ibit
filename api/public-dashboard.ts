@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Calculate balance
     const transactions = transactionsSnap.docs.map(d => d.data());
     const balance = transactions.reduce((acc: number, t: any) => {
+      if (t.isExternal) return acc;
       return t.type === 'income' ? acc + t.amount : acc - t.amount;
     }, 0);
 

@@ -1,0 +1,148 @@
+# IBIT · WhatsApp stack (Evolution API + automação)
+# Uso: docker compose --project-directory whatsapp up -d --build
+# Todas as variáveis vêm de whatsapp/.env (gerado por scripts/setup.ps1).
+
+name: ibit-whatsapp
+
+services:
+  evolution-postgres:
+    image: postgres:15-alpine
+    container_name: ibit_evolution_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - evolution_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ibit-whatsapp]
+
+  evolution-redis:
+    image: redis:7-alpine
+    container_name: ibit_evolution_redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - evolution_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ibit-whatsapp]
+
+  evolution-api:
+    image: evoapicloud/evolution-api:${EVOLUTION_IMAGE_TAG:-v2.3.7}
+    container_name: ibit_evolution_api
+    restart: always
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+      evolution-redis:
+        condition: service_healthy
+    # Só acessível da própria máquina (painel em http://localhost:8080/manager)
+    ports:
+      - "127.0.0.1:${EVOLUTION_PORT:-8080}:8080"
+    volumes:
+      - evolution_instances:/evolution/instances
+    environment:
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      SERVER_URL: http://localhost:${EVOLUTION_PORT:-8080}
+      LANGUAGE: pt-BR
+      TELEMETRY_ENABLED: "false"
+      CORS_ORIGIN: "*"
+      CORS_METHODS: GET,POST,PUT,DELETE
+      CORS_CREDENTIALS: "true"
+      LOG_LEVEL: ERROR,WARN,INFO
+      LOG_COLOR: "true"
+      LOG_BAILEYS: error
+      DEL_INSTANCE: "false"
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES: "true"
+      # Banco: só dados da instância (sessão). Mensagens/contatos não são salvos.
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@evolution-postgres:5432/${POSTGRES_DB}?schema=evolution_api
+      DATABASE_CONNECTION_CLIENT_NAME: ibit_evolution
+      DATABASE_SAVE_DATA_INSTANCE: "true"
+      DATABASE_SAVE_DATA_NEW_MESSAGE: "false"
+      DATABASE_SAVE_MESSAGE_UPDATE: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      CACHE_REDIS_ENABLED: "true"
+      CACHE_REDIS_URI: redis://evolution-redis:6379/6
+      CACHE_REDIS_TTL: 604800
+      CACHE_REDIS_PREFIX_KEY: evolution
+      CACHE_REDIS_SAVE_INSTANCES: "false"
+      CACHE_LOCAL_ENABLED: "false"
+      CONFIG_SESSION_PHONE_CLIENT: IBIT
+      CONFIG_SESSION_PHONE_NAME: Chrome
+      QRCODE_LIMIT: 30
+      WEBHOOK_GLOBAL_ENABLED: "false"
+      WEBSOCKET_ENABLED: "false"
+    networks: [ibit-whatsapp]
+
+  automation:
+    build:
+      context: ./automation
+    image: ibit-whatsapp-automation:local
+    container_name: ibit_whatsapp_automation
+    restart: always
+    depends_on:
+      - evolution-api
+    # Só acessível da própria máquina (http://localhost:3333)
+    ports:
+      - "127.0.0.1:${AUTOMATION_PORT:-3333}:3333"
+    volumes:
+      - ./secrets/firebase-service-account.json:/run/secrets/firebase-service-account.json:ro
+    environment:
+      TZ: ${TIMEZONE:-America/Sao_Paulo}
+      PORT: 3333
+      AUTOMATION_API_KEY: ${AUTOMATION_API_KEY}
+      EVOLUTION_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY}
+      EVOLUTION_INSTANCE: ${EVOLUTION_INSTANCE:-ibit}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/firebase-service-account.json
+      FIRESTORE_DATABASE_ID: ${FIRESTORE_DATABASE_ID}
+      APP_URL: ${APP_URL}
+      TIMEZONE: ${TIMEZONE:-America/Sao_Paulo}
+      DEFAULT_PROJECT_ID: ${DEFAULT_PROJECT_ID:-}
+      WHATSAPP_GROUP_ID: ${WHATSAPP_GROUP_ID:-}
+      DEADLINE_CRON: ${DEADLINE_CRON:-0 8 * * *}
+      DEADLINE_ALERT_DAYS: ${DEADLINE_ALERT_DAYS:-3,1,0}
+      DEADLINE_ALERT_OVERDUE: ${DEADLINE_ALERT_OVERDUE:-true}
+      OVERDUE_LOOKBACK_DAYS: ${OVERDUE_LOOKBACK_DAYS:-7}
+      WEEKLY_REPORT_DAY: ${WEEKLY_REPORT_DAY:-5}
+      WEEKLY_REPORT_TIME: ${WEEKLY_REPORT_TIME:-17:00}
+      RUN_CATCHUP_ON_STARTUP: ${RUN_CATCHUP_ON_STARTUP:-true}
+      MAX_SEND_ATTEMPTS: ${MAX_SEND_ATTEMPTS:-3}
+      # Comandos no grupo (/kpis /tarefas /gantt /prazos /financeiro /ajuda) via webhook da Evolution
+      WEBHOOK_URL: http://automation:3333/webhook/evolution
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-}
+      COMMANDS_ENABLED: ${COMMANDS_ENABLED:-true}
+      COMMAND_COOLDOWN_SEC: ${COMMAND_COOLDOWN_SEC:-10}
+      COMMAND_MAX_AGE_SEC: ${COMMAND_MAX_AGE_SEC:-300}
+      COMMAND_DEADLINE_DAYS: ${COMMAND_DEADLINE_DAYS:-7}
+      COMMAND_MOVE_ENABLED: ${COMMAND_MOVE_ENABLED:-true}
+      COMMAND_CREATE_ENABLED: ${COMMAND_CREATE_ENABLED:-true}
+      PRIVATE_COMMANDS: ${PRIVATE_COMMANDS:-members}
+      PRIVATE_ALLOWED_NUMBERS: ${PRIVATE_ALLOWED_NUMBERS:-}
+      PRIVATE_PROJECT_ID: ${PRIVATE_PROJECT_ID:-}
+    networks: [ibit-whatsapp]
+
+volumes:
+  evolution_postgres:
+  evolution_redis:
+  evolution_instances:
+
+networks:
+  ibit-whatsapp:
+    name: ibit-whatsapp

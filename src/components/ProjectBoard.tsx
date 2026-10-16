@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { doc, collection, query, where, onSnapshot, addDoc, serverTimestamp, updateDoc, deleteDoc, documentId, writeBatch } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logAutomaticChange } from '../utils/changeHistory';
 import { Project, Board, Task, UserProfile, ProjectTag } from '../types';
 import Sidebar from './Sidebar';
 import MobileHeader from './MobileHeader';
@@ -236,7 +237,26 @@ export default function ProjectBoard() {
       newSourceTasks.forEach((task, index) => { batch.update(doc(db, 'tasks', task.id), { order: index }); });
       newDestTasks.forEach((task, index) => { if (task.id !== taskToMove.id) { batch.update(doc(db, 'tasks', task.id), { order: index }); } });
     }
-    try { await batch.commit(); } catch (error) { handleFirestoreError(error, OperationType.UPDATE, 'tasks-movement'); }
+    try {
+      await batch.commit();
+
+      // Mover card entre colunas é troca de status: registra no histórico
+      if (sourceBoardId !== destBoardId) {
+        const movedTask = sourceTasks[source.index];
+        const fromName = boards.find(b => b.id === sourceBoardId)?.name || 'coluna anterior';
+        const toName = boards.find(b => b.id === destBoardId)?.name || 'nova coluna';
+        await logAutomaticChange({
+          projectId,
+          source: 'Kanban',
+          title: `Tarefa "${movedTask?.title || 'sem título'}" mudou de status`,
+          description: `Movida de "${fromName}" para "${toName}"`,
+          actorUid: user?.uid,
+          actorName: user?.displayName || user?.email || undefined,
+        });
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'tasks-movement');
+    }
   };
 
   if (loading || !project) {

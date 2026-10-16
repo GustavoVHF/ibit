@@ -23,6 +23,9 @@ import ProjectTags from './components/ProjectTags';
 import PublicAudit from './components/PublicAudit';
 import Stakeholders from './components/Stakeholders';
 import RiskManagement from './components/RiskManagement';
+import KpiManagement from './components/KpiManagement';
+import StatusReports from './components/StatusReports';
+import ChangeHistory from './components/ChangeHistory';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -148,6 +151,30 @@ export default function App() {
               element={
                 <PrivateRoute>
                   <RiskManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/project/:projectId/kpis"
+              element={
+                <PrivateRoute>
+                  <KpiManagement />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/project/:projectId/status-reports"
+              element={
+                <PrivateRoute>
+                  <StatusReports />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/project/:projectId/gestao-de-mudancas"
+              element={
+                <PrivateRoute>
+                  <ChangeHistory />
                 </PrivateRoute>
               }
             />

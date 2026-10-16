@@ -42,7 +42,6 @@ import {
   AlertCircle,
   BarChart,
   Layout,
-  Printer,
   Upload,
   FileJson,
   ChevronDown
@@ -50,12 +49,14 @@ import {
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { diffInDays, logAutomaticChange, toDateSafe } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import ProjectSettingsModal from './ProjectSettingsModal';
-import { jsPDF } from 'jspdf';
-import { toPng } from 'html-to-image';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
+import { exportToExcel } from '../utils/export/excelEngine';
 
 // --- Components ---
 
@@ -726,6 +727,20 @@ export default function GanttChart() {
           changeLog: newChangeLog,
           updatedAt: serverTimestamp()
         });
+
+        // Registra a alteração no Histórico de Mudanças do projeto
+        if (changes.length > 0) {
+          const shiftedDays = diffInDays(toDateSafe(editingTask.endDate), toDateSafe(taskData.endDate));
+          await logAutomaticChange({
+            projectId,
+            source: 'Gantt',
+            title: `Tarefa "${taskData.title || editingTask.title}" atualizada no cronograma`,
+            description: changes.map(c => `${c.field}: ${c.oldValue || '—'} → ${c.newValue || '—'}`).join(' · '),
+            actorUid: user?.uid,
+            actorName: user?.displayName || user?.email || undefined,
+            impactDays: shiftedDays,
+          });
+        }
       } else {
         await addDoc(collection(db, 'ganttTasks'), {
           ...taskData,
@@ -1086,7 +1101,7 @@ export default function GanttChart() {
 
   // --- PDF Export Handler ---
   // --- PDF Export Handler ---
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting || tasks.length === 0) return;
     setIsExporting(true);
     await new Promise(r => setTimeout(r, 100));
@@ -1122,7 +1137,9 @@ export default function GanttChart() {
       const container = document.createElement('div');
       container.style.cssText = `position:fixed;left:0;top:0;background:#fff;padding:40px;font-family:system-ui,-apple-system,sans-serif;width:${TOTAL_W}px;box-sizing:border-box;z-index:50;overflow:visible;`;
       document.body.appendChild(container);
-      container.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e5e7eb;"><div><div style="font-size:24px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.1em;">${project?.name || 'Project'}</div><div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Gantt Chart</div></div></div>`;
+      container.innerHTML = options.chrome
+        ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e5e7eb;"><div><div style="font-size:24px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.1em;">${project?.name || 'Project'}</div><div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Gantt Chart</div></div></div>`
+        : '';
 
       const body = document.createElement('div');
       body.style.cssText = 'display:flex;border:1px solid #e5e7eb;border-radius:4px;overflow:hidden;';
@@ -1350,6 +1367,7 @@ export default function GanttChart() {
       body.appendChild(left); body.appendChild(right);
       container.appendChild(body);
 
+      if (options.chrome) {
       // Footer
       const footer = document.createElement('div');
       footer.style.cssText = 'display:flex;flex-direction:column;gap:12px;width:100%;margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;';
@@ -1398,28 +1416,18 @@ export default function GanttChart() {
       footer.appendChild(bottomRow);
       
       container.appendChild(footer);
+      }
 
       await new Promise(r => setTimeout(r, 500));
-      const dataUrl = await toPng(container, { cacheBust: true, backgroundColor: '#ffffff', pixelRatio: 2 });
-      
-      // Setup dynamic single page PDF
-      const tempPdf = new jsPDF();
-      const ip = tempPdf.getImageProperties(dataUrl);
-      const mg = 40; // margin
-      const pdfWidth = TOTAL_W; // Reduced document width to facilitate readability
-      const pdfHeight = (pdfWidth - mg * 2) * (ip.height / ip.width) + mg * 2;
-      
-      const pdf = new jsPDF({ 
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait', 
-        unit: 'pt', 
-        format: [pdfWidth, pdfHeight] 
+
+      await captureContainerAsPdf(container, {
+        filename: `gantt-${(project?.name||'project').replace(/\s+/g,'-')}-${new Date().toISOString().substring(0,10)}.pdf`,
+        widthPx: options.widthPx,
+        heightPx: options.heightPx,
+        dpi: options.dpi,
+        chrome: options.chrome,
       });
-      
-      pdf.setFillColor(255, 255, 255); 
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F'); 
-      pdf.addImage(dataUrl, 'PNG', mg, mg, pdfWidth - mg * 2, pdfHeight - mg * 2); 
-      
-      pdf.save(`gantt-${(project?.name||'project').replace(/\s+/g,'-')}-${new Date().toISOString().substring(0,10)}.pdf`);
+
       document.body.removeChild(container);
     } catch (err) {
       console.error('[Gantt PDF Export] Error:', err);
@@ -1427,6 +1435,33 @@ export default function GanttChart() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    const taskRows = rows.filter((r) => r.type === 'task') as { type: 'task'; task: GanttTask }[];
+    await exportToExcel({
+      filename: `gantt-${(project?.name || 'project').replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: 'Gantt',
+      title: `Cronograma (Gantt) — ${project?.name || 'Projeto'}`,
+      columns: [
+        { header: 'WBS', key: 'wbs', type: 'string', width: 10, value: (r) => taskIdToWbs[r.task.id] || '-' },
+        { header: 'Tarefa', key: 'title', type: 'string', width: 32, value: (r) => r.task.title },
+        { header: 'Seção', key: 'section', type: 'string', width: 20, value: (r) => r.task.section || '-' },
+        { header: 'Categoria', key: 'category', type: 'string', width: 16, value: (r) => r.task.category || '-' },
+        { header: 'Início', key: 'startDate', type: 'date', width: 14, value: (r) => new Date(r.task.startDate.seconds * 1000) },
+        { header: 'Término', key: 'endDate', type: 'date', width: 14, value: (r) => new Date(r.task.endDate.seconds * 1000) },
+        { header: 'Progresso', key: 'progress', type: 'percent', width: 14, value: (r) => (r.task.progress || 0) / 100 },
+        { header: 'Status', key: 'status', type: 'string', width: 16, value: (r) => r.task.status },
+        {
+          header: 'Dependências',
+          key: 'dependencies',
+          type: 'string',
+          width: 20,
+          value: (r) => (r.task.dependencies || []).map((id) => taskIdToWbs[id]).filter(Boolean).join(', '),
+        },
+      ],
+      rows: taskRows,
+    });
   };
 
   if (loading) {
@@ -1590,15 +1625,15 @@ export default function GanttChart() {
                   )}
                 </AnimatePresence>
               </div>
-             <button 
-               onClick={handleExportPDF}
-               disabled={isExporting || tasks.length === 0}
-               className="bg-white text-gray-700 border border-gray-300 px-3 py-1.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50"
-               title="Exportar PDF"
-             >
-               {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ff7f00]" /> : <Printer className="w-3.5 h-3.5" />}
-               EXPORTAR PDF
-             </button>
+             <ExportButton
+               formats={['pdf', 'excel']}
+               title="Exportar Gantt"
+               onExportPdf={handleExportPDF}
+               onExportExcel={handleExportExcel}
+               disabledFormats={{ pdf: tasks.length === 0, excel: tasks.length === 0 }}
+               compact
+               className="px-3 py-1.5 text-[10px]"
+             />
              <button 
                onClick={() => setIsStakeholderModalOpen(true)}
                className="bg-white text-gray-700 border border-gray-300 px-3 py-1.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg hover:bg-gray-50 active:scale-95"
@@ -2143,7 +2178,7 @@ export default function GanttChart() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando PDF</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
               <p className="text-sm text-gray-500 font-medium">Gerando cronograma completo...</p>
             </div>
           </motion.div>

@@ -237,8 +237,103 @@ service cloud.firestore {
              (!( 'externalType' in data ) || data.externalType in ['Ameaça', 'Oportunidade']);
     }
 
+    function isValidProjectKPI(data) {
+      return hasOnlyAllowedFields(['projectId', 'name', 'sector', 'description', 'targetComparator', 'targetValue', 'targetUnit', 'currentValue', 'startDate', 'deadline', 'responsible', 'status', 'history', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.projectId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.sector in ['Engenharia', 'Marketing', 'Financeiro', 'Gestão de Projetos', 'Design', 'Projeto Social'] &&
+             (!( 'description' in data ) || data.description is string) &&
+             data.targetComparator in ['>=', '<=', '='] &&
+             data.targetValue is number &&
+             (!( 'targetUnit' in data ) || data.targetUnit is string) &&
+             data.currentValue is number &&
+             (!( 'startDate' in data ) || data.startDate == null || data.startDate is timestamp) &&
+             data.deadline is timestamp &&
+             (!( 'responsible' in data ) || data.responsible == null || data.responsible is string) &&
+             data.status in ['Concluído', 'Em Andamento', 'Em Risco', 'Atrasado'] &&
+             (!( 'history' in data ) || data.history is list) &&
+             data.ownerId is string &&
+             data.createdAt is timestamp &&
+             (!( 'updatedAt' in data ) || data.updatedAt is timestamp);
+    }
+
+    function isValidStatusReportActionItem(item) {
+      return item is map &&
+             'id' in item && item.id is string &&
+             'task' in item && item.task is string &&
+             (!( 'responsible' in item ) || item.responsible == null || item.responsible is string) &&
+             'done' in item && item.done is bool;
+    }
+
+    function isValidStatusReportAttachment(att) {
+      return att is map &&
+             'name' in att && att.name is string &&
+             'url' in att && att.url is string;
+    }
+
+    function isValidStatusReportNextMeeting(nm) {
+      return nm is map &&
+             'scheduled' in nm && nm.scheduled is bool &&
+             (!( 'date' in nm ) || nm.date == null || nm.date is timestamp) &&
+             (!( 'agenda' in nm ) || nm.agenda == null || nm.agenda is string) &&
+             (!( 'syncCalendar' in nm ) || nm.syncCalendar is bool) &&
+             (!( 'createKanbanCard' in nm ) || nm.createKanbanCard is bool) &&
+             (!( 'taskId' in nm ) || nm.taskId == null || nm.taskId is string);
+    }
+
+    function isValidStatusReport(data) {
+      return hasOnlyAllowedFields(['projectId', 'date', 'location', 'sector', 'participants', 'agenda', 'minutes', 'outcome', 'outcomeRating', 'actionItems', 'attachments', 'approved', 'approvedBy', 'approvedAt', 'impactStatus', 'impactEvaluations', 'nextMeeting', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.projectId is string &&
+             data.date is timestamp &&
+             data.location is string &&
+             data.sector in ['Geral', 'Marketing', 'Engenharia', 'Financeiro', 'Design', 'Projeto Social'] &&
+             data.participants is list &&
+             data.agenda is string && data.agenda.size() > 0 && data.agenda.size() < 300 &&
+             (!( 'minutes' in data ) || data.minutes is string) &&
+             (!( 'outcome' in data ) || data.outcome is string) &&
+             (!( 'outcomeRating' in data ) || data.outcomeRating == null || (data.outcomeRating is number && data.outcomeRating >= 1 && data.outcomeRating <= 5)) &&
+             (!( 'actionItems' in data ) || (data.actionItems is list && data.actionItems.size() <= 50)) &&
+             (!( 'attachments' in data ) || (data.attachments is list && data.attachments.size() <= 20)) &&
+             data.approved is bool &&
+             (!( 'approvedBy' in data ) || data.approvedBy == null || data.approvedBy is string) &&
+             (!( 'approvedAt' in data ) || data.approvedAt == null || data.approvedAt is timestamp) &&
+             (!( 'impactStatus' in data ) || data.impactStatus in ['Alto Impacto', 'Impacto Moderado', 'Sem Impacto', 'Pendente de Avaliação']) &&
+             (!( 'impactEvaluations' in data ) || (data.impactEvaluations is list && data.impactEvaluations.size() <= 100)) &&
+             (!( 'nextMeeting' in data ) || data.nextMeeting == null || isValidStatusReportNextMeeting(data.nextMeeting)) &&
+             data.ownerId is string &&
+             data.createdAt is timestamp &&
+             (!( 'updatedAt' in data ) || data.updatedAt is timestamp);
+    }
+
+    // HISTÓRICO DE MUDANÇAS
+    function isValidChangeHistoryEntry(data) {
+      return hasOnlyAllowedFields(['projectId', 'origin', 'source', 'title', 'description', 'sector', 'linkedGanttTaskId', 'linkedKanbanTaskId', 'appliedAt', 'appliedBy', 'requestedBy', 'requestedByName', 'impactDays', 'impactAmount', 'qualityRisk', 'status', 'decisionNote', 'decidedBy', 'decidedByName', 'decidedAt', 'createdAt', 'updatedAt']) &&
+             data.projectId is string &&
+             data.origin in ['auto', 'manual'] &&
+             (!( 'source' in data ) || data.source in ['Gantt', 'Kanban', 'Status Reports', 'Orçamento', 'KPIs', 'RACI', 'Riscos', 'Inventário', 'Plataforma']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 300 &&
+             (!( 'description' in data ) || data.description is string && data.description.size() < 5000) &&
+             (!( 'sector' in data ) || data.sector in ['Engenharia', 'Marketing', 'Financeiro', 'Design', 'Gestão']) &&
+             (!( 'linkedGanttTaskId' in data ) || data.linkedGanttTaskId == null || data.linkedGanttTaskId is string) &&
+             (!( 'linkedKanbanTaskId' in data ) || data.linkedKanbanTaskId == null || data.linkedKanbanTaskId is string) &&
+             (!( 'appliedAt' in data ) || data.appliedAt == null || data.appliedAt is timestamp) &&
+             (!( 'appliedBy' in data ) || data.appliedBy == null || data.appliedBy is string) &&
+             data.requestedBy is string &&
+             (!( 'requestedByName' in data ) || data.requestedByName is string) &&
+             (!( 'impactDays' in data ) || data.impactDays is number) &&
+             (!( 'impactAmount' in data ) || data.impactAmount is number) &&
+             (!( 'qualityRisk' in data ) || data.qualityRisk in ['Neutro', 'Baixo', 'Médio', 'Alto']) &&
+             data.status in ['Registrado', 'Pendente', 'Aprovado', 'Recusado', 'Postergado', 'Prolongado'] &&
+             (!( 'decisionNote' in data ) || data.decisionNote is string && data.decisionNote.size() < 5000) &&
+             (!( 'decidedBy' in data ) || data.decidedBy == null || data.decidedBy is string) &&
+             (!( 'decidedByName' in data ) || data.decidedByName == null || data.decidedByName is string) &&
+             (!( 'decidedAt' in data ) || data.decidedAt == null || data.decidedAt is timestamp) &&
+             data.createdAt is timestamp &&
+             (!( 'updatedAt' in data ) || data.updatedAt is timestamp);
+    }
+
     function isValidTransaction(data) {
-      return hasOnlyAllowedFields(['projectId', 'title', 'amount', 'date', 'category', 'type', 'budgetId', 'receiptUrl', 'createdAt']) &&
+      return hasOnlyAllowedFields(['projectId', 'title', 'amount', 'date', 'category', 'type', 'budgetId', 'receiptUrl', 'isExternal', 'createdAt']) &&
              data.projectId is string &&
              data.title is string &&
              data.amount is number &&
@@ -247,6 +342,7 @@ service cloud.firestore {
              data.type in ['income', 'expense'] &&
              (!( 'budgetId' in data ) || data.budgetId is string) &&
              (!( 'receiptUrl' in data ) || data.receiptUrl is string) &&
+             (!( 'isExternal' in data ) || data.isExternal is bool) &&
              data.createdAt is timestamp;
     }
 
@@ -480,6 +576,32 @@ service cloud.firestore {
       allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidProjectRisk(request.resource.data);
       allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidProjectRisk(request.resource.data) &&
                     areImmutableFieldsUnchanged(['projectId', 'createdAt']);
+      allow delete: if canWrite(resource.data.projectId) || isAdmin();
+    }
+
+    match /projectKPIs/{kpiId} {
+      allow read: if isProjectMember(resource.data.projectId) || isAdmin();
+      allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidProjectKPI(request.resource.data);
+      allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidProjectKPI(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['projectId', 'createdAt', 'ownerId']);
+      allow delete: if canWrite(resource.data.projectId) || isAdmin();
+    }
+
+    match /statusReports/{reportId} {
+      allow read: if isProjectMember(resource.data.projectId) || isAdmin();
+      allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidStatusReport(request.resource.data);
+      allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidStatusReport(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['projectId', 'createdAt', 'ownerId']);
+      allow delete: if canWrite(resource.data.projectId) || isAdmin();
+    }
+
+    // HISTÓRICO DE MUDANÇAS
+    match /changeHistory/{entryId} {
+      allow read: if isProjectMember(resource.data.projectId) || isAdmin();
+      allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidChangeHistoryEntry(request.resource.data);
+      // origin/createdAt/requestedBy são imutáveis: o histórico não pode ser reescrito
+      allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidChangeHistoryEntry(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['projectId', 'createdAt', 'origin', 'requestedBy']);
       allow delete: if canWrite(resource.data.projectId) || isAdmin();
     }
 

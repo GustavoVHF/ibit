@@ -6,6 +6,8 @@ import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
+import { useAuth } from '../contexts/AuthContext';
+import { diffInDays, logAutomaticChange, toDateSafe } from '../utils/changeHistory';
 
 interface TaskDetailsModalProps {
   task: Task;
@@ -36,6 +38,7 @@ export const TAG_COLORS = [
 ];
 
 export default function TaskDetailsModal({ task, onClose, projectMembers }: TaskDetailsModalProps) {
+  const { user } = useAuth();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   
@@ -105,6 +108,47 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
       }
 
       await updateDoc(taskRef, updateData);
+
+      const previousStartDate = toDateSafe(task.startDate);
+      const previousDueDate = toDateSafe(task.dueDate);
+      const currentStartDate = toDateSafe(updateData.startDate);
+      const currentDueDate = toDateSafe(updateData.dueDate);
+      const assigneesChanged = JSON.stringify([...initialAssignees].sort()) !== JSON.stringify([...assignedTo].sort());
+      const isSameDate = (first: Date | null, second: Date | null) =>
+        first?.getFullYear() === second?.getFullYear()
+        && first?.getMonth() === second?.getMonth()
+        && first?.getDate() === second?.getDate();
+      const startDateChanged = !isSameDate(previousStartDate, currentStartDate);
+      const dueDateChanged = !isSameDate(previousDueDate, currentDueDate);
+
+      if (assigneesChanged || startDateChanged || dueDateChanged) {
+        const formatDate = (date: Date | null) => date?.toLocaleDateString('pt-BR') || 'Não definida';
+        const formatAssignees = (uids: string[]) => {
+          const names = uids.map((uid) => projectMembers.find((member) => member.uid === uid)?.name || 'Membro removido');
+          return names.length > 0 ? names.join(', ') : 'Sem responsável';
+        };
+        const changes: string[] = [];
+        if (assigneesChanged) {
+          changes.push(`Responsáveis: ${formatAssignees(initialAssignees)} → ${formatAssignees(assignedTo)}`);
+        }
+        if (startDateChanged) {
+          changes.push(`Início: ${formatDate(previousStartDate)} → ${formatDate(currentStartDate)}`);
+        }
+        if (dueDateChanged) {
+          changes.push(`Entrega: ${formatDate(previousDueDate)} → ${formatDate(currentDueDate)}`);
+        }
+
+        await logAutomaticChange({
+          projectId: task.projectId,
+          source: 'Kanban',
+          title: `Tarefa "${title.trim() || task.title}" atualizada no Kanban`,
+          description: changes.join(' · '),
+          actorUid: user?.uid,
+          actorName: user?.displayName || user?.email || undefined,
+          impactDays: diffInDays(previousDueDate, currentDueDate),
+        });
+      }
+
       onClose();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `tasks/${task.id}`);

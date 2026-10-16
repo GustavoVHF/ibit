@@ -19,6 +19,10 @@ import {
   Users,
   Tag,
   LogOut,
+  AlertTriangle,
+  Target,
+  ClipboardList,
+  History,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
@@ -73,6 +77,10 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
     { id: 'inventory', label: 'INVENTÁRIO', icon: Archive, path: `/project/${projectId}/inventory` },
     { id: 'assets', label: 'ATIVOS', icon: Folder, path: `/project/${projectId}/assets` },
     { id: 'raci', label: 'MATRIZ RACI', icon: Grid3X3, path: `/project/${projectId}/raci` },
+    { id: 'risks', label: 'GESTÃO DE RISCOS', icon: AlertTriangle, path: `/project/${projectId}/risks` },
+    { id: 'kpis', label: 'KPIS', icon: Target, path: `/project/${projectId}/kpis` },
+    { id: 'status-reports', label: 'STATUS REPORTS', icon: ClipboardList, path: `/project/${projectId}/status-reports` },
+    { id: 'gestao-de-mudancas', label: 'GESTÃO DE MUDANÇAS', icon: History, path: `/project/${projectId}/gestao-de-mudancas` },
     { id: 'gantt', label: 'GANTT', icon: BarChart, path: `/project/${projectId}/gantt` },
     { id: 'finance', label: 'FINANCEIRO', icon: DollarSign, path: `/project/${projectId}/finance` },
   ];

@@ -36,18 +36,19 @@ import {
   UserPlus,
   ArrowLeft,
   CheckCircle2,
-  Info,
-  Printer
+  Info
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
-import { jsPDF } from 'jspdf';
-import { toPng } from 'html-to-image';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
+import { exportRaciFromTemplate } from '../utils/export/raciTemplateEngine';
 
 export default function RACIMatrix() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -253,6 +254,17 @@ export default function RACIMatrix() {
         await setDoc(doc(db, 'raciAssignments', assignmentId), data);
       }
 
+      const raciTask = tasks.find(task => task.id === taskId);
+      const participant = stakeholders.find(item => item.id === participantId);
+      await logAutomaticChange({
+        projectId,
+        source: 'RACI',
+        title: `Responsabilidade ${role || 'removida'} na Matriz RACI`,
+        description: `${participant?.name || 'Participante'}${role ? ` recebeu o papel ${role}` : ' foi removido'} em ${raciTask?.title || 'atividade'}`,
+        actorUid: user?.uid,
+        actorName: user?.displayName || user?.email || undefined,
+      });
+
       // Cleanup Background: Look for any random (legacy) IDs for this same assignment
       // and remove them to avoid duplicates. We don't await this to keep UI snappy.
       const q = query(
@@ -283,7 +295,7 @@ export default function RACIMatrix() {
     photoURL: s.userId ? projectMembers.find(m => m.uid === s.userId)?.photoURL : undefined
   }));
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting || tasks.length === 0) return;
     setIsExporting(true);
     await new Promise(r => setTimeout(r, 100));
@@ -299,14 +311,14 @@ export default function RACIMatrix() {
       container.style.cssText = `position:fixed;left:0;top:0;background:#fff;padding:40px;font-family:system-ui,-apple-system,sans-serif;width:${TOTAL_W}px;box-sizing:border-box;z-index:50;overflow:visible;`;
       document.body.appendChild(container);
 
-      container.innerHTML = `
+      container.innerHTML = options.chrome ? `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #ff7f00;">
           <div>
             <div style="font-size:24px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.1em;">${project?.name || 'Projeto'}</div>
             <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Matriz RACI - ${currentMatrix?.name || 'Matriz'}</div>
           </div>
         </div>
-      `;
+      ` : '';
 
       const tableWrapper = document.createElement('div');
       tableWrapper.style.cssText = 'border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff;';
@@ -391,37 +403,23 @@ export default function RACIMatrix() {
       `;
       container.appendChild(legend);
 
-      const footer = document.createElement('div');
-      footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;';
-      footer.innerHTML = `<span style="font-size:10px;color:#9ca3af;font-weight:500;">Matriz RACI exportada da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}</span>`;
-      const fLogo = new window.Image();
-      fLogo.src = logoIbit;
-      fLogo.style.cssText = 'height:30px;object-fit:contain;';
-      footer.appendChild(fLogo);
-      container.appendChild(footer);
+      if (options.chrome) {
+        const footer = document.createElement('div');
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Matriz RACI exportada da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        container.appendChild(footer);
+      }
 
       await new Promise(r => setTimeout(r, 500));
-      const dataUrl = await toPng(container, { cacheBust: true, backgroundColor: '#ffffff', pixelRatio: 2 });
-
-      const tempPdf = new jsPDF();
-      const ip = tempPdf.getImageProperties(dataUrl);
-      const mg = 40;
-      const pdfWidth = 3840;
-      const pdfHeight = (pdfWidth - mg * 2) * (ip.height / ip.width) + mg * 2;
-
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
-        unit: 'pt',
-        format: [pdfWidth, pdfHeight]
-      });
-
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-      pdf.addImage(dataUrl, 'PNG', mg, mg, pdfWidth - mg * 2, pdfHeight - mg * 2);
 
       const matrixFileName = (currentMatrix?.name || 'matriz').replace(/\s+/g, '-');
       const projectNameStr = (project?.name || 'projeto').replace(/\s+/g, '-');
-      pdf.save(`raci-${projectNameStr}-${matrixFileName}-${new Date().toISOString().substring(0, 10)}.pdf`);
+      await captureContainerAsPdf(container, {
+        filename: `raci-${projectNameStr}-${matrixFileName}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        widthPx: options.widthPx,
+        heightPx: options.heightPx,
+        dpi: options.dpi,
+        chrome: options.chrome,
+      });
 
       document.body.removeChild(container);
     } catch (err) {
@@ -430,6 +428,20 @@ export default function RACIMatrix() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    const matrixFileName = (currentMatrix?.name || 'matriz').replace(/\s+/g, '-');
+    const projectNameStr = (project?.name || 'projeto').replace(/\s+/g, '-');
+    await exportRaciFromTemplate({
+      filename: `raci-${projectNameStr}-${matrixFileName}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      matrixTitle: currentMatrix?.name || 'Matriz RACI',
+      participants: participants.map((p) => ({ name: p.name })),
+      tasks: tasks.map((task) => ({
+        title: task.title,
+        roles: participants.map((p) => getRole(task.id, p.id)),
+      })),
+    });
   };
 
   if (loading || !project) {
@@ -525,15 +537,15 @@ export default function RACIMatrix() {
           <div className="flex gap-2 sm:gap-3">
             {currentMatrixId ? (
               <>
-                <button 
-                  onClick={handleExportPDF}
-                  disabled={isExporting || tasks.length === 0}
-                  className="bg-white text-gray-700 border border-gray-300 px-3 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-[9px] sm:text-[10px] rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50 flex-1 sm:flex-none"
-                  title="Exportar PDF"
-                >
-                  {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin text-[#ff7f00]" /> : <Printer className="w-3.5 h-3.5" />}
-                  EXPORTAR PDF
-                </button>
+                <ExportButton
+                  formats={['pdf', 'excel']}
+                  title="Exportar Matriz RACI"
+                  onExportPdf={handleExportPDF}
+                  onExportExcel={handleExportExcel}
+                  disabledFormats={{ pdf: tasks.length === 0, excel: tasks.length === 0 }}
+                  compact
+                  className="px-3 py-2 text-[9px] sm:text-[10px] flex-1 sm:flex-none"
+                />
                 <button 
                   onClick={() => { setEditingTask(null); setIsTaskModalOpen(true); }}
                   className="bg-white text-gray-700 border border-gray-300 px-3 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-[9px] sm:text-[10px] rounded-lg hover:bg-gray-50 active:scale-95 flex-1 sm:flex-none"
@@ -834,7 +846,7 @@ export default function RACIMatrix() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando PDF</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
               <p className="text-sm text-gray-500 font-medium">Gerando matriz de responsabilidades completa...</p>
             </div>
           </motion.div>

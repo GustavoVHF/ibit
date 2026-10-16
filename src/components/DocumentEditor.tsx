@@ -49,7 +49,6 @@ import {
   Tag as TagIcon,
   X,
   CalendarDays,
-  Printer,
   Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -60,6 +59,10 @@ import logoIbit from '../media/ibitlogo.svg';
 import clsx from 'clsx';
 import { ProjectTag } from '../types';
 import { TAG_COLORS } from './TaskDetailsModal';
+import ExportButton from './export/ExportButton';
+import { buildOfficialFooterHTML, PdfExportOptions, pixelRatioFromDpi } from '../utils/export/pdfEngine';
+import { exportToWord } from '../utils/export/wordEngine';
+import { tiptapJsonToWordSections } from '../utils/export/tiptapToWord';
 
 // --- Custom Tag Extension ---
 const TagNode = Node.create({
@@ -216,7 +219,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
     }
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting || !editor) return;
     setIsExporting(true);
 
@@ -251,28 +254,18 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       original.style.maxWidth = 'none';
       original.style.width = `${Math.max(original.scrollWidth, 900)}px`;
 
-      // 1. Build footer
+      // 1. Build footer (only when chrome is enabled). Documents already show
+      // their own title inline in the editor content, so unlike other pages
+      // this export skips the official title/subtitle header block — only
+      // the export-date + IBIT logo footer metadata is added.
       const dateStr = new Date().toLocaleDateString('pt-BR');
-      const logoImg = new window.Image();
-      logoImg.src = logoIbit;
-      logoImg.style.cssText = 'height: 44px; object-fit: contain; display: block;';
-      
-      await new Promise<void>((resolve) => {
-        logoImg.onload = () => resolve();
-        logoImg.onerror = () => resolve();
-      });
-
-      const footer = document.createElement('div');
-      footer.setAttribute('data-pdf-footer', 'true');
-      footer.style.cssText = 'display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:48px;padding-top:24px;border-top:1px solid #e5e7eb;box-sizing:border-box;';
-
-      const labelSpan = document.createElement('span');
-      labelSpan.style.cssText = `font-family:sans-serif;font-size:14px;color:#6b7280;font-weight:500;`;
-      labelSpan.textContent = `Documento exportado da plataforma IBIT em ${dateStr}`;
-
-      footer.appendChild(labelSpan);
-      footer.appendChild(logoImg);
-      original.appendChild(footer);
+      let footer: HTMLDivElement | null = null;
+      if (options.chrome) {
+        footer = document.createElement('div');
+        footer.setAttribute('data-pdf-footer', 'true');
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Documento exportado da plataforma IBIT em ${dateStr}`);
+        original.appendChild(footer);
+      }
 
       // Wait for layout to settle
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -281,7 +274,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       const dataUrl = await toPng(original, {
         cacheBust: true,
         backgroundColor: '#ffffff',
-        pixelRatio: 2,
+        pixelRatio: pixelRatioFromDpi(options.dpi),
         filter: (node) => {
           if (node?.classList?.contains('ProseMirror-separator')) {
             return false;
@@ -290,16 +283,15 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         }
       });
 
-      // 3. Generate PDF using A4 portrait dimensions
-      // A4 in px at 72 DPI: 595.28 x 841.89
-      const pdfWidth = 595.28;
-      const pdfHeight = 841.89;
-      const margin = 40;
+      // 3. Generate PDF: physical page size (pt) derived from widthPx/heightPx at the chosen DPI
+      const pdfWidth = (options.widthPx / options.dpi) * 72;
+      const pdfHeight = (options.heightPx / options.dpi) * 72;
+      const margin = options.chrome ? 40 : 0;
 
       const pdf = new jsPDF({
-        orientation: 'portrait',
+        orientation: pdfWidth >= pdfHeight ? 'landscape' : 'portrait',
         unit: 'pt',
-        format: 'a4'
+        format: [pdfWidth, pdfHeight]
       });
 
       const availableWidth = pdfWidth - margin * 2;
@@ -350,6 +342,24 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       });
       document.querySelectorAll('[data-pdf-footer="true"]').forEach(el => el.remove());
       setIsExporting(false);
+    }
+  };
+
+  const handleExportWord = async () => {
+    if (!editor) return;
+    try {
+      const docJson = editor.getJSON();
+      const sections = tiptapJsonToWordSections(docJson as any);
+      await exportToWord({
+        filename: `${title.replace(/\s+/g, '-') || 'documento'}-${new Date().toISOString().substring(0, 10)}.docx`,
+        title: title || 'Documento',
+        subtitle: 'Documento exportado da plataforma IBIT',
+        sections,
+      });
+    } catch (err) {
+      console.error('[Word Export] Error:', err);
+      setErrorMsg('Erro ao exportar Word');
+      setTimeout(() => setErrorMsg(null), 3000);
     }
   };
 
@@ -1064,13 +1074,16 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
           <Download className="w-4 h-4" />
         </ToolbarButton>
 
-        <ToolbarButton
-          onClick={handleExportPDF}
-          disabled={isExporting}
-          title="Exportar PDF"
-        >
-          {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-[#ff7f00]" /> : <Printer className="w-4 h-4" />}
-        </ToolbarButton>
+        <ExportButton
+          formats={['pdf', 'word']}
+          title="Exportar Documento"
+          onExportPdf={handleExportPDF}
+          onExportWord={handleExportWord}
+          label=""
+          icon={FileText}
+          defaultPdfOptions={{ widthPx: 2480, heightPx: 3508, dpi: 300 }}
+          className="!p-2 !border-none !bg-transparent text-gray-400 hover:!bg-gray-100 hover:text-gray-700 shrink-0"
+        />
       </div>
 
       {/* --- Editor Content Area --- */}
@@ -1372,7 +1385,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
               className="bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center border border-gray-200"
             >
               <Loader2 className="w-16 h-16 animate-spin text-[#ff7f00] mb-6" />
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando PDF</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
               <p className="text-gray-500 text-sm font-medium">Renderizando documento e tabelas de alta resolução. Isso pode levar alguns segundos.</p>
             </motion.div>
           </div>

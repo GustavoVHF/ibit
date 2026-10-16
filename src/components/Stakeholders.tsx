@@ -33,7 +33,6 @@ import {
   Grid3X3,
   List,
   MoveRight,
-  Printer,
   Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -42,10 +41,11 @@ import ProjectSettingsModal from './ProjectSettingsModal';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
 import { motion, AnimatePresence } from 'motion/react';
 import { TAG_COLORS } from './TaskDetailsModal';
-import { jsPDF } from 'jspdf';
-import { toPng } from 'html-to-image';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
+import { exportToExcel } from '../utils/export/excelEngine';
 
 type TabType = 'Lista' | 'Matriz' | 'Plano';
 
@@ -181,7 +181,7 @@ export default function Stakeholders() {
     );
   };
 
-  const handleExportPDF = async () => {
+  const handleExportPDF = async (options: PdfExportOptions) => {
     if (isExporting || stakeholders.length === 0) return;
     setIsExporting(true);
     await new Promise(r => setTimeout(r, 100));
@@ -197,7 +197,7 @@ export default function Stakeholders() {
       const projectTitle = project?.name?.toUpperCase() || 'PROJECT';
       const projectSubtitle = project?.shortId ? `PROJECT ID: #${project.shortId}` : '';
 
-      const headerHTML = `
+      const headerHTML = options.chrome ? `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;padding-bottom:20px;border-bottom:3px solid #ff7f00;box-sizing:border-box;">
           <div>
             <div style="font-size:28px;font-weight:900;color:#111;text-transform:uppercase;letter-spacing:0.1em;line-height:1.2;">${titleText}</div>
@@ -207,7 +207,7 @@ export default function Stakeholders() {
             </div>
           </div>
         </div>
-      `;
+      ` : '';
 
       let contentHTML = '';
 
@@ -474,14 +474,9 @@ export default function Stakeholders() {
         </div>
       `;
 
-      const footerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:32px;padding-top:16px;border-top:1px solid #e5e7eb;box-sizing:border-box;">
-          <span style="font-size:11px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">
-            Exported from the IBIT platform on ${new Date().toLocaleDateString('en-US')}
-          </span>
-          <img src="${logoIbit}" style="height:32px;object-fit:contain;" />
-        </div>
-      `;
+      const footerHTML = options.chrome
+        ? buildOfficialFooterHTML(logoIbit, `Exported from the IBIT platform on ${new Date().toLocaleDateString('en-US')}`)
+        : '';
 
       container.innerHTML = `
         ${headerHTML}
@@ -491,30 +486,16 @@ export default function Stakeholders() {
       `;
 
       await new Promise(r => setTimeout(r, 400));
-      
-      const dataUrl = await toPng(container, { cacheBust: true, backgroundColor: '#ffffff', pixelRatio: 2.5 });
-      
-      const tempPdf = new jsPDF();
-      const ip = tempPdf.getImageProperties(dataUrl);
-      const mg = 100;
-      const pdfWidth = 3840;
-      const drawWidth = pdfWidth - mg * 2;
-      const drawHeight = drawWidth * (ip.height / ip.width);
-      const pdfHeight = drawHeight + mg * 2 + 300; // Adds 300pt of white space at the bottom for breathing room
-
-      const pdf = new jsPDF({
-        orientation: pdfWidth > pdfHeight ? 'landscape' : 'portrait',
-        unit: 'pt',
-        format: [pdfWidth, pdfHeight]
-      });
-
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
-      pdf.addImage(dataUrl, 'PNG', mg, mg, drawWidth, drawHeight);
 
       const pageName = activeTab === 'Lista' ? 'List' : activeTab === 'Matriz' ? 'Engagement-Matrix' : 'Communication-Plan';
       const projectNameStr = (project?.name || 'project').replace(/\s+/g, '-');
-      pdf.save(`stakeholders-${projectNameStr}-${pageName}-${new Date().toISOString().substring(0, 10)}.pdf`);
+      await captureContainerAsPdf(container, {
+        filename: `stakeholders-${projectNameStr}-${pageName}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        widthPx: options.widthPx,
+        heightPx: options.heightPx,
+        dpi: options.dpi,
+        chrome: options.chrome,
+      });
 
       document.body.removeChild(container);
     } catch (err) {
@@ -523,6 +504,82 @@ export default function Stakeholders() {
     } finally {
       setIsExporting(false);
     }
+  };
+
+  const handleExportExcel = async () => {
+    const projectNameStr = (project?.name || 'project').replace(/\s+/g, '-');
+
+    // Excel content must mirror whichever tab is active, same as the PDF export does.
+    if (activeTab === 'Plano') {
+      const allComms: { stakeholder: ProjectStakeholder; comm: any }[] = [];
+      stakeholders.forEach(sh => {
+        if (sh.communications && sh.communications.length > 0) {
+          sh.communications.forEach(c => allComms.push({ stakeholder: sh, comm: c }));
+        }
+      });
+      await exportToExcel({
+        filename: `stakeholders-${projectNameStr}-plano-comunicacao-${new Date().toISOString().substring(0, 10)}.xlsx`,
+        sheetName: 'Plano de Comunicação',
+        title: `Plano de Comunicação — ${project?.name || 'Projeto'}`,
+        columns: [
+          { header: 'Quem Contatar', key: 'stakeholder', type: 'string', width: 26, value: (r) => r.stakeholder.name },
+          { header: 'O que Comunicar', key: 'what', type: 'string', width: 30, value: (r) => r.comm.what },
+          { header: 'Método', key: 'method', type: 'string', width: 18, value: (r) => r.comm.method },
+          { header: 'Quando', key: 'when', type: 'string', width: 16, value: (r) => r.comm.when },
+          {
+            header: 'Responsável',
+            key: 'responsible',
+            type: 'string',
+            width: 22,
+            value: (r) => projectMembers.find(m => m.uid === r.comm.responsible)?.name || '-',
+          },
+        ],
+        rows: allComms,
+      });
+      return;
+    }
+
+    if (activeTab === 'Matriz') {
+      await exportToExcel({
+        filename: `stakeholders-${projectNameStr}-matriz-engajamento-${new Date().toISOString().substring(0, 10)}.xlsx`,
+        sheetName: 'Matriz de Engajamento',
+        title: `Matriz de Engajamento — ${project?.name || 'Projeto'}`,
+        columns: [
+          { header: 'Stakeholder', key: 'name', type: 'string', width: 26 },
+          { header: 'Organização/Papel', key: 'org', type: 'string', width: 22, value: (r) => r.organization || r.role || '-' },
+          { header: 'Engajamento Atual', key: 'engagementCurrent', type: 'string', width: 18 },
+          { header: 'Engajamento Desejado', key: 'engagementDesired', type: 'string', width: 20 },
+          { header: 'Ação e Estratégia', key: 'actionStrategy', type: 'string', width: 36 },
+        ],
+        rows: stakeholders,
+      });
+      return;
+    }
+
+    // 'Lista' tab (default): full stakeholder directory.
+    await exportToExcel({
+      filename: `stakeholders-${projectNameStr}-lista-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: 'Stakeholders',
+      title: `Stakeholders — ${project?.name || 'Projeto'}`,
+      columns: [
+        { header: 'Nome', key: 'name', type: 'string', width: 26 },
+        { header: 'Papel', key: 'role', type: 'string', width: 20 },
+        { header: 'Organização', key: 'organization', type: 'string', width: 22 },
+        { header: 'Contato', key: 'contactInfo', type: 'string', width: 22 },
+        { header: 'Influência', key: 'influenceLevel', type: 'string', width: 14 },
+        { header: 'Interesse', key: 'interestLevel', type: 'string', width: 14 },
+        { header: 'Engajamento Atual', key: 'engagementCurrent', type: 'string', width: 18 },
+        { header: 'Engajamento Desejado', key: 'engagementDesired', type: 'string', width: 20 },
+        {
+          header: 'Tags',
+          key: 'tags',
+          type: 'string',
+          width: 24,
+          value: (r) => (r.tags || []).map((tagId: string) => projectTags.find(t => t.id === tagId)?.label).filter(Boolean).join(', '),
+        },
+      ],
+      rows: filteredItems,
+    });
   };
 
   if (loading || !project) {
@@ -645,15 +702,14 @@ export default function Stakeholders() {
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-center">
-            <button 
-              onClick={handleExportPDF}
-              disabled={isExporting || stakeholders.length === 0}
-              className="bg-white text-gray-700 border border-gray-300 px-4 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50 flex-1 sm:flex-none"
-              title="Exportar PDF"
-            >
-              {isExporting ? <Loader2 className="w-4 h-4 animate-spin text-[#ff7f00]" /> : <Printer className="w-4 h-4" />}
-              <span>EXPORTAR PDF</span>
-            </button>
+            <ExportButton
+              formats={['pdf', 'excel']}
+              title="Exportar Stakeholders"
+              onExportPdf={handleExportPDF}
+              onExportExcel={handleExportExcel}
+              disabledFormats={{ pdf: stakeholders.length === 0, excel: stakeholders.length === 0 }}
+              className="flex-1 sm:flex-none"
+            />
 
             {activeTab === 'Plano' ? (
               <button 
@@ -1032,7 +1088,7 @@ export default function Stakeholders() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exporting PDF</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
               <p className="text-sm text-gray-500 font-medium">Generating stakeholders document...</p>
             </div>
           </motion.div>

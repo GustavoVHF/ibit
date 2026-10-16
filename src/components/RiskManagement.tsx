@@ -32,6 +32,11 @@ import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
 import { motion, AnimatePresence } from 'motion/react';
+// @ts-ignore
+import logoIbit from '../media/ibitlogo.svg';
+import ExportButton from './export/ExportButton';
+import { buildOfficialHeaderHTML, buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
+import { exportRiskMatrixFromTemplate } from '../utils/export/riskTemplateEngine';
 
 type TabType = 'Interno' | 'Externo';
 
@@ -53,6 +58,7 @@ export default function RiskManagement() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectRisk | null>(null);
   const [itemToDelete, setItemToDelete] = useState<ProjectRisk | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch Project Data
   useEffect(() => {
@@ -219,6 +225,120 @@ export default function RiskManagement() {
 
   const nextNumericId = activeTab === 'Interno' ? nextInternalNumericId : nextExternalNumericId;
 
+  const probabilityLabel = (prob: string) => {
+    switch (prob) {
+      case 'B': return 'Baixa (B)';
+      case 'M': return 'Média (M)';
+      case 'A': return 'Alta (A)';
+      case 'C': return 'Crítica (C)';
+      default: return '-';
+    }
+  };
+
+  const handleExportPDF = async (options: PdfExportOptions) => {
+    if (isExporting || filteredItems.length === 0) return;
+    setIsExporting(true);
+    await new Promise(r => setTimeout(r, 100));
+
+    try {
+      const isExterno = activeTab === 'Externo';
+      const TOTAL_W = isExterno ? 2000 : 1700;
+
+      const container = document.createElement('div');
+      container.style.cssText = `position:fixed;left:0;top:0;background:#fff;padding:40px;font-family:'lufga','Inter',system-ui,-apple-system,sans-serif;width:${TOTAL_W}px;box-sizing:border-box;z-index:50;overflow:visible;`;
+      document.body.appendChild(container);
+
+      container.innerHTML = options.chrome
+        ? buildOfficialHeaderHTML({
+            title: project?.name || 'Projeto',
+            subtitle: `Matriz de Riscos ${isExterno ? 'Externa' : 'Interna'}`,
+            responsibleName: user?.displayName || undefined,
+          })
+        : '';
+
+      const tableWrapper = document.createElement('div');
+      tableWrapper.style.cssText = 'border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;background:#fff;';
+
+      const tableEl = document.createElement('table');
+      tableEl.style.cssText = 'width:100%;border-collapse:collapse;font-size:10px;';
+
+      const thStyle = 'padding:10px 8px;text-align:left;font-size:9px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;border-bottom:2px solid #e5e7eb;background:#f9fafb;';
+      const tdStyle = 'padding:8px;vertical-align:top;font-size:10px;font-weight:600;color:#374151;border-bottom:1px solid #f3f4f6;';
+
+      let headerHTML = `<thead><tr>
+        <th style="${thStyle}width:5%;">ID</th>
+        ${isExterno ? `<th style="${thStyle}width:8%;">TIPO</th>` : ''}
+        <th style="${thStyle}width:14%;">${isExterno ? 'RISCO' : 'AMEAÇA'}</th>
+        ${isExterno ? `<th style="${thStyle}width:12%;">CAUSA</th>` : ''}
+        <th style="${thStyle}width:18%;">DESCRIÇÃO</th>
+        <th style="${thStyle}width:8%;">PROBABILIDADE</th>
+        <th style="${thStyle}width:6%;text-align:center;">IMPACTO</th>
+        <th style="${thStyle}width:8%;">PRIORIDADE</th>
+        <th style="${thStyle}width:10%;">RESPONSÁVEL</th>
+        <th style="${thStyle}width:8%;">STATUS</th>
+      </tr></thead>`;
+
+      let bodyHTML = '<tbody>';
+      filteredItems.forEach((item, idx) => {
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#fafafa';
+        const member = projectMembers.find(m => m.uid === item.responsible);
+        bodyHTML += `<tr style="background:${rowBg};">
+          <td style="${tdStyle}font-family:monospace;">#${item.numericId || '-'}</td>
+          ${isExterno ? `<td style="${tdStyle}">${item.externalType || 'Ameaça'}</td>` : ''}
+          <td style="${tdStyle}font-weight:800;color:#111827;">${item.risk}</td>
+          ${isExterno ? `<td style="${tdStyle}">${item.cause || '-'}</td>` : ''}
+          <td style="${tdStyle}">${item.description || '-'}</td>
+          <td style="${tdStyle}">${probabilityLabel(item.probability)}</td>
+          <td style="${tdStyle}text-align:center;font-weight:800;">${item.impact}</td>
+          <td style="${tdStyle}">${item.priority || '-'}</td>
+          <td style="${tdStyle}">${member?.name || '-'}</td>
+          <td style="${tdStyle}">${item.status}</td>
+        </tr>`;
+      });
+      bodyHTML += '</tbody>';
+
+      tableEl.innerHTML = headerHTML + bodyHTML;
+      tableWrapper.appendChild(tableEl);
+      container.appendChild(tableWrapper);
+
+      if (options.chrome) {
+        const footer = document.createElement('div');
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Matriz de riscos exportada da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        container.appendChild(footer);
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+
+      await captureContainerAsPdf(container, {
+        filename: `riscos-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        widthPx: options.widthPx,
+        heightPx: options.heightPx,
+        dpi: options.dpi,
+        chrome: options.chrome,
+      });
+
+      document.body.removeChild(container);
+    } catch (err) {
+      console.error('[Risk Management PDF Export] Error:', err);
+      alert('Erro ao exportar PDF. Tente novamente.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    await exportRiskMatrixFromTemplate({
+      filename: `riscos-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      rows: filteredItems.map((item) => ({
+        title: item.risk,
+        probabilityLabel: item.probability, // template uses raw letters (B/M/A/C), same convention as the platform
+        level: item.impact,
+        impactArea: (item.impactAreas || []).join('&') || '-',
+        solution: item.actionPlan || item.description || '-',
+      })),
+    });
+  };
+
   if (loading || !project) {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center">
@@ -308,6 +428,15 @@ export default function RiskManagement() {
           </div>
 
           <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-center">
+            <ExportButton
+              formats={['pdf', 'excel']}
+              title="Exportar Matriz de Riscos"
+              onExportPdf={handleExportPDF}
+              onExportExcel={handleExportExcel}
+              disabledFormats={{ pdf: filteredItems.length === 0, excel: filteredItems.length === 0 }}
+              compact
+              className="flex-1 sm:flex-none"
+            />
             <button 
               onClick={() => { setEditingItem(null); setIsModalOpen(true); }}
               className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
@@ -482,6 +611,24 @@ export default function RiskManagement() {
             projectMembers={projectMembers}
             nextNumericId={nextNumericId}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Exporting Overlay */}
+      <AnimatePresence>
+        {isExporting && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-white/95 backdrop-blur-sm flex flex-col items-center justify-center gap-6"
+          >
+            <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
+            <div className="text-center">
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
+              <p className="text-sm text-gray-500 font-medium">Gerando relatório da matriz de riscos...</p>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
