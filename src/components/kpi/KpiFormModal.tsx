@@ -84,8 +84,9 @@ export default function KpiFormModal({
 
       if (item) {
         // Append a history point only when the current value actually changed,
-        // mirroring the quick-update write convention.
-        if (parsedCurrent !== item.currentValue) {
+        // mirroring the quick-update write convention. Guard against legacy
+        // KPIs with an undefined currentValue so we don't log a phantom 0 point.
+        if (item.currentValue !== undefined && parsedCurrent !== item.currentValue) {
           payload.history = arrayUnion({ date: new Date(), value: parsedCurrent, note: null });
         }
         await updateDoc(doc(db, 'projectKPIs', item.id), payload);
