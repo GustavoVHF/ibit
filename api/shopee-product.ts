@@ -11,6 +11,7 @@ const SHOPEE_HOSTS = ['shopee.com.br', 'www.shopee.com.br'];
 const SHORT_HOSTS = ['s.shopee.com.br', 'shope.ee'];
 const ID_RE = /^\d{1,20}$/;
 const SEARCH_LIMIT = 10;
+const SEARCH_FETCH_LIMIT = 20;
 
 const SHOPEE_ERROR_MESSAGES: Record<number, string> = {
   10020: 'Assinatura inválida na API Shopee',
@@ -35,7 +36,7 @@ export class ShopeeError extends Error {
 
 export type ProductQueryInput =
   | { mode: 'item'; itemId: string; shopId?: string | null }
-  | { mode: 'search'; keyword: string; page?: number };
+  | { mode: 'search'; keyword: string; page?: number; sortType?: 1 | 2 };
 
 export function parseShopeeUrl(url: string): { shopId: string; itemId: string } | null {
   // /opaanlp/{shopId}/{itemId} is where s.shopee.com.br affiliate short links redirect to
@@ -60,7 +61,14 @@ export function buildProductQuery(input: ProductQueryInput): string {
   } else {
     const page = input.page ?? 1;
     if (!Number.isInteger(page) || page < 1 || page > 20) throw new ShopeeError(400, 'Página inválida');
-    filters.push(`keyword: ${JSON.stringify(input.keyword)}`, 'sortType: 1', `page: ${page}`, `limit: ${SEARCH_LIMIT}`);
+    const sortType = input.sortType ?? 1; // 1 = relevância, 2 = mais vendidos
+    if (sortType !== 1 && sortType !== 2) throw new ShopeeError(400, 'Ordenação inválida');
+    filters.push(
+      `keyword: ${JSON.stringify(input.keyword)}`,
+      `sortType: ${sortType}`,
+      `page: ${page}`,
+      `limit: ${SEARCH_FETCH_LIMIT}`,
+    );
   }
   return `{ productOfferV2(${filters.join(', ')}) { nodes { itemId productName productLink offerLink imageUrl priceMin priceMax priceDiscountRate sales ratingStar shopId shopName shopType commissionRate } pageInfo { page limit hasNextPage } } }`;
 }
@@ -119,10 +127,57 @@ export function normalizeNode(n: any): ShopeeProduct {
     ratingStar: n.ratingStar != null ? Number(n.ratingStar) : null,
     sales: n.sales != null ? Number(n.sales) : null,
     shopName: n.shopName ?? '',
+    shopType: Array.isArray(n.shopType) ? n.shopType.map(Number).filter(Number.isFinite) : [],
     imageUrl: n.imageUrl ?? '',
     productLink: n.productLink ?? '',
     offerLink: n.offerLink ?? '',
   };
+}
+
+// Ranking da busca por palavra-chave (união de sortType 1 e 2, sem duplicatas):
+// score = 0.40*s + 0.30*q + 0.25*r + 0.05*b
+//   s = log10(1+vendas) / log10(1+maxVendas)
+//   q = nota > 0 ? clamp((nota-3)/2, 0, 1) * min(1, log10(1+vendas)/3) : 0  (nota pesa conforme o volume)
+//   r = 1 - i/N pela posição na lista de relevância (0 se ausente)
+//   b = loja Mall/Star+ = 1, Star = 0.5, demais = 0
+// Desempate: r desc, depois vendas desc.
+export function rankSearchResults(
+  relevance: ShopeeProduct[],
+  bySales: ShopeeProduct[],
+  limit = SEARCH_LIMIT,
+): ShopeeProduct[] {
+  const keyOf = (p: ShopeeProduct) => `${p.shopId}-${p.itemId}`;
+  const n = relevance.length;
+  const relScore = new Map<string, number>();
+  const union = new Map<string, ShopeeProduct>();
+  relevance.forEach((p, i) => {
+    const k = keyOf(p);
+    if (!relScore.has(k)) relScore.set(k, 1 - i / n);
+    if (!union.has(k)) union.set(k, p);
+  });
+  for (const p of bySales) {
+    const k = keyOf(p);
+    if (!union.has(k)) union.set(k, p);
+  }
+
+  const salesOf = (p: ShopeeProduct) => (Number.isFinite(p.sales) && (p.sales as number) > 0 ? (p.sales as number) : 0);
+  const items = [...union.entries()];
+  const maxSales = items.reduce((m, [, p]) => Math.max(m, salesOf(p)), 0);
+
+  const scored = items.map(([k, p]) => {
+    const sales = salesOf(p);
+    const rating = Number.isFinite(p.ratingStar) ? (p.ratingStar as number) : 0;
+    const volume = Math.log10(1 + sales);
+    const r = relScore.get(k) ?? 0;
+    const s = maxSales > 0 ? volume / Math.log10(1 + maxSales) : 0;
+    const q = rating > 0 ? Math.min(1, Math.max(0, (rating - 3) / 2)) * Math.min(1, volume / 3) : 0;
+    const types = p.shopType ?? [];
+    const b = types.includes(1) || types.includes(4) ? 1 : types.includes(2) ? 0.5 : 0;
+    return { p, r, sales, score: 0.4 * s + 0.3 * q + 0.25 * r + 0.05 * b };
+  });
+
+  scored.sort((a, b) => b.score - a.score || b.r - a.r || b.sales - a.sales);
+  return scored.slice(0, limit).map((x) => x.p);
 }
 
 function parseHttpUrl(raw: string): URL | null {
@@ -163,7 +218,11 @@ async function resolveShopeeLink(raw: unknown): Promise<{ shopId: string; itemId
   return ids;
 }
 
-async function buildRequest(body: any): Promise<{ mode: 'url' | 'item' | 'search'; query: string }> {
+type ShopeeRequest =
+  | { mode: 'url' | 'item'; query: string }
+  | { mode: 'search'; keyword: string; page: number };
+
+async function buildRequest(body: any): Promise<ShopeeRequest> {
   if (!body || typeof body !== 'object') throw new ShopeeError(400, 'Requisição inválida');
 
   if (body.mode === 'url') {
@@ -187,7 +246,7 @@ async function buildRequest(body: any): Promise<{ mode: 'url' | 'item' | 'search
     }
     const page = body.page == null ? 1 : body.page;
     if (!Number.isInteger(page) || page < 1 || page > 20) throw new ShopeeError(400, 'Página inválida');
-    return { mode: 'search', query: buildProductQuery({ mode: 'search', keyword, page }) };
+    return { mode: 'search', keyword, page };
   }
 
   throw new ShopeeError(400, 'Modo inválido');
@@ -233,9 +292,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { mode, query } = await buildRequest(body);
-    const nodes = await callShopee(query);
-    if (mode !== 'search' && nodes.length === 0) {
+    const request = await buildRequest(body);
+    if (request.mode === 'search') {
+      const { keyword, page } = request;
+      // Relevância + mais vendidos em paralelo; se uma falhar, ranqueia a outra.
+      const [relevance, bySales] = await Promise.allSettled([
+        callShopee(buildProductQuery({ mode: 'search', keyword, page, sortType: 1 })),
+        callShopee(buildProductQuery({ mode: 'search', keyword, page, sortType: 2 })),
+      ]);
+      if (relevance.status === 'rejected' && bySales.status === 'rejected') throw relevance.reason;
+      const list = (r: PromiseSettledResult<any[]>) => (r.status === 'fulfilled' ? r.value.map(normalizeNode) : []);
+      return res.status(200).json({ products: rankSearchResults(list(relevance), list(bySales)) });
+    }
+    const nodes = await callShopee(request.query);
+    if (nodes.length === 0) {
       return res.status(404).json({ error: 'Produto não encontrado' });
     }
     return res.status(200).json({ products: nodes.map(normalizeNode) });

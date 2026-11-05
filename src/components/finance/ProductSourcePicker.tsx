@@ -14,6 +14,17 @@ interface ProductSourcePickerProps {
 const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+const compactNumber = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
+const ratingNumber = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+// '★ 4,8 · 1,2 mil vendidos' (cada parte some quando o valor é 0 ou ausente)
+const resultMeta = (p: ShopeeProduct) => {
+  const parts: string[] = [];
+  if (p.ratingStar) parts.push(`★ ${ratingNumber.format(p.ratingStar)}`);
+  if (p.sales) parts.push(`${compactNumber.format(p.sales)} vendidos`);
+  return parts.join(' · ');
+};
+
 const labelCls = 'block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5';
 const inputCls =
   'w-full bg-white border border-gray-300 px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors';
@@ -198,8 +209,13 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
                   className="w-full flex gap-3 items-center p-2 text-left hover:bg-orange-50 transition-colors"
                 >
                   <Thumb src={p.imageUrl} alt={p.productName} />
-                  <p className="min-w-0 flex-1 text-xs font-bold text-gray-900 line-clamp-2">{p.productName}</p>
-                  <span className="text-xs font-bold text-gray-900 tabular-nums shrink-0">{formatCurrency(p.price)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-gray-900 line-clamp-2">{p.productName}</p>
+                    <p className="text-[11px] text-gray-500 tabular-nums">
+                      <span className="font-bold text-gray-900">{formatCurrency(p.price)}</span>
+                      {resultMeta(p) && <span> · {resultMeta(p)}</span>}
+                    </p>
+                  </div>
                 </button>
               ))}
             </div>

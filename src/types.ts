@@ -458,6 +458,7 @@ export interface ShopeeProduct {
   ratingStar: number | null; // 0–5
   sales: number | null;
   shopName: string;
+  shopType?: number[]; // 1 Mall, 2 Star, 4 Star+ (não persistido)
   imageUrl: string;
   productLink: string;
   offerLink: string;
