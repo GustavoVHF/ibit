@@ -1,25 +1,31 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { X, Scale, SlidersHorizontal, Trophy, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
+import { X, Scale, Trophy, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 import { collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
 import { commitWrite } from '../../utils/firestoreWrite';
-import { DecisionCriterion, DecisionMatrix, DecisionOption } from '../../types';
+import { DecisionCriterionKey, DecisionMatrix, DecisionOption } from '../../types';
 import {
+  buildCriteriaRows,
   computeMatrix,
+  CRITERIA_CATALOG,
+  CriteriaRow,
   DEFAULT_CRITERIA,
   emptyOption,
   formatCriterionValue,
   getCriterionMeta,
+  invalidFields,
+  OptionField,
   optionLabel,
+  rowsToCriteria,
+  sumWeights,
   toStoredOption,
   validateProductIdentity,
 } from './decisionMatrixHelpers';
 import ProductSourcePicker from './ProductSourcePicker';
-import CriteriaModal from './CriteriaModal';
 
 interface DecisionMatrixEditorProps {
   projectId: string;
@@ -27,8 +33,40 @@ interface DecisionMatrixEditorProps {
   onClose: () => void;
 }
 
+type Step = 1 | 2 | 3;
+
+const STEPS: { id: Step; label: string }[] = [
+  { id: 1, label: 'Produtos' },
+  { id: 2, label: 'Critérios' },
+  { id: 3, label: 'Resultado' },
+];
+
+// Campo da opção editado em cada linha do passo 2 (mesmos limites do antigo formulário).
+const VALUE_INPUTS: Record<
+  DecisionCriterionKey,
+  { field: OptionField; step: string; min: number; max?: number; placeholder: string; suffix: string }
+> = {
+  preco: { field: 'price', step: '0.01', min: 0, placeholder: '0,00', suffix: 'R$' },
+  pesoPorValor: { field: 'weightKg', step: '0.001', min: 0, placeholder: '0,000', suffix: 'kg' },
+  ratePreco: { field: 'priceRating', step: '1', min: 1, max: 10, placeholder: '1–10', suffix: '/10' },
+  rateQualidade: { field: 'qualityRating', step: '0.1', min: 0, max: 5, placeholder: '0–5', suffix: '★' },
+  sustentabilidade: { field: 'sustainability', step: '1', min: 1, max: 10, placeholder: '1–10', suffix: '/10' },
+  tempoEntrega: { field: 'deliveryDays', step: '1', min: 1, placeholder: '0', suffix: 'dias' },
+};
+
+const parseNum = (s: string): number | null => {
+  if (s.trim() === '') return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
 const fmt2 = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const fmtPct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
+
+const navBtnCls =
+  'px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors';
+const primaryBtnCls =
+  'px-6 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 active:scale-95 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:pointer-events-none';
 
 export default function DecisionMatrixEditor({ projectId, initial, onClose }: DecisionMatrixEditorProps) {
   const { user } = useAuth();
@@ -38,23 +76,43 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
       ? initial.options.map((o) => toStoredOption(o))
       : [emptyOption('shopee'), emptyOption('shopee')]
   );
-  const [criteria, setCriteria] = useState<DecisionCriterion[]>(() =>
-    initial?.criteria?.length ? initial.criteria.map((c) => ({ ...c })) : DEFAULT_CRITERIA.map((c) => ({ ...c }))
+  const [rows, setRows] = useState<CriteriaRow[]>(() =>
+    buildCriteriaRows(initial?.criteria?.length ? initial.criteria : DEFAULT_CRITERIA)
   );
-  const [isCriteriaOpen, setIsCriteriaOpen] = useState(false);
+  const [step, setStep] = useState<Step>(initial?.id ? 3 : 1);
+  const [showErrors, setShowErrors] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const enabledKeys = useMemo(() => criteria.map((c) => c.key), [criteria]);
+  const criteria = useMemo(() => rowsToCriteria(rows), [rows]);
   const result = useMemo(() => computeMatrix(options, criteria), [options, criteria]);
   const identityIssues = useMemo(() => validateProductIdentity(options), [options]);
-  const allIssues = [...identityIssues, ...result.issues];
-  const canSave = !!title.trim() && result.status === 'ok' && identityIssues.length === 0 && !saving;
+  const invalid = useMemo(() => options.map((o) => invalidFields(o, criteria)), [options, criteria]);
+  const complete = result.status === 'ok' && identityIssues.length === 0;
+  const canSave = !!title.trim() && complete && !saving;
+  const totalWeight = sumWeights(criteria);
+  const enabledKeys = new Set(criteria.map((c) => c.key));
 
   const optionName = (i: number) => options[i]?.name?.trim() || optionLabel(i);
 
   const setOption = (index: number, option: DecisionOption) =>
     setOptions((prev) => prev.map((o, i) => (i === index ? option : o)));
+
+  const setOptionField = (index: number, field: OptionField, v: number | null) =>
+    setOptions((prev) => prev.map((o, i) => (i === index ? { ...o, [field]: v } : o)));
+
+  const updateRow = (key: DecisionCriterionKey, patch: Partial<CriteriaRow>) =>
+    setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+
+  // Passo 3 só com dados completos; senão leva ao passo com pendências e destaca os campos.
+  const goTo = (target: Step) => {
+    if (target === 3 && !complete) {
+      setShowErrors(true);
+      setStep(identityIssues.length > 0 ? 1 : 2);
+      return;
+    }
+    setStep(target);
+  };
 
   const handleSave = async () => {
     if (!canSave || !user) return;
@@ -100,7 +158,8 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
   };
 
   const winner = result.status === 'ok' ? result.winnerIndex : null;
-  const delta = result.status === 'ok' && result.totals.length === 2 ? Math.abs(result.totals[0] - result.totals[1]) : 0;
+  const firstIdentityIssue = identityIssues[0];
+  const generalIssue = result.issues.find((i) => i.optionIndex == null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
@@ -108,227 +167,258 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white border border-gray-200 w-full max-w-6xl h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col"
+        className="bg-white border border-gray-200 w-full max-w-5xl h-[90vh] overflow-hidden rounded-2xl shadow-2xl flex flex-col"
       >
-        <div className="flex justify-between items-center gap-4 p-4 sm:p-6 border-b border-gray-100 bg-gray-50 shrink-0">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="p-4 sm:p-6 border-b border-gray-100 bg-gray-50 shrink-0 space-y-4">
+          <div className="flex items-center gap-3">
             <Scale className="w-5 h-5 text-[#ff7f00] shrink-0" />
             <input
               type="text"
               value={title}
               maxLength={199}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título da comparação (ex: Garrafa térmica 1L)"
-              className="flex-1 min-w-0 bg-white border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors"
+              placeholder="Título da comparação"
+              className={clsx(
+                'flex-1 min-w-0 bg-white border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg transition-colors',
+                step === 3 && !title.trim() ? 'placeholder-red-400' : 'placeholder-gray-300'
+              )}
             />
+            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors shrink-0">
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCriteriaOpen(true)}
-            className="shrink-0 px-3 sm:px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-[10px] sm:text-xs rounded-lg hover:bg-gray-50 flex items-center gap-2 transition-colors"
-          >
-            <SlidersHorizontal className="w-4 h-4 text-[#ff7f00]" />
-            Critérios ({criteria.length})
-          </button>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors shrink-0">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 bg-[#f8f9fa] scrollbar-hide">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {options.map((o, i) => (
-              <div key={i} className={clsx('rounded-xl transition-shadow', winner === i && 'ring-2 ring-[#ff7f00]')}>
-                <ProductSourcePicker
-                  label={optionLabel(i).toUpperCase()}
-                  value={o}
-                  onChange={(opt) => setOption(i, opt)}
-                  enabledKeys={enabledKeys}
-                />
-              </div>
+          <div className="flex bg-gray-100 p-1 rounded-lg">
+            {STEPS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => goTo(s.id)}
+                className={clsx(
+                  'flex-1 px-3 py-2 rounded-md font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-all',
+                  step === s.id
+                    ? 'bg-[#ff7f00] text-white shadow-sm'
+                    : s.id === 3 && !complete
+                      ? 'text-gray-300'
+                      : 'text-gray-500 hover:text-gray-900'
+                )}
+              >
+                {s.id} {s.label}
+              </button>
             ))}
           </div>
+        </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6">
-            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Resultado da matriz</h4>
-
-            {allIssues.length > 0 ? (
-              <div className="flex gap-3 bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0" />
-                <div>
-                  <p className="text-xs font-bold text-yellow-800 uppercase tracking-widest mb-2">Dados incompletos</p>
-                  <ul className="text-sm text-yellow-900 space-y-1 list-disc pl-4">
-                    {allIssues.map((issue, idx) => (
-                      <li key={idx}>
-                        {issue.optionIndex != null ? `${optionLabel(issue.optionIndex)}: ` : ''}
-                        {issue.message}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#f8f9fa] scrollbar-hide">
+          {step === 1 && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {options.map((o, i) => (
+                  <ProductSourcePicker key={i} label={optionLabel(i)} value={o} onChange={(opt) => setOption(i, opt)} />
+                ))}
               </div>
+              {showErrors && firstIdentityIssue && (
+                <p className="text-xs font-bold text-red-600">
+                  {firstIdentityIssue.optionIndex != null ? `${optionLabel(firstIdentityIssue.optionIndex)}: ` : ''}
+                  {firstIdentityIssue.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-3">
+              <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
+                  <thead>
+                    <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">
+                      <th className="w-10 py-3 pl-4" />
+                      <th className="text-left py-3 pr-3">Critério</th>
+                      <th className="text-left py-3 px-3">Peso</th>
+                      <th className="text-right py-3 px-3">%</th>
+                      {options.map((_, i) => (
+                        <th key={i} className="text-left py-3 px-3 max-w-[160px] truncate" title={optionName(i)}>
+                          {optionName(i)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CRITERIA_CATALOG.map((meta) => {
+                      const row = rows.find((r) => r.key === meta.key)!;
+                      const input = VALUE_INPUTS[meta.key];
+                      // Peso por valor usa o preço: os valores de Preço ficam editáveis se qualquer um dos dois estiver ativo.
+                      const valuesEditable =
+                        meta.key === 'preco' ? enabledKeys.has('preco') || enabledKeys.has('pesoPorValor') : row.enabled;
+                      const pct = row.enabled && totalWeight > 0 ? (Math.max(0, row.weight) / totalWeight) * 100 : 0;
+                      return (
+                        <tr key={meta.key} className="border-b border-gray-100 last:border-0">
+                          <td className="py-2 pl-4">
+                            <input
+                              type="checkbox"
+                              checked={row.enabled}
+                              onChange={(e) => updateRow(meta.key, { enabled: e.target.checked })}
+                              className="w-4 h-4 accent-[#ff7f00]"
+                            />
+                          </td>
+                          <td className={clsx('py-2 pr-3 font-bold text-gray-900 whitespace-nowrap', !row.enabled && 'opacity-50')} title={meta.description}>
+                            {meta.label} <span className="text-gray-400 font-normal">{meta.type === 'cost' ? '↓' : '↑'}</span>
+                          </td>
+                          <td className={clsx('py-2 px-3', !row.enabled && 'opacity-50')}>
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              disabled={!row.enabled}
+                              value={row.weight}
+                              onChange={(e) => {
+                                const n = Number(e.target.value);
+                                updateRow(meta.key, { weight: e.target.value === '' || !Number.isFinite(n) ? 0 : Math.max(0, n) });
+                              }}
+                              className="w-20 bg-white border border-gray-300 px-2 py-1.5 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg disabled:bg-gray-100"
+                            />
+                          </td>
+                          <td className={clsx('py-2 px-3 text-right text-xs text-gray-400 tabular-nums', !row.enabled && 'opacity-50')}>
+                            {row.enabled ? fmtPct(pct / 100) : '—'}
+                          </td>
+                          {options.map((o, i) => {
+                            const flagged = showErrors && invalid[i].has(input.field);
+                            return (
+                              <td key={i} className={clsx('py-2 px-3', !valuesEditable && 'opacity-50')}>
+                                <div className="relative w-32">
+                                  <input
+                                    type="number"
+                                    step={input.step}
+                                    min={input.min}
+                                    max={input.max}
+                                    disabled={!valuesEditable}
+                                    value={o[input.field] ?? ''}
+                                    onChange={(e) => setOptionField(i, input.field, parseNum(e.target.value))}
+                                    placeholder={input.placeholder}
+                                    className={clsx(
+                                      'w-full bg-white border px-2 py-1.5 pr-10 text-sm text-gray-900 focus:outline-none font-bold rounded-lg placeholder-gray-300 disabled:bg-gray-100',
+                                      flagged ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-[#ff7f00]'
+                                    )}
+                                  />
+                                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
+                                    {input.suffix}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-gray-400">
+                Soma dos pesos: {totalWeight.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% · normalizado automaticamente
+              </p>
+              {showErrors && result.issues.length > 0 && (
+                <p className="text-xs font-bold text-red-600">{generalIssue ? generalIssue.message : 'Preencha os campos destacados'}</p>
+              )}
+            </div>
+          )}
+
+          {step === 3 &&
+            (!complete ? (
+              <p className="text-sm text-gray-500">Complete os produtos e os critérios para ver o resultado.</p>
             ) : (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 <div
                   className={clsx(
-                    'rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border',
+                    'rounded-xl p-4 border flex items-center justify-between gap-4',
                     winner != null ? 'bg-orange-50 border-[#ff7f00]' : 'bg-gray-50 border-gray-200'
                   )}
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <Trophy className={clsx('w-6 h-6 shrink-0', winner != null ? 'text-[#ff7f00]' : 'text-gray-400')} />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                        {winner != null ? 'Vencedor' : 'Resultado'}
-                      </p>
-                      <p className="text-base font-bold text-gray-900 truncate">
-                        {winner != null ? `VENCEDOR: ${optionName(winner)}` : 'EMPATE'}
-                      </p>
-                    </div>
+                    <Trophy className={clsx('w-5 h-5 shrink-0', winner != null ? 'text-[#ff7f00]' : 'text-gray-400')} />
+                    <p className="text-sm font-bold text-gray-900 truncate">
+                      {winner != null ? `Vencedor: ${optionName(winner)}` : 'Empate'}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-6 shrink-0">
-                    {result.totals.map((t, i) => (
-                      <div key={i} className="text-right">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{optionLabel(i)}</p>
-                        <p className={clsx('text-2xl font-bold tabular-nums', winner === i ? 'text-[#ff7f00]' : 'text-gray-900')}>
-                          {fmt2(t)}
-                        </p>
-                      </div>
-                    ))}
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Δ</p>
-                      <p className="text-2xl font-bold tabular-nums text-gray-500">{fmt2(delta)}</p>
-                    </div>
-                  </div>
+                  <p className="text-sm font-bold text-gray-700 tabular-nums shrink-0">
+                    {result.totals.map((t, i) => `${String.fromCharCode(65 + i)} ${fmt2(t)}`).join(' × ')}
+                  </p>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm min-w-[860px]">
+                <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
+                  <table className="w-full text-sm">
                     <thead>
                       <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">
-                        <th className="text-left py-2 pr-3">Critério</th>
-                        <th className="text-left py-2 px-3">Tipo</th>
-                        <th className="text-right py-2 px-3">Peso %</th>
+                        <th className="text-left py-3 px-4">Critério</th>
+                        <th className="text-right py-3 px-3">Peso</th>
                         {options.map((_, i) => (
-                          <React.Fragment key={i}>
-                            <th className={clsx('text-right py-2 px-3', winner === i && 'bg-orange-50 text-[#ff7f00]')}>Valor {String.fromCharCode(65 + i)}</th>
-                            <th className={clsx('text-right py-2 px-3', winner === i && 'bg-orange-50 text-[#ff7f00]')}>Nota {String.fromCharCode(65 + i)}</th>
-                            <th className={clsx('text-right py-2 px-3', winner === i && 'bg-orange-50 text-[#ff7f00]')}>Ponderada {String.fromCharCode(65 + i)}</th>
-                          </React.Fragment>
+                          <th key={i} className="text-right py-3 px-4 max-w-[160px] truncate" title={optionName(i)}>
+                            {optionName(i)}
+                          </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {result.rows.map((row) => {
-                        const meta = getCriterionMeta(row.key);
+                        const best = Math.max(...row.scores);
+                        const allEqual = row.scores.every((s) => s === best);
                         return (
                           <tr key={row.key} className="border-b border-gray-100">
-                            <td className="py-2.5 pr-3 font-bold text-gray-900">{meta.label}</td>
-                            <td className="py-2.5 px-3">
-                              <span
-                                className={clsx(
-                                  'text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded border',
-                                  meta.type === 'cost' ? 'bg-red-50 text-red-600 border-red-100' : 'bg-green-50 text-green-600 border-green-100'
-                                )}
-                              >
-                                {meta.type === 'cost' ? 'Custo ↓' : 'Benefício ↑'}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-right tabular-nums text-gray-700">{fmtPct(row.weight)}</td>
-                            {options.map((_, i) => (
-                              <React.Fragment key={i}>
-                                <td className={clsx('py-2.5 px-3 text-right tabular-nums text-gray-700', winner === i && 'bg-orange-50/60')}>
-                                  {formatCriterionValue(row.key, row.values[i])}
-                                </td>
-                                <td className={clsx('py-2.5 px-3 text-right tabular-nums text-gray-900 font-bold', winner === i && 'bg-orange-50/60')}>
-                                  {fmt2(row.scores[i])}
-                                </td>
-                                <td className={clsx('py-2.5 px-3 text-right tabular-nums text-gray-700', winner === i && 'bg-orange-50/60')}>
-                                  {fmt2(row.weighted[i])}
-                                </td>
-                              </React.Fragment>
+                            <td className="py-2.5 px-4 font-bold text-gray-900">{getCriterionMeta(row.key).label}</td>
+                            <td className="py-2.5 px-3 text-right tabular-nums text-gray-500">{fmtPct(row.weight)}</td>
+                            {row.scores.map((s, i) => (
+                              <td key={i} className="py-2.5 px-4 text-right tabular-nums">
+                                <span className={clsx('block font-bold', !allEqual && s === best ? 'text-[#ff7f00]' : 'text-gray-900')}>
+                                  {fmt2(s)}
+                                </span>
+                                <span className="block text-[10px] text-gray-400">{formatCriterionValue(row.key, row.values[i])}</span>
+                              </td>
                             ))}
                           </tr>
                         );
                       })}
                       <tr className="bg-gray-50">
-                        <td className="py-3 pr-3 font-bold text-gray-900 uppercase tracking-widest text-xs" colSpan={2}>
-                          Nota final
-                        </td>
-                        <td className="py-3 px-3 text-right tabular-nums font-bold text-gray-700">100%</td>
+                        <td className="py-3 px-4 font-bold text-gray-900 uppercase tracking-widest text-xs">Nota final</td>
+                        <td className="py-3 px-3 text-right tabular-nums text-gray-500">100%</td>
                         {result.totals.map((t, i) => (
-                          <React.Fragment key={i}>
-                            <td className={clsx('py-3 px-3', winner === i && 'bg-orange-50')} colSpan={2} />
-                            <td
-                              className={clsx(
-                                'py-3 px-3 text-right tabular-nums font-bold text-base',
-                                winner === i ? 'bg-orange-50 text-[#ff7f00]' : 'text-gray-900'
-                              )}
-                            >
-                              {fmt2(t)}
-                            </td>
-                          </React.Fragment>
+                          <td
+                            key={i}
+                            className={clsx('py-3 px-4 text-right tabular-nums font-bold text-base', winner === i ? 'text-[#ff7f00]' : 'text-gray-900')}
+                          >
+                            {fmt2(t)}
+                          </td>
                         ))}
                       </tr>
                     </tbody>
                   </table>
                 </div>
-
-                <div className="flex flex-wrap gap-4">
-                  {options.map((o, i) =>
-                    o.link ? (
-                      <a
-                        key={i}
-                        href={o.link}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] font-bold text-[#ff7f00] uppercase tracking-widest flex items-center gap-1 hover:underline"
-                      >
-                        <ExternalLink className="w-3 h-3" /> {optionLabel(i)} · {o.storeName}
-                      </a>
-                    ) : null
-                  )}
-                </div>
               </div>
+            ))}
+        </div>
+
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-3 shrink-0">
+          {saveError && <p className="text-xs font-bold text-red-600">{saveError}</p>}
+          <div className="flex gap-3 ml-auto">
+            {step > 1 && (
+              <button type="button" onClick={() => setStep((step - 1) as Step)} className={navBtnCls}>
+                Voltar
+              </button>
+            )}
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={() => goTo((step + 1) as Step)}
+                className={clsx(primaryBtnCls, step === 2 && !complete && 'opacity-50')}
+              >
+                Próximo
+              </button>
+            ) : (
+              <button type="button" onClick={handleSave} disabled={!canSave} className={primaryBtnCls}>
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+                Salvar
+              </button>
             )}
           </div>
         </div>
-
-        <div className="p-4 border-t border-gray-100 bg-gray-50 flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-          {saveError && <p className="text-xs font-bold text-red-600 sm:mr-auto">{saveError}</p>}
-          {!saveError && !title.trim() && (
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest sm:mr-auto">Informe um título para salvar</p>
-          )}
-          <div className="flex gap-3 sm:ml-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 sm:flex-none px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!canSave}
-              className="flex-1 sm:flex-none px-6 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 active:scale-95 flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:pointer-events-none"
-            >
-              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Salvar
-            </button>
-          </div>
-        </div>
       </motion.div>
-
-      <CriteriaModal
-        isOpen={isCriteriaOpen}
-        criteria={criteria}
-        onClose={() => setIsCriteriaOpen(false)}
-        onApply={(next) => {
-          setCriteria(next);
-          setIsCriteriaOpen(false);
-        }}
-      />
     </div>
   );
 }

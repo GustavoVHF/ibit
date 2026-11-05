@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Scale, Trash2, Trophy, AlertTriangle } from 'lucide-react';
+import { Scale, Trash2, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -101,10 +101,7 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
       ) : sorted.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center opacity-50 min-h-[400px]">
           <Scale className="w-16 h-16 text-[#ff7f00] mb-4 stroke-1" />
-          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-2">Nenhuma comparação</h3>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-            Compare 2 produtos com a matriz de decisão ponderada
-          </p>
+          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest">Nenhuma comparação</h3>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -130,15 +127,9 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center border border-orange-100 shrink-0">
-                    <Scale className="w-5 h-5 text-[#ff7f00]" />
-                  </div>
-                  <div className="flex flex-col min-w-0 pr-8">
-                    <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Matriz de decisão</span>
-                    <span className="text-sm font-bold text-gray-900 truncate">{m.title}</span>
-                    <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{date}</span>
-                  </div>
+                <div className="flex flex-col min-w-0 pr-8 mb-4">
+                  <span className="text-sm font-bold text-gray-900 truncate">{m.title}</span>
+                  <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{date}</span>
                 </div>
 
                 <div className="space-y-2 mt-auto">
@@ -159,20 +150,6 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
                       </span>
                     </div>
                   ))}
-                </div>
-
-                <div className="mt-3">
-                  {m.result ? (
-                    <span
-                      className={clsx(
-                        'inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-md border',
-                        winner != null ? 'bg-orange-50 text-[#ff7f00] border-orange-200' : 'bg-gray-50 text-gray-500 border-gray-200'
-                      )}
-                    >
-                      <Trophy className="w-3 h-3" />
-                      {winner != null ? `Vencedor: ${m.options?.[winner]?.name || optionLabel(winner)}` : 'Empate'}
-                    </span>
-                  ) : null}
                 </div>
               </div>
             );

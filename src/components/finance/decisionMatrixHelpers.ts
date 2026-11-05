@@ -26,7 +26,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'cost',
     kind: 'quantitative',
     unit: 'R$',
-    description: 'Preço do produto. Menor preço recebe nota 10.',
+    description: 'Menor preço é melhor',
   },
   {
     key: 'pesoPorValor',
@@ -34,7 +34,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'cost',
     kind: 'quantitative',
     unit: 'R$/kg',
-    description: 'Preço dividido pelo peso (R$/kg). Menor custo por kg recebe nota 10.',
+    description: 'Preço ÷ peso (R$/kg); menor é melhor',
   },
   {
     key: 'ratePreco',
@@ -42,7 +42,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'benefit',
     kind: 'qualitative',
     unit: '/10',
-    description: 'Avaliação de custo-benefício (1–10) dada por você. Usada diretamente como nota.',
+    description: 'Sua nota de custo-benefício (1–10)',
   },
   {
     key: 'rateQualidade',
@@ -50,7 +50,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'benefit',
     kind: 'quantitative',
     unit: '★',
-    description: 'Avaliação em estrelas (0–5). Na Shopee vem da nota da loja. Maior nota recebe 10.',
+    description: 'Estrelas (0–5); maior é melhor',
   },
   {
     key: 'sustentabilidade',
@@ -58,7 +58,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'benefit',
     kind: 'qualitative',
     unit: '/10',
-    description: 'Avaliação de sustentabilidade (1–10) dada por você. Usada diretamente como nota.',
+    description: 'Sua nota de sustentabilidade (1–10)',
   },
   {
     key: 'tempoEntrega',
@@ -66,7 +66,7 @@ export const CRITERIA_CATALOG: CriterionMeta[] = [
     type: 'cost',
     kind: 'quantitative',
     unit: 'dias',
-    description: 'Prazo de entrega em dias. Menor prazo recebe nota 10.',
+    description: 'Prazo em dias; menor é melhor',
   },
 ];
 
@@ -83,6 +83,27 @@ export const TIE_THRESHOLD = 0.005;
 
 export function getCriterionMeta(key: DecisionCriterionKey): CriterionMeta {
   return CRITERIA_CATALOG.find((c) => c.key === key)!;
+}
+
+/** Linha editável de critério (todos os critérios do catálogo; desmarcados guardam o peso). */
+export interface CriteriaRow {
+  key: DecisionCriterionKey;
+  enabled: boolean;
+  weight: number;
+}
+
+/** Critérios salvos → linhas na ordem do catálogo (desmarcados recebem o peso padrão). */
+export function buildCriteriaRows(criteria: DecisionCriterion[]): CriteriaRow[] {
+  return CRITERIA_CATALOG.map((meta) => {
+    const current = criteria.find((c) => c.key === meta.key);
+    const fallback = DEFAULT_CRITERIA.find((c) => c.key === meta.key)?.weight ?? 0;
+    return { key: meta.key, enabled: !!current, weight: current ? current.weight : fallback };
+  });
+}
+
+/** Linhas marcadas → critérios {key, weight}. */
+export function rowsToCriteria(rows: CriteriaRow[]): DecisionCriterion[] {
+  return rows.filter((r) => r.enabled).map((r) => ({ key: r.key, weight: r.weight }));
 }
 
 const safeWeight = (w: number) => (Number.isFinite(w) && w > 0 ? w : 0);
@@ -141,7 +162,7 @@ export interface MatrixIssue {
   message: string;
 }
 
-type OptionField = 'price' | 'weightKg' | 'deliveryDays' | 'priceRating' | 'qualityRating' | 'sustainability';
+export type OptionField = 'price' | 'weightKg' | 'deliveryDays' | 'priceRating' | 'qualityRating' | 'sustainability';
 
 const FIELDS_BY_CRITERION: Record<DecisionCriterionKey, OptionField[]> = {
   preco: ['price'],
@@ -195,6 +216,17 @@ export function validateOptions(options: DecisionOption[], criteria: DecisionCri
     });
   });
   return issues;
+}
+
+/** Campos da opção ausentes/inválidos para os critérios selecionados (mesma regra de validateOptions). */
+export function invalidFields(option: DecisionOption, criteria: DecisionCriterion[]): Set<OptionField> {
+  const invalid = new Set<OptionField>();
+  criteria.forEach((c) => {
+    FIELDS_BY_CRITERION[c.key].forEach((field) => {
+      if (!invalid.has(field) && fieldIssue(option, field)) invalid.add(field);
+    });
+  });
+  return invalid;
 }
 
 export interface MatrixRow {
