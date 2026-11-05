@@ -18,6 +18,7 @@ import UserProfileModal from './UserProfileModal';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import CountdownModal from './CountdownModal';
 import AuditModal from './AuditModal';
+import OutflowComparisonCard from './finance/OutflowComparisonCard';
 import { AnimatePresence } from 'motion/react';
 import { CheckCircle2, ListTodo, Calendar, Wallet, Tv, Link as LinkIcon, PieChart as PieChartIcon, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
@@ -502,6 +503,8 @@ export default function ProjectDashboard() {
                 </div>
               </div>
             </div>
+
+            <OutflowComparisonCard transactions={transactions} className="shrink-0" />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 lg:items-stretch flex-1 min-h-0 lg:min-h-[min(60vh,560px)]">
               {/* Pie Chart - Despesas por Categoria */}

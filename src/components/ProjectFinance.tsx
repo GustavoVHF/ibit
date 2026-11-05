@@ -36,6 +36,8 @@ import ExportButton from './export/ExportButton';
 import { buildOfficialHeaderHTML, buildOfficialFooterHTML, PdfExportOptions, pixelRatioFromDpi } from '../utils/export/pdfEngine';
 import { exportLedgerToExcel } from '../utils/export/ledgerTemplateEngine';
 import { logAutomaticChange } from '../utils/changeHistory';
+import { buildCashFlowSeries } from '../utils/financeMetrics';
+import OutflowComparisonCard from './finance/OutflowComparisonCard';
 
 type FinanceTab = 'Dashboard' | 'Transações' | 'Orçamento';
 
@@ -519,47 +521,14 @@ export default function ProjectFinance() {
   };
 
   // Prepare data for the Line Chart (Cumulative Cash Flow)
-  const sortedTrans = [...transactions].sort((a,b) => {
-    const da = a.date?.toDate ? a.date.toDate() : new Date();
-    const db = b.date?.toDate ? b.date.toDate() : new Date();
-    return da.getTime() - db.getTime(); 
-  });
-
-  const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-  const rawMonths: { name: string; key: string; income: number; expense: number }[] = [];
-
-  sortedTrans.forEach(t => {
-     const date = t.date?.toDate ? t.date.toDate() : new Date();
-     const m = date.getMonth();
-     const y = date.getFullYear();
-     const key = `${y}-${m.toString().padStart(2, '0')}`;
-     
-     let monthRow = rawMonths.find(r => r.key === key);
-     if (!monthRow) {
-       monthRow = { name: `${monthNames[m]}/${y.toString().slice(-2)}`, key, income: 0, expense: 0 };
-       rawMonths.push(monthRow);
-     }
-     if (t.type === 'income') monthRow.income += t.amount;
-     if (t.type === 'expense') monthRow.expense += t.amount;
-  });
-
-  let accIncome = 0;
-  let accExpense = 0;
-  const cashFlowData = rawMonths.map(row => {
-     accIncome += row.income;
-     accExpense += row.expense;
-     return {
-        name: row.name,
-        Entrada: accIncome,
-        Saída: accExpense
-     };
-  });
+  const cashFlowData = buildCashFlowSeries(transactions, 'mes');
 
   const CustomizedFlowLabel = (props: any) => {
-    const { x, y, value, fill, position = 'top' } = props;
+    const { x, y, value, fill, position = 'top', bottomOffset } = props;
     if (!value && value !== 0) return null;
+    const dyBottom = typeof bottomOffset === 'number' ? bottomOffset : 22;
     return (
-      <text x={x} y={position === 'top' ? y - 16 : y + 22} dy={0} fill={fill} fontSize={10} fontWeight="bold" textAnchor="middle" opacity={0.9}>
+      <text x={x} y={position === 'top' ? y - 16 : y + dyBottom} dy={0} fill={fill} fontSize={10} fontWeight="bold" textAnchor="middle" opacity={0.9}>
         {formatCurrency(value)}
       </text>
     );
@@ -626,6 +595,8 @@ export default function ProjectFinance() {
           <span className="text-3xl font-bold text-green-600 tracking-tight">{formatCurrency(incomeMonth)}</span>
         </div>
       </div>
+
+      <OutflowComparisonCard transactions={transactions} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
         <div id="pdf-pie-chart-card" className="bg-white border border-gray-200 rounded-xl p-6 min-h-[300px] flex flex-col items-center justify-center text-center">
@@ -721,7 +692,7 @@ export default function ProjectFinance() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="Saída"
+                    dataKey="Saída Interna"
                     stroke="#ef4444"
                     strokeWidth={3}
                     dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
@@ -729,16 +700,30 @@ export default function ProjectFinance() {
                     label={<CustomizedFlowLabel fill="#ef4444" position="bottom" />}
                     isAnimationActive={false}
                   />
+                  <Line
+                    type="monotone"
+                    dataKey="Saída Externa"
+                    stroke="#8b5cf6"
+                    strokeWidth={3}
+                    dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6 }}
+                    label={<CustomizedFlowLabel fill="#8b5cf6" position="bottom" bottomOffset={36} />}
+                    isAnimationActive={false}
+                  />
                 </LineChart>
               </ResponsiveContainer>
-              <div className="flex justify-center gap-6 mt-6 pb-2 shrink-0">
+              <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6 pb-2 shrink-0">
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ENTRADA DE CAPITAL</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SAÍDA DE CAPITAL</span>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SAÍDA DE CAPITAL INTERNO</span>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SAÍDA DE CAPITAL EXTERNO</span>
                  </div>
               </div>
             </div>
@@ -1340,7 +1325,7 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
               />
               <div className="flex flex-col">
                 <span className="text-sm font-bold text-gray-900">Recurso de conta externa</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Verba de parceiros/investimento (ex: SESI) que não sai do nosso caixa — não afeta o saldo</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Verba de parceiros/investimento (ex: SESI) que não sai do nosso caixa — não afeta o saldo e entra no fluxo de caixa como Saída de capital externo</span>
               </div>
             </label>
           )}
@@ -1704,61 +1689,18 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
   const [granularity, setGranularity] = useState<'dia' | 'semana' | 'mes'>('mes');
   const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
-  // Build cumulative Entrada/Saída series bucketed by day or week, with the
+  // Cumulative Entrada / Saída Interna / Saída Externa series by day or week,
   // same running-total semantics as the monthly `cashFlowData`.
-  const buildSeries = (mode: 'dia' | 'semana') => {
-    const sorted = [...transactions].sort((a, b) => {
-      const da = a.date?.toDate ? a.date.toDate() : new Date(0);
-      const dbb = b.date?.toDate ? b.date.toDate() : new Date(0);
-      return da.getTime() - dbb.getTime();
-    });
-
-    const pad = (n: number) => n.toString().padStart(2, '0');
-
-    const buckets: { name: string; key: string; income: number; expense: number }[] = [];
-    sorted.forEach((t) => {
-      const date = t.date?.toDate ? t.date.toDate() : new Date();
-      let key: string;
-      let name: string;
-      if (mode === 'dia') {
-        key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-        name = `${pad(date.getDate())}/${pad(date.getMonth() + 1)}`;
-      } else {
-        // Week bucket keyed by the week's Monday.
-        const monday = new Date(date);
-        const dow = (monday.getDay() + 6) % 7; // 0 = Monday
-        monday.setDate(monday.getDate() - dow);
-        monday.setHours(0, 0, 0, 0);
-        key = `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`;
-        name = `Sem ${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`;
-      }
-      let row = buckets.find((b) => b.key === key);
-      if (!row) {
-        row = { name, key, income: 0, expense: 0 };
-        buckets.push(row);
-      }
-      if (t.type === 'income') row.income += t.amount;
-      if (t.type === 'expense') row.expense += t.amount;
-    });
-
-    let accIncome = 0;
-    let accExpense = 0;
-    return buckets.map((row) => {
-      accIncome += row.income;
-      accExpense += row.expense;
-      return { name: row.name, Entrada: accIncome, Saída: accExpense };
-    });
-  };
-
-  const dayData = useMemo(() => buildSeries('dia'), [transactions]);
-  const weekData = useMemo(() => buildSeries('semana'), [transactions]);
+  const dayData = useMemo(() => buildCashFlowSeries(transactions, 'dia'), [transactions]);
+  const weekData = useMemo(() => buildCashFlowSeries(transactions, 'semana'), [transactions]);
 
   const chartData = granularity === 'dia' ? dayData : granularity === 'semana' ? weekData : cashFlowData;
 
   const CustomizedFlowLabel = (props: any) => {
-    const { x, y, value, fill, position = 'top' } = props;
+    const { x, y, value, fill, position = 'top', bottomOffset } = props;
+    const dyBottom = typeof bottomOffset === 'number' ? bottomOffset : 18;
     return (
-      <text x={x} y={position === 'top' ? y - 12 : y + 18} dy={0} fill={fill} fontSize={10} fontWeight="900" textAnchor="middle" stroke="white" strokeWidth={3} paintOrder="stroke" strokeLinecap="round" strokeLinejoin="round">
+      <text x={x} y={position === 'top' ? y - 12 : y + dyBottom} dy={0} fill={fill} fontSize={10} fontWeight="900" textAnchor="middle" stroke="white" strokeWidth={3} paintOrder="stroke" strokeLinecap="round" strokeLinejoin="round">
         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
       </text>
     );
@@ -1849,12 +1791,22 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
                 />
                 <Line 
                   type="monotone" 
-                  dataKey="Saída" 
+                  dataKey="Saída Interna" 
                   stroke="#ef4444" 
                   strokeWidth={4} 
                   dot={{ fill: '#ef4444', strokeWidth: 3, r: 6 }}
                   activeDot={{ r: 8, stroke: 'white', strokeWidth: 2 }}
                   label={<CustomizedFlowLabel fill="#ef4444" position="bottom" />}
+                  isAnimationActive={false}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="Saída Externa" 
+                  stroke="#8b5cf6" 
+                  strokeWidth={4} 
+                  dot={{ fill: '#8b5cf6', strokeWidth: 3, r: 6 }}
+                  activeDot={{ r: 8, stroke: 'white', strokeWidth: 2 }}
+                  label={<CustomizedFlowLabel fill="#8b5cf6" position="bottom" bottomOffset={32} />}
                   isAnimationActive={false}
                 />
               </LineChart>
@@ -1868,7 +1820,11 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
             </div>
             <div className="flex items-center gap-3">
               <div className="w-4 h-4 rounded-full bg-red-500 shadow-sm border border-red-600"></div>
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">SAÍDA DE CAPITAL</span>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">SAÍDA DE CAPITAL INTERNO</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 rounded-full bg-purple-500 shadow-sm border border-purple-600"></div>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">SAÍDA DE CAPITAL EXTERNO</span>
             </div>
         </div>
       </motion.div>
