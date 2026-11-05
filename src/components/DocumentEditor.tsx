@@ -107,7 +107,8 @@ const TagNode = Node.create({
 });
 
 // --- Save Status Types ---
-type SaveStatus = 'saved' | 'saving' | 'unsaved' | 'error';
+// 'syncing' = aplicado localmente, aguardando a confirmação do servidor.
+type SaveStatus = 'saved' | 'saving' | 'syncing' | 'unsaved' | 'error';
 
 interface DocumentEditorProps {
   documentId: string;
@@ -439,12 +440,13 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         // Extract sync events from the TipTap JSON before saving
         const syncEvents = extractSyncEvents(debouncedContent);
 
-        await commitWrite(setDoc(docRef, {
+        const write = setDoc(docRef, {
           content: debouncedContent,
           title: title,
           syncEvents: syncEvents,
           updatedAt: serverTimestamp(),
-        }, { merge: true }), {
+        }, { merge: true });
+        const result = await commitWrite(write, {
           label: 'o documento',
           onLateError: (err) => {
             console.error('[DocumentEditor] Save FAILED (late):', err);
@@ -455,9 +457,17 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
           },
         });
         
-        console.log("[DocumentEditor] Save successful!");
-        if (isMountedRef.current && seq === saveSeqRef.current) {
-          setSaveStatus('saved');
+        if (result === 'queued') {
+          // Ainda sem confirmação do servidor: mostra "Sincronizando" até a escrita terminar.
+          if (isMountedRef.current && seq === saveSeqRef.current) setSaveStatus('syncing');
+          write.then(() => {
+            if (isMountedRef.current && seq === saveSeqRef.current) setSaveStatus('saved');
+          }, () => { /* tratado em onLateError */ });
+        } else {
+          console.log("[DocumentEditor] Save successful!");
+          if (isMountedRef.current && seq === saveSeqRef.current) {
+            setSaveStatus('saved');
+          }
         }
       } catch (error: any) {
         console.error('[DocumentEditor] Save FAILED:', error);
@@ -768,6 +778,12 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
               <div className="flex items-center gap-1.5 text-blue-500">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span className="text-[10px] font-bold uppercase tracking-widest">Carregando imagem...</span>
+              </div>
+            )}
+            {saveStatus === 'syncing' && (
+              <div className="flex items-center gap-1.5 text-gray-400">
+                <Cloud className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-bold uppercase tracking-widest">Sincronizando...</span>
               </div>
             )}
             {saveStatus === 'saved' && (

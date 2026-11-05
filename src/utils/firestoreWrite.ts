@@ -41,6 +41,36 @@ export function reportLateWriteError(label: string, err: unknown): void {
   }
 }
 
+// --- Escritas ainda sem confirmação do servidor ---
+// O cache do Firestore fica só na memória da aba: fechar a aba com uma escrita
+// pendente perde a alteração. Enquanto houver alguma pendente, o navegador pede
+// confirmação ao sair (beforeunload); o aviso sai assim que a contagem chega a 0.
+let pendingWrites = 0;
+
+function handleBeforeUnload(e: BeforeUnloadEvent) {
+  e.preventDefault();
+  e.returnValue = '';
+}
+
+function trackPendingWrite(write: Promise<unknown>): void {
+  pendingWrites++;
+  if (pendingWrites === 1 && typeof window !== 'undefined') {
+    window.addEventListener('beforeunload', handleBeforeUnload);
+  }
+  const done = () => {
+    pendingWrites--;
+    if (pendingWrites === 0 && typeof window !== 'undefined') {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    }
+  };
+  write.then(done, done);
+}
+
+/** Quantas escritas feitas via commitWrite ainda aguardam o servidor. */
+export function getPendingWriteCount(): number {
+  return pendingWrites;
+}
+
 export type CommitResult = 'committed' | 'queued';
 
 export interface CommitWriteOptions {
@@ -60,6 +90,7 @@ export interface CommitWriteOptions {
  */
 export function commitWrite(write: Promise<unknown>, opts: CommitWriteOptions): Promise<CommitResult> {
   const graceMs = opts.graceMs ?? WRITE_GRACE_MS;
+  trackPendingWrite(write);
   return new Promise<CommitResult>((resolve, reject) => {
     let settled = false;
     const timer = setTimeout(() => {
