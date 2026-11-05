@@ -44,7 +44,7 @@ import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
-import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
+import { commitWrite, friendlyWriteError, reportLateWriteError } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import { TAG_COLORS } from './TaskDetailsModal';
@@ -957,7 +957,13 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
           label,
           color: selectedTagColor,
           createdAt: serverTimestamp()
-        }), { label: 'a tag' });
+        }), {
+          label: 'a tag',
+          onLateError: (err) => {
+            setSelectedTags(prev => prev.filter(t => t !== tagRef.id));
+            reportLateWriteError('a tag', err);
+          }
+        });
       } catch (error) {
         setSelectedTags(prev => prev.filter(t => t !== tagRef.id));
         logFirestoreError(error, OperationType.CREATE, 'projectTags');

@@ -3,7 +3,7 @@ import { Task, UserProfile, ProjectTag } from '../types';
 import { X, Calendar, User as UserIcon, Tag, AlignLeft, Check, Clock, Palette, Plus, Trash2 } from 'lucide-react';
 import { doc, updateDoc, getDoc, serverTimestamp, deleteDoc, collection, query, where, onSnapshot, setDoc, orderBy } from 'firebase/firestore';
 import { logFirestoreError, OperationType } from '../utils/errorHandlers';
-import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
+import { commitWrite, friendlyWriteError, reportLateWriteError } from '../utils/firestoreWrite';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
@@ -186,7 +186,13 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
           label,
           color: selectedTagColor,
           createdAt: serverTimestamp()
-        }), { label: 'a tag' });
+        }), {
+          label: 'a tag',
+          onLateError: (err) => {
+            setTags(prev => prev.filter(t => t !== tagRef.id));
+            reportLateWriteError('a tag', err);
+          }
+        });
       } catch (error) {
         setTags(prev => prev.filter(t => t !== tagRef.id));
         logFirestoreError(error, OperationType.CREATE, 'projectTags');

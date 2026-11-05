@@ -395,7 +395,11 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
         </div>
 
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center gap-3 shrink-0">
-          {saveError && <p className="text-xs font-bold text-red-600">{saveError}</p>}
+          {saveError ? (
+            <p className="text-xs font-bold text-red-600">{saveError}</p>
+          ) : step === 3 && complete && !title.trim() ? (
+            <p className="text-xs font-bold text-red-600">Informe o título para salvar</p>
+          ) : null}
           <div className="flex gap-3 ml-auto">
             {step > 1 && (
               <button type="button" onClick={() => setStep((step - 1) as Step)} className={navBtnCls}>

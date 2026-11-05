@@ -27,6 +27,8 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
     try {
       await onSave(kpi.id, parsed, note.trim() || undefined);
       onClose();
+    } catch {
+      // onSave já mostrou o erro; mantém o modal aberto para nova tentativa.
     } finally {
       setSaving(false);
     }
