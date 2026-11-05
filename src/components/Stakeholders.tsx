@@ -16,6 +16,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  setDoc,
   serverTimestamp,
   orderBy
 } from 'firebase/firestore';
@@ -38,7 +39,8 @@ import {
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { motion, AnimatePresence } from 'motion/react';
 import { TAG_COLORS } from './TaskDetailsModal';
 // @ts-ignore
@@ -163,10 +165,11 @@ export default function Stakeholders() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'projectStakeholders', itemToDelete.id));
+      await commitWrite(deleteDoc(doc(db, 'projectStakeholders', itemToDelete.id)), { label: 'a exclusão do stakeholder' });
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'projectStakeholders');
+      logFirestoreError(error, OperationType.DELETE, 'projectStakeholders');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -1162,14 +1165,15 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
         newComms.push({ id: Math.random().toString(36).substr(2, 9), what, method, when, responsible });
       }
 
-      await updateDoc(doc(db, 'projectStakeholders', sh.id), {
+      await commitWrite(updateDoc(doc(db, 'projectStakeholders', sh.id), {
         communications: newComms,
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'o plano de comunicação' });
 
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'projectStakeholders');
+      logFirestoreError(error, OperationType.UPDATE, 'projectStakeholders');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -1385,17 +1389,18 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
       };
       
       if (item) {
-        await updateDoc(doc(db, 'projectStakeholders', item.id), data);
+        await commitWrite(updateDoc(doc(db, 'projectStakeholders', item.id), data), { label: 'o stakeholder' });
       } else {
-        await addDoc(collection(db, 'projectStakeholders'), { 
+        await commitWrite(addDoc(collection(db, 'projectStakeholders'), { 
           ...data, 
           projectId, 
           createdAt: serverTimestamp() 
-        });
+        }), { label: 'o stakeholder' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'projectStakeholders');
+      logFirestoreError(error, OperationType.CREATE, 'projectStakeholders');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -1414,16 +1419,19 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
     if (existing) {
       if (!selectedTags.includes(existing.id)) setSelectedTags([...selectedTags, existing.id]);
     } else {
+      const tagRef = doc(collection(db, 'projectTags'));
+      setSelectedTags(prev => [...prev, tagRef.id]);
       try {
-        const docRef = await addDoc(collection(db, 'projectTags'), {
+        await commitWrite(setDoc(tagRef, {
           projectId,
           label,
           color: selectedTagColor,
           createdAt: serverTimestamp()
-        });
-        setSelectedTags([...selectedTags, docRef.id]);
+        }), { label: 'a tag' });
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'projectTags');
+        setSelectedTags(prev => prev.filter(t => t !== tagRef.id));
+        logFirestoreError(error, OperationType.CREATE, 'projectTags');
+        alert(friendlyWriteError(error));
       }
     }
     setNewTagLabel('');

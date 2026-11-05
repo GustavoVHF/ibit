@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { collection, query, where, onSnapshot, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, documentId } from 'firebase/firestore';
 import { Project, ProjectTag, UserProfile } from '../types';
 import { canEditProject } from '../utils/roleHelpers';
+import { commitWrite } from '../utils/firestoreWrite';
 import Sidebar from './Sidebar';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { Trash2, Tag, Plus, X, Check, Edit2, Palette } from 'lucide-react';
@@ -125,18 +126,18 @@ export default function ProjectTags() {
     try {
       if (editingTag) {
         const tagRef = doc(db, 'projectTags', editingTag.id);
-        await updateDoc(tagRef, {
+        await commitWrite(updateDoc(tagRef, {
           label: tagLabel.trim(),
           color: tagColor,
           updatedAt: serverTimestamp()
-        });
+        }), { label: 'a tag' });
       } else {
-        await addDoc(collection(db, 'projectTags'), {
+        await commitWrite(addDoc(collection(db, 'projectTags'), {
           projectId,
           label: tagLabel.trim(),
           color: tagColor,
           createdAt: serverTimestamp()
-        });
+        }), { label: 'a tag' });
       }
       handleCloseModal();
     } catch (error) {
@@ -151,7 +152,7 @@ export default function ProjectTags() {
     if (!confirm('Tem certeza que deseja excluir esta tag?')) return;
 
     try {
-      await deleteDoc(doc(db, 'projectTags', tagId));
+      await commitWrite(deleteDoc(doc(db, 'projectTags', tagId)), { label: 'a exclusão da tag' });
     } catch (error) {
       console.error('Error deleting tag:', error);
       alert('Erro ao excluir tag.');

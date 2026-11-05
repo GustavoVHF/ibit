@@ -16,6 +16,7 @@ import {
   addDoc, 
   updateDoc, 
   deleteDoc, 
+  setDoc,
   serverTimestamp,
   orderBy,
   writeBatch
@@ -42,7 +43,8 @@ import {
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import { TAG_COLORS } from './TaskDetailsModal';
@@ -179,10 +181,11 @@ export default function Inventory() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'inventory', itemToDelete.id));
+      await commitWrite(deleteDoc(doc(db, 'inventory', itemToDelete.id)), { label: 'a exclusão do item' });
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'inventory');
+      logFirestoreError(error, OperationType.DELETE, 'inventory');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -192,11 +195,12 @@ export default function Inventory() {
       selectedItems.forEach((itemId) => {
         batch.delete(doc(db, 'inventory', itemId));
       });
-      await batch.commit();
+      await commitWrite(batch.commit(), { label: 'a exclusão dos itens' });
       setSelectedItems([]);
       setIsBulkDeleteConfirmOpen(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'inventory (bulk)');
+      logFirestoreError(error, OperationType.DELETE, 'inventory (bulk)');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -910,9 +914,9 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
         updatedAt: serverTimestamp(),
       };
       if (item) {
-        await updateDoc(doc(db, 'inventory', item.id), data);
+        await commitWrite(updateDoc(doc(db, 'inventory', item.id), data), { label: 'o item' });
       } else {
-        await addDoc(collection(db, 'inventory'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'inventory'), { ...data, createdAt: serverTimestamp() }), { label: 'o item' });
       }
       await logAutomaticChange({
         projectId,
@@ -925,7 +929,8 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
       });
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'inventory');
+      logFirestoreError(error, OperationType.CREATE, 'inventory');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -944,16 +949,19 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
     if (existing) {
       if (!selectedTags.includes(existing.id)) setSelectedTags([...selectedTags, existing.id]);
     } else {
+      const tagRef = doc(collection(db, 'projectTags'));
+      setSelectedTags(prev => [...prev, tagRef.id]);
       try {
-        const docRef = await addDoc(collection(db, 'projectTags'), {
+        await commitWrite(setDoc(tagRef, {
           projectId,
           label,
           color: selectedTagColor,
           createdAt: serverTimestamp()
-        });
-        setSelectedTags([...selectedTags, docRef.id]);
+        }), { label: 'a tag' });
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'projectTags');
+        setSelectedTags(prev => prev.filter(t => t !== tagRef.id));
+        logFirestoreError(error, OperationType.CREATE, 'projectTags');
+        alert(friendlyWriteError(error));
       }
     }
     setNewTagLabel('');

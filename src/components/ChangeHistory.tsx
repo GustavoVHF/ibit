@@ -10,7 +10,8 @@ import MobileToolsDrawer from './MobileToolsDrawer';
 import { db } from '../firebase';
 import { ChangeHistoryEntry, ChangeSector, ChangeStatus, GanttTask, Project, Task, UserProfile } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { canManageMembers, canWrite as canWriteProject } from '../utils/roleHelpers';
 import { CHANGE_HISTORY_COLLECTION } from '../utils/changeHistory';
 import ChangeHistorySummaryCards from './changeHistory/ChangeHistorySummaryCards';
@@ -92,8 +93,8 @@ export default function ChangeHistory() {
 
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
-    try { await deleteDoc(doc(db, CHANGE_HISTORY_COLLECTION, itemToDelete.id)); setItemToDelete(null); }
-    catch (error) { handleFirestoreError(error, OperationType.DELETE, CHANGE_HISTORY_COLLECTION); }
+    try { await commitWrite(deleteDoc(doc(db, CHANGE_HISTORY_COLLECTION, itemToDelete.id)), { label: 'a exclusão da mudança' }); setItemToDelete(null); }
+    catch (error) { logFirestoreError(error, OperationType.DELETE, CHANGE_HISTORY_COLLECTION); alert(friendlyWriteError(error)); }
   };
 
   if (loading || !project) return <div className="min-h-screen bg-[#f8f9fa] flex items-center justify-center"><div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin" /></div>;

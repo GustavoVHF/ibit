@@ -28,7 +28,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import ExportButton from './export/ExportButton';
@@ -150,21 +151,22 @@ export default function KpiManagement() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'projectKPIs', itemToDelete.id));
+      await commitWrite(deleteDoc(doc(db, 'projectKPIs', itemToDelete.id)), { label: 'a exclusão do KPI' });
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'projectKPIs');
+      logFirestoreError(error, OperationType.DELETE, 'projectKPIs');
+      alert(friendlyWriteError(error));
     }
   };
 
   const handleQuickUpdateSave = async (kpiId: string, newValue: number, note?: string) => {
     try {
       const historyEntry = { date: new Date(), value: newValue, note: note || null };
-      await updateDoc(doc(db, 'projectKPIs', kpiId), {
+      await commitWrite(updateDoc(doc(db, 'projectKPIs', kpiId), {
         currentValue: newValue,
         history: arrayUnion(historyEntry),
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'o KPI' });
       const kpi = kpis.find((item) => item.id === kpiId);
       if (kpi) {
         await logAutomaticChange({
@@ -177,7 +179,10 @@ export default function KpiManagement() {
         });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'projectKPIs');
+      logFirestoreError(error, OperationType.UPDATE, 'projectKPIs');
+      alert(friendlyWriteError(error));
+      // KpiQuickUpdate aguarda esta função: relança para o modal continuar aberto.
+      throw error;
     }
   };
 

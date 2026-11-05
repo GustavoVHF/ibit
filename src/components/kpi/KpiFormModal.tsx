@@ -5,7 +5,8 @@ import clsx from 'clsx';
 import { doc, addDoc, updateDoc, collection, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ProjectKPI, UserProfile, KpiSector, KpiStatus, KpiComparator } from '../../types';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { KPI_SECTORS, KPI_STATUSES } from './kpiHelpers';
 
 interface KpiFormModalProps {
@@ -89,18 +90,19 @@ export default function KpiFormModal({
         if (item.currentValue !== undefined && parsedCurrent !== item.currentValue) {
           payload.history = arrayUnion({ date: new Date(), value: parsedCurrent, note: null });
         }
-        await updateDoc(doc(db, 'projectKPIs', item.id), payload);
+        await commitWrite(updateDoc(doc(db, 'projectKPIs', item.id), payload), { label: 'o KPI' });
       } else {
-        await addDoc(collection(db, 'projectKPIs'), {
+        await commitWrite(addDoc(collection(db, 'projectKPIs'), {
           ...payload,
           ownerId,
           history: [],
           createdAt: serverTimestamp(),
-        });
+        }), { label: 'o KPI' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'projectKPIs');
+      logFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'projectKPIs');
+      alert(friendlyWriteError(error));
     } finally {
       setLoading(false);
     }

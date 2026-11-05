@@ -4,6 +4,7 @@ import { Calendar, X } from 'lucide-react';
 import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Project } from '../types';
+import { commitWrite } from '../utils/firestoreWrite';
 
 interface CountdownModalProps {
   project: Project;
@@ -25,10 +26,10 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
 
     setIsSaving(true);
     try {
-      await updateDoc(doc(db, 'projects', project.id), {
+      await commitWrite(updateDoc(doc(db, 'projects', project.id), {
         targetEventName: eventName.trim(),
         targetDate: Timestamp.fromDate(new Date(eventDate))
-      });
+      }), { label: 'o evento' });
       onClose();
     } catch (error) {
       console.error('Erro ao salvar evento:', error);

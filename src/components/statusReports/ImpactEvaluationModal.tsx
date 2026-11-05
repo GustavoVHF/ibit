@@ -6,7 +6,8 @@ import clsx from 'clsx';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { StatusReport, ImpactStatus, StatusReportImpactEvaluation } from '../../types';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { IMPACT_STATUSES, IMPACT_STATUS_STYLES, formatDate, generateEvaluationId } from './statusReportHelpers';
 
 interface ImpactEvaluationModalProps {
@@ -47,15 +48,16 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
         impactStatus,
       };
 
-      await updateDoc(doc(db, 'statusReports', report.id), {
+      await commitWrite(updateDoc(doc(db, 'statusReports', report.id), {
         impactStatus,
         impactEvaluations: [...(report.impactEvaluations || []), newEvaluation],
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'a avaliação de impacto' });
       setWhatChanged('');
       setIsNewFormOpen(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      logFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      alert(friendlyWriteError(error));
     } finally {
       setSaving(false);
     }
@@ -65,12 +67,13 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
     setDeletingId(evaluationId);
     try {
       const updatedHistory = (report.impactEvaluations || []).filter((ev) => ev.id !== evaluationId);
-      await updateDoc(doc(db, 'statusReports', report.id), {
+      await commitWrite(updateDoc(doc(db, 'statusReports', report.id), {
         impactEvaluations: updatedHistory,
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'a exclusão da avaliação' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      logFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      alert(friendlyWriteError(error));
     } finally {
       setDeletingId(null);
     }

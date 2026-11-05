@@ -4,7 +4,8 @@ import { db, auth } from '../firebase';
 import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { X, Upload, User as UserIcon, Loader2 } from 'lucide-react';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestoreWrite';
 import { motion } from 'motion/react';
 
 interface UserProfileModalProps {
@@ -73,25 +74,27 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
 
     try {
       // 1. Atualizar no Firebase Auth
-      await updateProfile(user, {
+      await withTimeout(updateProfile(user, {
         displayName: name.trim(),
         photoURL: photoURL || null
-      });
+      }));
 
       // 2. Atualizar no Firestore
       const userRef = doc(db, 'users', user.uid);
-      await updateDoc(userRef, {
+      const result = await commitWrite(updateDoc(userRef, {
         name: name.trim(),
         photoURL: photoURL || null,
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'o perfil' });
 
       onClose();
-      // Recarregar a página para garantir que o contexto de auth seja atualizado em todo o app
-      window.location.reload();
+      // Recarregar a página para garantir que o contexto de auth seja atualizado em todo o app.
+      // Só recarrega após a confirmação do servidor: o cache é em memória e o reload
+      // descartaria uma escrita ainda na fila.
+      if (result === 'committed') window.location.reload();
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
-      setError('Erro ao salvar as configurações.');
+      logFirestoreError(err, OperationType.UPDATE, `users/${user.uid}`);
+      setError(friendlyWriteError(err));
     } finally {
       setIsSaving(false);
     }

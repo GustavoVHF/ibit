@@ -17,6 +17,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   serverTimestamp,
   orderBy,
   writeBatch
@@ -44,7 +45,8 @@ import {
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 
@@ -246,36 +248,39 @@ export default function Assets() {
     if (!itemToDelete) return;
     try {
       if (itemToDelete.type === 'folder') {
-        // Recursive deletion for folders
-        const deleteFolderRecursive = async (folderId: string) => {
+        // Recursive deletion for folders: collect every delete, commit once
+        const deletes: Promise<void>[] = [];
+        const deleteFolderRecursive = (folderId: string) => {
           const linksInFolder = links.filter(l => l.folderId === folderId);
           for (const link of linksInFolder) {
-            await deleteDoc(doc(db, 'assetLinks', link.id));
+            deletes.push(deleteDoc(doc(db, 'assetLinks', link.id)));
           }
           const docsInFolder = documents.filter(d => d.folderId === folderId);
           for (const d of docsInFolder) {
-            await deleteDoc(doc(db, 'assetDocuments', d.id));
+            deletes.push(deleteDoc(doc(db, 'assetDocuments', d.id)));
           }
           const subfolders = folders.filter(f => f.parentId === folderId);
           for (const sub of subfolders) {
-            await deleteFolderRecursive(sub.id);
+            deleteFolderRecursive(sub.id);
           }
-          await deleteDoc(doc(db, 'assetFolders', folderId));
+          deletes.push(deleteDoc(doc(db, 'assetFolders', folderId)));
         };
         
-        await deleteFolderRecursive(itemToDelete.id);
+        deleteFolderRecursive(itemToDelete.id);
+        await commitWrite(Promise.all(deletes), { label: 'a exclusão da pasta' });
         if (currentFolderId === itemToDelete.id) {
           setCurrentFolderId(null);
         }
       } else if (itemToDelete.type === 'document') {
-        await deleteDoc(doc(db, 'assetDocuments', itemToDelete.id));
+        await commitWrite(deleteDoc(doc(db, 'assetDocuments', itemToDelete.id)), { label: 'a exclusão do documento' });
       } else {
-        await deleteDoc(doc(db, 'assetLinks', itemToDelete.id));
+        await commitWrite(deleteDoc(doc(db, 'assetLinks', itemToDelete.id)), { label: 'a exclusão do link' });
       }
       
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'assets');
+      logFirestoreError(error, OperationType.DELETE, 'assets');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -284,7 +289,8 @@ export default function Assets() {
     if (!user || !projectId) return;
     setShowNewAssetDropdown(false);
     try {
-      const docRef = await addDoc(collection(db, 'assetDocuments'), {
+      const docRef = doc(collection(db, 'assetDocuments'));
+      await commitWrite(setDoc(docRef, {
         projectId,
         folderId: currentFolderId || null,
         type: 'note',
@@ -293,11 +299,12 @@ export default function Assets() {
         ownerId: user.uid,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'o documento' });
       // Open the editor immediately after creation
       setOpenDocumentId(docRef.id);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'assetDocuments');
+      logFirestoreError(error, OperationType.CREATE, 'assetDocuments');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -867,13 +874,14 @@ function FolderModal({ projectId, parentId, folder, onClose }: FolderModalProps)
         ownerId: user.uid
       };
       if (folder) {
-        await updateDoc(doc(db, 'assetFolders', folder.id), data);
+        await commitWrite(updateDoc(doc(db, 'assetFolders', folder.id), data), { label: 'a pasta' });
       } else {
-        await addDoc(collection(db, 'assetFolders'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'assetFolders'), { ...data, createdAt: serverTimestamp() }), { label: 'a pasta' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'assetFolders');
+      logFirestoreError(error, OperationType.CREATE, 'assetFolders');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -941,13 +949,14 @@ function LinkModal({ projectId, folderId, link, onClose }: LinkModalProps) {
         ownerId: user.uid
       };
       if (link) {
-        await updateDoc(doc(db, 'assetLinks', link.id), data);
+        await commitWrite(updateDoc(doc(db, 'assetLinks', link.id), data), { label: 'o link' });
       } else {
-        await addDoc(collection(db, 'assetLinks'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'assetLinks'), { ...data, createdAt: serverTimestamp() }), { label: 'o link' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'assetLinks');
+      logFirestoreError(error, OperationType.CREATE, 'assetLinks');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }

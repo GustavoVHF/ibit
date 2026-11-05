@@ -4,6 +4,7 @@ import { Link, Copy, Trash2, AlertTriangle, X } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Project } from '../types';
+import { commitWrite } from '../utils/firestoreWrite';
 
 interface AuditModalProps {
   project: Project;
@@ -18,7 +19,7 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
     setIsGenerating(true);
     try {
       const token = crypto.randomUUID();
-      await updateDoc(doc(db, 'projects', project.id), { auditToken: token });
+      await commitWrite(updateDoc(doc(db, 'projects', project.id), { auditToken: token }), { label: 'o link de auditoria' });
     } catch (error) {
       console.error('Erro ao gerar token:', error);
       alert('Erro ao gerar link. Tente novamente.');
@@ -31,7 +32,7 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
     if (!confirm('Tem certeza? O link atual será invalidado e não poderá mais ser acessado.')) return;
 
     try {
-      await updateDoc(doc(db, 'projects', project.id), { auditToken: null });
+      await commitWrite(updateDoc(doc(db, 'projects', project.id), { auditToken: null }), { label: 'a revogação do link' });
     } catch (error) {
       console.error('Erro ao revogar token:', error);
       alert('Erro ao revogar link. Tente novamente.');

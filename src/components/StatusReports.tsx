@@ -18,7 +18,8 @@ import {
 import { Project, StatusReport, UserProfile, StatusReportSector } from '../types';
 import { Plus, Search, AlertTriangle, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import ExportButton from './export/ExportButton';
@@ -123,24 +124,26 @@ export default function StatusReports() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'statusReports', itemToDelete.id));
+      await commitWrite(deleteDoc(doc(db, 'statusReports', itemToDelete.id)), { label: 'a exclusão do status report' });
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'statusReports');
+      logFirestoreError(error, OperationType.DELETE, 'statusReports');
+      alert(friendlyWriteError(error));
     }
   };
 
   const handleToggleApproval = async (report: StatusReport) => {
     if (!canApprove || !user) return;
     try {
-      await updateDoc(doc(db, 'statusReports', report.id), {
+      await commitWrite(updateDoc(doc(db, 'statusReports', report.id), {
         approved: !report.approved,
         approvedBy: !report.approved ? user.uid : null,
         approvedAt: !report.approved ? serverTimestamp() : null,
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'a aprovação' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      logFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -149,10 +152,10 @@ export default function StatusReports() {
       const updatedItems = (report.actionItems || []).map((ai) =>
         ai.id === actionItemId ? { ...ai, done: !ai.done } : ai
       );
-      await updateDoc(doc(db, 'statusReports', report.id), {
+      await commitWrite(updateDoc(doc(db, 'statusReports', report.id), {
         actionItems: updatedItems,
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'a ação da reunião' });
       const actionItem = (report.actionItems || []).find((item) => item.id === actionItemId);
       if (actionItem) {
         await logAutomaticChange({
@@ -165,7 +168,8 @@ export default function StatusReports() {
         });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      logFirestoreError(error, OperationType.UPDATE, 'statusReports');
+      alert(friendlyWriteError(error));
     }
   };
 

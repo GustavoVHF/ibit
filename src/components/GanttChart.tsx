@@ -48,7 +48,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { diffInDays, logAutomaticChange, toDateSafe } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 import ProjectSettingsModal from './ProjectSettingsModal';
@@ -722,11 +723,11 @@ export default function GanttChart() {
           });
         }
 
-        await updateDoc(doc(db, 'ganttTasks', editingTask.id), {
+        await commitWrite(updateDoc(doc(db, 'ganttTasks', editingTask.id), {
           ...taskData,
           changeLog: newChangeLog,
           updatedAt: serverTimestamp()
-        });
+        }), { label: 'a tarefa do cronograma' });
 
         // Registra a alteração no Histórico de Mudanças do projeto
         if (changes.length > 0) {
@@ -742,19 +743,20 @@ export default function GanttChart() {
           });
         }
       } else {
-        await addDoc(collection(db, 'ganttTasks'), {
+        await commitWrite(addDoc(collection(db, 'ganttTasks'), {
           ...taskData,
           projectId,
           order: tasks.length,
           changeLog: [],
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
+        }), { label: 'a tarefa do cronograma' });
       }
       setIsTaskModalOpen(false);
       setEditingTask(null);
     } catch (error) {
-      handleFirestoreError(error, editingTask?.id ? OperationType.UPDATE : OperationType.CREATE, 'ganttTasks');
+      logFirestoreError(error, editingTask?.id ? OperationType.UPDATE : OperationType.CREATE, 'ganttTasks');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -762,28 +764,30 @@ export default function GanttChart() {
     if (!projectId) return;
     try {
       if (editingStakeholder?.id) {
-        await updateDoc(doc(db, 'projectStakeholders', editingStakeholder.id), shData);
+        await commitWrite(updateDoc(doc(db, 'projectStakeholders', editingStakeholder.id), shData), { label: 'o participante' });
       } else {
-        await addDoc(collection(db, 'projectStakeholders'), {
+        await commitWrite(addDoc(collection(db, 'projectStakeholders'), {
           ...shData,
           projectId,
           createdAt: serverTimestamp()
-        });
+        }), { label: 'o participante' });
       }
       setIsStakeholderModalOpen(false);
       setEditingStakeholder(null);
     } catch (error) {
-      handleFirestoreError(error, editingStakeholder?.id ? OperationType.UPDATE : OperationType.CREATE, 'projectStakeholders');
+      logFirestoreError(error, editingStakeholder?.id ? OperationType.UPDATE : OperationType.CREATE, 'projectStakeholders');
+      alert(friendlyWriteError(error));
     }
   };
 
   const confirmDeleteTask = async () => {
     if (!taskToDelete) return;
     try {
-      await deleteDoc(doc(db, 'ganttTasks', taskToDelete));
+      await commitWrite(deleteDoc(doc(db, 'ganttTasks', taskToDelete)), { label: 'a exclusão da tarefa' });
       setTaskToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'ganttTasks');
+      logFirestoreError(error, OperationType.DELETE, 'ganttTasks');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -809,12 +813,13 @@ export default function GanttChart() {
     e.preventDefault();
     if (!projectId || !customStartDate) return;
     try {
-      await updateDoc(doc(db, 'projects', projectId), {
+      await commitWrite(updateDoc(doc(db, 'projects', projectId), {
         ganttStartDate: new Date(customStartDate)
-      });
+      }), { label: 'a data de início' });
       setIsStartDateModalOpen(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'projects');
+      logFirestoreError(error, OperationType.UPDATE, 'projects');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -2109,11 +2114,12 @@ export default function GanttChart() {
             currentStakeholders={stakeholders}
             onSaveMember={async (uid, name) => {
                try {
-                 await addDoc(collection(db, 'projectStakeholders'), {
+                 await commitWrite(addDoc(collection(db, 'projectStakeholders'), {
                    projectId, name, userId: uid, createdAt: serverTimestamp()
-                 });
+                 }), { label: 'o participante' });
                } catch (error) {
-                 handleFirestoreError(error, OperationType.CREATE, 'projectStakeholders');
+                 logFirestoreError(error, OperationType.CREATE, 'projectStakeholders');
+                 alert(friendlyWriteError(error));
                }
             }}
             onSaveExternal={handleStakeholderSave}

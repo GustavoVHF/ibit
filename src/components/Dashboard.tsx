@@ -4,7 +4,8 @@ import { db } from '../firebase';
 import { useNavigate, Link } from 'react-router-dom';
 import { LogOut, LayoutDashboard, Plus, X, Users, UserPlus, Trash2, AlertTriangle } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs, updateDoc, doc, writeBatch } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestoreWrite';
 import Sidebar from './Sidebar';
 import MobileBottomNav from './MobileBottomNav';
 import UserProfileModal from './UserProfileModal';
@@ -73,7 +74,7 @@ export default function Dashboard() {
       const now = serverTimestamp();
       const generatedShortId = Math.random().toString(36).substring(2, 10).toUpperCase();
       
-      await addDoc(collection(db, 'projects'), {
+      await commitWrite(addDoc(collection(db, 'projects'), {
         name: newProjectName.trim(),
         description: newProjectDesc.trim() || null,
         photoURL: null,
@@ -82,14 +83,15 @@ export default function Dashboard() {
         members: [user.uid],
         createdAt: now,
         updatedAt: now,
-      });
+      }), { label: 'o projeto' });
 
       setIsModalOpen(false);
       setNewProjectName('');
       setNewProjectDesc('');
     } catch (error) {
       console.error("Erro na criação do projeto:", error);
-      handleFirestoreError(error, OperationType.CREATE, 'projects');
+      logFirestoreError(error, OperationType.CREATE, 'projects');
+      alert(friendlyWriteError(error));
     } finally {
       setIsCreating(false);
     }
@@ -107,7 +109,7 @@ export default function Dashboard() {
         collection(db, 'projects'),
         where('shortId', '==', joinShortId.trim().toUpperCase())
       );
-      const querySnapshot = await getDocs(q);
+      const querySnapshot = await withTimeout(getDocs(q));
 
       if (querySnapshot.empty) {
         setJoinError('Projeto não encontrado. Verifique se o código está correto.');
@@ -125,10 +127,10 @@ export default function Dashboard() {
       }
 
       const projectRef = doc(db, 'projects', projectDoc.id);
-      await updateDoc(projectRef, {
+      await commitWrite(updateDoc(projectRef, {
         members: [...projectData.members, user.uid],
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'o ingresso no projeto' });
 
       setIsJoinModalOpen(false);
       setJoinShortId('');
@@ -147,16 +149,17 @@ export default function Dashboard() {
       const projectRef = doc(db, 'projects', projectToLeave.id);
       const updatedMembers = projectToLeave.members.filter(m => m !== user.uid);
       
-      await updateDoc(projectRef, {
+      await commitWrite(updateDoc(projectRef, {
         members: updatedMembers,
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'a saída do projeto' });
 
       setIsLeaveModalOpen(false);
       setProjectToLeave(null);
     } catch (error) {
       console.error("Erro ao sair do projeto:", error);
-      handleFirestoreError(error, OperationType.UPDATE, `projects/${projectToLeave.id}`);
+      logFirestoreError(error, OperationType.UPDATE, `projects/${projectToLeave.id}`);
+      alert(friendlyWriteError(error));
     } finally {
       setIsLeaving(false);
     }
@@ -169,27 +172,28 @@ export default function Dashboard() {
       const batch = writeBatch(db);
 
       const boardsQ = query(collection(db, 'boards'), where('projectId', '==', projectToDelete.id));
-      const boardsSnap = await getDocs(boardsQ);
+      const boardsSnap = await withTimeout(getDocs(boardsQ));
       boardsSnap.forEach((boardDoc) => {
         batch.delete(boardDoc.ref);
       });
 
       const tasksQ = query(collection(db, 'tasks'), where('projectId', '==', projectToDelete.id));
-      const tasksSnap = await getDocs(tasksQ);
+      const tasksSnap = await withTimeout(getDocs(tasksQ));
       tasksSnap.forEach((taskDoc) => {
         batch.delete(taskDoc.ref);
       });
 
       batch.delete(doc(db, 'projects', projectToDelete.id));
 
-      await batch.commit();
+      await commitWrite(batch.commit(), { label: 'a exclusão do projeto' });
 
       setIsDeleteModalOpen(false);
       setProjectToDelete(null);
       setDeleteConfirmId('');
     } catch (error) {
       console.error("Erro ao deletar projeto e dependências:", error);
-      handleFirestoreError(error, OperationType.DELETE, `projects/${projectToDelete.id}`);
+      logFirestoreError(error, OperationType.DELETE, `projects/${projectToDelete.id}`);
+      alert(friendlyWriteError(error));
     } finally {
       setIsDeleting(false);
     }

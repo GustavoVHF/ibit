@@ -5,7 +5,8 @@ import { BarChart3, Check, Link2, Loader2, UserRound, X } from 'lucide-react';
 import { doc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ChangeHistoryEntry, ChangeStatus, GanttTask, Task } from '../../types';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { CHANGE_HISTORY_COLLECTION, diffInDays, shiftDate, toDateSafe } from '../../utils/changeHistory';
 import { DECISION_OPTIONS, SECTOR_TAG_STYLES, SOURCE_STYLES, STATUS_STYLES, formatDateTime, formatSignedCurrency, formatSignedDays, impactTone, isReviewable, sourceLabel, statusLabel } from './changeHistoryHelpers';
 
@@ -111,10 +112,11 @@ export default function ReviewChangeModal({ isOpen, onClose, entry, currentUser,
         ...(applied ? { appliedAt: now, appliedBy: currentUser.uid } : {}),
         updatedAt: serverTimestamp(),
       });
-      await batch.commit();
+      await commitWrite(batch.commit(), { label: 'a decisão' });
       onClose();
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, CHANGE_HISTORY_COLLECTION);
+      logFirestoreError(err, OperationType.UPDATE, CHANGE_HISTORY_COLLECTION);
+      setError(friendlyWriteError(err));
     } finally {
       setLoading(false);
     }

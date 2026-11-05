@@ -1,6 +1,7 @@
 import { db } from '../firebase';
 import { doc, updateDoc, getDoc, serverTimestamp, arrayRemove } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from './errorHandlers';
+import { commitWrite, withTimeout } from './firestoreWrite';
 import { Project, ProjectRole } from '../types';
 import { getUserRole, canManageMembers, canRemoveMember, canChangeRole } from './roleHelpers';
 
@@ -17,7 +18,7 @@ export async function changeMemberRole(
   try {
     // Fetch project
     const projectRef = doc(db, 'projects', projectId);
-    const projectSnap = await getDoc(projectRef);
+    const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
       throw new Error('Projeto não encontrado');
@@ -48,10 +49,10 @@ export async function changeMemberRole(
     currentRoles[targetUid] = newRole;
 
     // Update project document
-    await updateDoc(projectRef, {
+    await commitWrite(updateDoc(projectRef, {
       roles: currentRoles,
       updatedAt: serverTimestamp()
-    });
+    }), { label: 'o cargo do membro' });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `projects/${projectId}`);
     throw error;
@@ -70,7 +71,7 @@ export async function removeMember(
   try {
     // Fetch project
     const projectRef = doc(db, 'projects', projectId);
-    const projectSnap = await getDoc(projectRef);
+    const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
       throw new Error('Projeto não encontrado');
@@ -97,7 +98,7 @@ export async function removeMember(
     }
 
     // Update project document
-    await updateDoc(projectRef, updateData);
+    await commitWrite(updateDoc(projectRef, updateData), { label: 'a remoção do membro' });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `projects/${projectId}`);
     throw error;
@@ -116,7 +117,7 @@ export async function transferOwnership(
   try {
     // Fetch project
     const projectRef = doc(db, 'projects', projectId);
-    const projectSnap = await getDoc(projectRef);
+    const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
       throw new Error('Projeto não encontrado');
@@ -153,11 +154,11 @@ export async function transferOwnership(
     currentRoles[currentOwnerUid] = 'admin';
 
     // Update project document
-    await updateDoc(projectRef, {
+    await commitWrite(updateDoc(projectRef, {
       ownerId: newOwnerUid,
       roles: currentRoles,
       updatedAt: serverTimestamp()
-    });
+    }), { label: 'a transferência de posse' });
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `projects/${projectId}`);
     throw error;
@@ -177,7 +178,7 @@ export async function assignMemberTags(
   try {
     // Fetch project to validate permissions
     const projectRef = doc(db, 'projects', projectId);
-    const projectSnap = await getDoc(projectRef);
+    const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
       throw new Error('Projeto não encontrado');

@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Loader2, Check, Plus, Trash2, Upload, Paperclip, CalendarClock } from 'lucide-react';
 import clsx from 'clsx';
-import { doc, addDoc, updateDoc, deleteDoc, getDoc, collection, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { doc, addDoc, updateDoc, deleteDoc, getDoc, setDoc, collection, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { StatusReport, StatusReportActionItem, StatusReportAttachment, StatusReportSector, UserProfile } from '../../types';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite, friendlyWriteError, withTimeout } from '../../utils/firestoreWrite';
 import { STATUS_REPORT_SECTORS, generateActionItemId } from './statusReportHelpers';
 import StarRating from './StarRating';
 
@@ -124,7 +125,7 @@ export default function NewStatusReportModal({
    * as a last resort, so we always reuse what the team already has.
    */
   const findOrCreateTodoBoardId = async () => {
-    const boardsSnap = await getDocs(query(collection(db, 'boards'), where('projectId', '==', projectId)));
+    const boardsSnap = await withTimeout(getDocs(query(collection(db, 'boards'), where('projectId', '==', projectId))));
     const boards = boardsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as any));
 
     const exactMatch = boards.find((b) => (b.name || '').trim().toLowerCase() === KANBAN_TODO_BOARD_NAME.toLowerCase());
@@ -135,13 +136,14 @@ export default function NewStatusReportModal({
       return firstBoard.id;
     }
 
-    const boardRef = await addDoc(collection(db, 'boards'), {
+    const boardRef = doc(collection(db, 'boards'));
+    await commitWrite(setDoc(boardRef, {
       projectId,
       name: KANBAN_TODO_BOARD_NAME,
       order: 0,
       ownerId,
       createdAt: serverTimestamp(),
-    });
+    }), { label: 'a coluna do Kanban' });
     return boardRef.id;
   };
 
@@ -151,7 +153,7 @@ export default function NewStatusReportModal({
    * instead of the sector name being stuffed into the title.
    */
   const findSectorTagId = async () => {
-    const tagsSnap = await getDocs(query(collection(db, 'projectTags'), where('projectId', '==', projectId)));
+    const tagsSnap = await withTimeout(getDocs(query(collection(db, 'projectTags'), where('projectId', '==', projectId))));
     const match = tagsSnap.docs.find((d) => (d.data().label || '').trim().toLowerCase() === sector.toLowerCase());
     return match ? match.id : null;
   };
@@ -173,22 +175,23 @@ export default function NewStatusReportModal({
     const tags = sectorTagId ? [sectorTagId] : [];
 
     if (existingTaskId) {
-      const existingSnap = await getDoc(doc(db, 'tasks', existingTaskId));
+      const existingSnap = await withTimeout(getDoc(doc(db, 'tasks', existingTaskId)));
       if (existingSnap.exists()) {
-        await updateDoc(doc(db, 'tasks', existingTaskId), {
+        await commitWrite(updateDoc(doc(db, 'tasks', existingTaskId), {
           title,
           description,
           dueDate: nextDate,
           tags,
           updatedAt: serverTimestamp(),
-        });
+        }), { label: 'o card de preparação' });
         return existingTaskId;
       }
     }
 
     const boardId = await findOrCreateTodoBoardId();
 
-    const taskRef = await addDoc(collection(db, 'tasks'), {
+    const taskRef = doc(collection(db, 'tasks'));
+    await commitWrite(setDoc(taskRef, {
       projectId,
       boardId,
       title,
@@ -198,7 +201,7 @@ export default function NewStatusReportModal({
       ownerId,
       dueDate: nextDate,
       tags,
-    });
+    }), { label: 'o card de preparação' });
 
     return taskRef.id;
   };
@@ -230,7 +233,7 @@ export default function NewStatusReportModal({
           resultingTaskId = await upsertFollowUpKanbanCard(nextCombinedDate, nextMeetingAgenda.trim(), previousTaskId);
         } else if (previousTaskId) {
           // Usuário desmarcou ambas as integrações: remove o card antigo.
-          await deleteDoc(doc(db, 'tasks', previousTaskId)).catch(() => {});
+          deleteDoc(doc(db, 'tasks', previousTaskId)).catch(() => {});
         }
 
         nextMeetingPayload = {
@@ -243,7 +246,7 @@ export default function NewStatusReportModal({
         };
       } else if (previousTaskId) {
         // Agendamento foi desativado: remove o card de preparação órfão.
-        await deleteDoc(doc(db, 'tasks', previousTaskId)).catch(() => {});
+        deleteDoc(doc(db, 'tasks', previousTaskId)).catch(() => {});
       }
 
       const payload: any = {
@@ -263,18 +266,19 @@ export default function NewStatusReportModal({
       };
 
       if (item) {
-        await updateDoc(doc(db, 'statusReports', item.id), payload);
+        await commitWrite(updateDoc(doc(db, 'statusReports', item.id), payload), { label: 'o status report' });
       } else {
-        await addDoc(collection(db, 'statusReports'), {
+        await commitWrite(addDoc(collection(db, 'statusReports'), {
           ...payload,
           ownerId,
           approved: false,
           createdAt: serverTimestamp(),
-        });
+        }), { label: 'o status report' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'statusReports');
+      logFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'statusReports');
+      alert(friendlyWriteError(error));
     } finally {
       setLoading(false);
     }

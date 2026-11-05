@@ -41,7 +41,8 @@ import {
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { motion, AnimatePresence } from 'motion/react';
 // @ts-ignore
@@ -187,31 +188,36 @@ export default function RACIMatrix() {
     setItemToDelete(null); // Close modal immediately for better UX
     
     try {
+      const deletes: Promise<void>[] = [];
       if (type === 'matrix') {
         const collections = ['raciTasks', 'raciStakeholders', 'raciAssignments'];
         for (const coll of collections) {
           const q = query(collection(db, coll), where('projectId', '==', projectId));
-          const snap = await getDocs(q);
+          const snap = await withTimeout(getDocs(q));
           const relatedDocs = snap.docs.filter(d => d.data().matrixId === id);
-          for (const d of relatedDocs) await deleteDoc(doc(db, coll, d.id));
+          for (const d of relatedDocs) deletes.push(deleteDoc(doc(db, coll, d.id)));
         }
-        await deleteDoc(doc(db, 'raciMatrices', id));
+        deletes.push(deleteDoc(doc(db, 'raciMatrices', id)));
+        await commitWrite(Promise.all(deletes), { label: 'a exclusão da matriz' });
         if (currentMatrixId === id) setCurrentMatrixId(null);
       } else if (type === 'task') {
-        await deleteDoc(doc(db, 'raciTasks', id));
         const q = query(collection(db, 'raciAssignments'), where('projectId', '==', projectId));
-        const snap = await getDocs(q);
+        const snap = await withTimeout(getDocs(q));
+        deletes.push(deleteDoc(doc(db, 'raciTasks', id)));
         const relatedDocs = snap.docs.filter(d => d.data().taskId === id);
-        for (const d of relatedDocs) await deleteDoc(doc(db, 'raciAssignments', d.id));
+        for (const d of relatedDocs) deletes.push(deleteDoc(doc(db, 'raciAssignments', d.id)));
+        await commitWrite(Promise.all(deletes), { label: 'a exclusão da atividade' });
       } else if (type === 'stakeholder') {
-        await deleteDoc(doc(db, 'raciStakeholders', id));
         const q = query(collection(db, 'raciAssignments'), where('projectId', '==', projectId));
-        const snap = await getDocs(q);
+        const snap = await withTimeout(getDocs(q));
+        deletes.push(deleteDoc(doc(db, 'raciStakeholders', id)));
         const relatedDocs = snap.docs.filter(d => d.data().participantId === id);
-        for (const d of relatedDocs) await deleteDoc(doc(db, 'raciAssignments', d.id));
+        for (const d of relatedDocs) deletes.push(deleteDoc(doc(db, 'raciAssignments', d.id)));
+        await commitWrite(Promise.all(deletes), { label: 'a exclusão do participante' });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'raci');
+      logFirestoreError(error, OperationType.DELETE, 'raci');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -240,7 +246,7 @@ export default function RACIMatrix() {
     try {
       if (role === null) {
         // Clearing: Delete the deterministic ID
-        await deleteDoc(doc(db, 'raciAssignments', assignmentId));
+        await commitWrite(deleteDoc(doc(db, 'raciAssignments', assignmentId)), { label: 'a responsabilidade' });
       } else {
         // Assigning: Overwrite with setDoc (most efficient)
         const data = {
@@ -251,7 +257,7 @@ export default function RACIMatrix() {
           role,
           updatedAt: serverTimestamp()
         };
-        await setDoc(doc(db, 'raciAssignments', assignmentId), data);
+        await commitWrite(setDoc(doc(db, 'raciAssignments', assignmentId), data), { label: 'a responsabilidade' });
       }
 
       const raciTask = tasks.find(task => task.id === taskId);
@@ -283,7 +289,8 @@ export default function RACIMatrix() {
       }).catch(() => {/* Ignore cleanup errors */});
 
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'raciAssignments');
+      logFirestoreError(error, OperationType.UPDATE, 'raciAssignments');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -875,13 +882,14 @@ function MatrixModal({ projectId, matrix, onClose }: { projectId: string, matrix
         ownerId: user.uid
       };
       if (matrix) {
-        await updateDoc(doc(db, 'raciMatrices', matrix.id), data);
+        await commitWrite(updateDoc(doc(db, 'raciMatrices', matrix.id), data), { label: 'a matriz' });
       } else {
-        await addDoc(collection(db, 'raciMatrices'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'raciMatrices'), { ...data, createdAt: serverTimestamp() }), { label: 'a matriz' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'raciMatrices');
+      logFirestoreError(error, OperationType.CREATE, 'raciMatrices');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -934,13 +942,14 @@ function TaskModal({ projectId, matrixId, task, onClose, nextOrder }: { projectI
         updatedAt: serverTimestamp()
       };
       if (task) {
-        await updateDoc(doc(db, 'raciTasks', task.id), data);
+        await commitWrite(updateDoc(doc(db, 'raciTasks', task.id), data), { label: 'a atividade' });
       } else {
-        await addDoc(collection(db, 'raciTasks'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'raciTasks'), { ...data, createdAt: serverTimestamp() }), { label: 'a atividade' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'raciTasks');
+      logFirestoreError(error, OperationType.CREATE, 'raciTasks');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -986,7 +995,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
     if (isSaving || currentStakeholders.some(s => s.userId === member.uid)) return;
     setIsSaving(true);
     try {
-      await addDoc(collection(db, 'raciStakeholders'), {
+      await commitWrite(addDoc(collection(db, 'raciStakeholders'), {
         matrixId,
         projectId,
         name: member.name,
@@ -994,10 +1003,11 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
         order: nextOrder,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'o participante' });
       // Don't close, user might want to add more
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'raciStakeholders');
+      logFirestoreError(error, OperationType.CREATE, 'raciStakeholders');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -1017,13 +1027,14 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
         updatedAt: serverTimestamp()
       };
       if (stakeholder) {
-        await updateDoc(doc(db, 'raciStakeholders', stakeholder.id), data);
+        await commitWrite(updateDoc(doc(db, 'raciStakeholders', stakeholder.id), data), { label: 'o participante' });
       } else {
-        await addDoc(collection(db, 'raciStakeholders'), { ...data, createdAt: serverTimestamp() });
+        await commitWrite(addDoc(collection(db, 'raciStakeholders'), { ...data, createdAt: serverTimestamp() }), { label: 'o participante' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'raciStakeholders');
+      logFirestoreError(error, OperationType.CREATE, 'raciStakeholders');
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }

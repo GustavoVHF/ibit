@@ -4,7 +4,8 @@ import { Project } from '../types';
 import { X, Upload, Image as ImageIcon, Loader2, Trash2, AlertTriangle } from 'lucide-react';
 import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestoreWrite';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserRole, isProjectOwner } from '../utils/roleHelpers';
@@ -101,16 +102,16 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
 
     try {
       const projectRef = doc(db, 'projects', project.id);
-      await updateDoc(projectRef, {
+      await commitWrite(updateDoc(projectRef, {
         name: name.trim(),
         description: description.trim(),
         photoURL: photoURL || null,
         updatedAt: serverTimestamp(),
-      });
+      }), { label: 'as configurações do projeto' });
       onClose();
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `projects/${project.id}`);
-      setError('Erro ao salvar as configurações no banco de dados.');
+      logFirestoreError(err, OperationType.UPDATE, `projects/${project.id}`);
+      setError(friendlyWriteError(err));
     } finally {
       setIsSaving(false);
     }
@@ -123,28 +124,28 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
       const batch = writeBatch(db);
 
       const boardsQ = query(collection(db, 'boards'), where('projectId', '==', project.id));
-      const boardsSnap = await getDocs(boardsQ);
+      const boardsSnap = await withTimeout(getDocs(boardsQ));
       boardsSnap.forEach((boardDoc) => {
         batch.delete(boardDoc.ref);
       });
 
       const tasksQ = query(collection(db, 'tasks'), where('projectId', '==', project.id));
-      const tasksSnap = await getDocs(tasksQ);
+      const tasksSnap = await withTimeout(getDocs(tasksQ));
       tasksSnap.forEach((taskDoc) => {
         batch.delete(taskDoc.ref);
       });
 
       batch.delete(doc(db, 'projects', project.id));
 
-      await batch.commit();
+      await commitWrite(batch.commit(), { label: 'a exclusão do projeto' });
 
       setIsDeleteModalOpen(false);
       onClose();
       navigate('/dashboard');
     } catch (err) {
       console.error("Erro ao deletar projeto e dependências:", err);
-      handleFirestoreError(err, OperationType.DELETE, `projects/${project.id}`);
-      setError('Erro ao deletar projeto.');
+      logFirestoreError(err, OperationType.DELETE, `projects/${project.id}`);
+      setError(friendlyWriteError(err));
     } finally {
       setIsDeleting(false);
     }

@@ -5,7 +5,8 @@ import { CalendarClock, Check, Link2, Loader2, Users, X } from 'lucide-react';
 import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { ChangeHistoryEntry, ChangeSector, GanttTask, Task, UserProfile } from '../../types';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { CHANGE_HISTORY_COLLECTION } from '../../utils/changeHistory';
 import { CHANGE_SECTORS } from './changeHistoryHelpers';
 
@@ -64,11 +65,12 @@ export default function NewChangeRequestModal({ isOpen, onClose, projectId, curr
         updatedAt: serverTimestamp(),
       };
 
-      if (item) await updateDoc(doc(db, CHANGE_HISTORY_COLLECTION, item.id), payload);
-      else await addDoc(collection(db, CHANGE_HISTORY_COLLECTION), { ...payload, createdAt: serverTimestamp() });
+      if (item) await commitWrite(updateDoc(doc(db, CHANGE_HISTORY_COLLECTION, item.id), payload), { label: 'a solicitação' });
+      else await commitWrite(addDoc(collection(db, CHANGE_HISTORY_COLLECTION), { ...payload, createdAt: serverTimestamp() }), { label: 'a solicitação' });
       onClose();
     } catch (error) {
-      handleFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, CHANGE_HISTORY_COLLECTION);
+      logFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, CHANGE_HISTORY_COLLECTION);
+      alert(friendlyWriteError(error));
     } finally {
       setLoading(false);
     }

@@ -30,7 +30,8 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { motion, AnimatePresence } from 'motion/react';
 // @ts-ignore
 import logoIbit from '../media/ibitlogo.svg';
@@ -132,10 +133,11 @@ export default function RiskManagement() {
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'projectRisks', itemToDelete.id));
+      await commitWrite(deleteDoc(doc(db, 'projectRisks', itemToDelete.id)), { label: 'a exclusão do risco' });
       setItemToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, 'projectRisks');
+      logFirestoreError(error, OperationType.DELETE, 'projectRisks');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -707,18 +709,19 @@ function RiskModal({
 
       if (item) {
         // Keep existing numericId on edit
-        await updateDoc(doc(db, 'projectRisks', item.id), payload);
+        await commitWrite(updateDoc(doc(db, 'projectRisks', item.id), payload), { label: 'o risco' });
       } else {
         // New item: save sequence number
-        await addDoc(collection(db, 'projectRisks'), {
+        await commitWrite(addDoc(collection(db, 'projectRisks'), {
           ...payload,
           numericId: nextNumericId,
           createdAt: serverTimestamp()
-        });
+        }), { label: 'o risco' });
       }
       onClose();
     } catch (error) {
-      handleFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'projectRisks');
+      logFirestoreError(error, item ? OperationType.UPDATE : OperationType.CREATE, 'projectRisks');
+      alert(friendlyWriteError(error));
     } finally {
       setLoading(false);
     }
