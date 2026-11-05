@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Task, UserProfile, ProjectTag } from '../types';
 import { X, Calendar, User as UserIcon, Tag, AlignLeft, Check, Clock, Palette, Plus, Trash2 } from 'lucide-react';
-import { doc, updateDoc, getDoc, serverTimestamp, deleteDoc, collection, query, where, onSnapshot, addDoc, orderBy } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { doc, updateDoc, getDoc, serverTimestamp, deleteDoc, collection, query, where, onSnapshot, setDoc, orderBy } from 'firebase/firestore';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { db } from '../firebase';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
@@ -107,7 +108,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
         updateData.dueDate = null;
       }
 
-      await updateDoc(taskRef, updateData);
+      await commitWrite(updateDoc(taskRef, updateData), { label: 'a tarefa' });
 
       const previousStartDate = toDateSafe(task.startDate);
       const previousDueDate = toDateSafe(task.dueDate);
@@ -151,7 +152,8 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
 
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `tasks/${task.id}`);
+      logFirestoreError(error, OperationType.UPDATE, `tasks/${task.id}`);
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }
@@ -176,16 +178,19 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
     if (existing) {
       if (!tags.includes(existing.id)) setTags([...tags, existing.id]);
     } else {
+      const tagRef = doc(collection(db, 'projectTags'));
+      setTags(prev => [...prev, tagRef.id]);
       try {
-        const docRef = await addDoc(collection(db, 'projectTags'), {
+        await commitWrite(setDoc(tagRef, {
           projectId: task.projectId,
           label,
           color: selectedTagColor,
           createdAt: serverTimestamp()
-        });
-        setTags([...tags, docRef.id]);
+        }), { label: 'a tag' });
       } catch (error) {
-        handleFirestoreError(error, OperationType.CREATE, 'projectTags');
+        setTags(prev => prev.filter(t => t !== tagRef.id));
+        logFirestoreError(error, OperationType.CREATE, 'projectTags');
+        alert(friendlyWriteError(error));
       }
     }
     
@@ -197,10 +202,11 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
     if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
     setIsSaving(true);
     try {
-      await deleteDoc(doc(db, 'tasks', task.id));
+      await commitWrite(deleteDoc(doc(db, 'tasks', task.id)), { label: 'a exclusão da tarefa' });
       onClose();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `tasks/${task.id}`);
+      logFirestoreError(error, OperationType.DELETE, `tasks/${task.id}`);
+      alert(friendlyWriteError(error));
     } finally {
       setIsSaving(false);
     }

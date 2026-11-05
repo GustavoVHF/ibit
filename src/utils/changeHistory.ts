@@ -21,6 +21,9 @@ interface LogAutomaticChangeInput {
  * Propositalmente "fire and forget": se o registro falhar (permissão, rede),
  * o erro é apenas logado no console e a operação original da ferramenta segue
  * normalmente — o histórico nunca deve bloquear o trabalho do time.
+ *
+ * Não espera a confirmação do servidor: a escrita é iniciada (já fica no cache
+ * local) e a função retorna na hora, para que o modal que a chamou possa fechar.
  */
 export async function logAutomaticChange({
   projectId,
@@ -34,8 +37,12 @@ export async function logAutomaticChange({
 }: LogAutomaticChangeInput): Promise<void> {
   if (!projectId || !actorUid) return;
 
+  const warn = (error: unknown) => {
+    console.warn('[Histórico de Mudanças] Não foi possível registrar a alteração automática:', error);
+  };
+
   try {
-    await addDoc(collection(db, CHANGE_HISTORY_COLLECTION), {
+    addDoc(collection(db, CHANGE_HISTORY_COLLECTION), {
       projectId,
       origin: 'auto',
       source,
@@ -47,9 +54,10 @@ export async function logAutomaticChange({
       impactAmount: impactAmount || 0,
       status: 'Registrado',
       createdAt: serverTimestamp(),
-    });
+    }).catch(warn);
   } catch (error) {
-    console.warn('[Histórico de Mudanças] Não foi possível registrar a alteração automática:', error);
+    // addDoc pode lançar de forma síncrona (ex.: dado inválido).
+    warn(error);
   }
 }
 

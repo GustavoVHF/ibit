@@ -4,7 +4,8 @@ import { Scale, Trash2, Trophy, AlertTriangle } from 'lucide-react';
 import clsx from 'clsx';
 import { collection, deleteDoc, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { handleFirestoreError, logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite } from '../../utils/firestoreWrite';
 import { DecisionMatrix as DecisionMatrixDoc } from '../../types';
 import { optionLabel } from './decisionMatrixHelpers';
 import DecisionMatrixEditor from './DecisionMatrixEditor';
@@ -71,14 +72,10 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
     const target = toDelete;
     setDeleteError(null);
     try {
-      await deleteDoc(doc(db, 'decisionMatrices', target.id));
+      await commitWrite(deleteDoc(doc(db, 'decisionMatrices', target.id)), { label: 'a exclusão da comparação' });
       setToDelete(null);
     } catch (e) {
-      try {
-        handleFirestoreError(e, OperationType.DELETE, 'decisionMatrices');
-      } catch {
-        // exibido inline
-      }
+      logFirestoreError(e, OperationType.DELETE, 'decisionMatrices');
       setDeleteError('Erro ao excluir a comparação.');
     }
   };

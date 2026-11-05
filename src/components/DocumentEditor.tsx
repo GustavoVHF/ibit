@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { NodeSelection } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
-import { doc, setDoc, serverTimestamp, onSnapshot, collection, query, orderBy, getDocs, where, addDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, onSnapshot, collection, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { db } from '../firebase';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { AssetDocument } from '../types';
 import { useSidebar } from '../contexts/SidebarContext';
 import { Image } from '@tiptap/extension-image';
@@ -137,6 +138,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleRef = useRef(title);
   const isMountedRef = useRef(true);
+  const saveSeqRef = useRef(0);
   const isInitialLoadRef = useRef(true);
   const titleTextareaRef = useRef<HTMLTextAreaElement>(null);
   const saveStatusRef = useRef<SaveStatus>('saved');
@@ -426,6 +428,8 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
     const timer = setTimeout(async () => {
       if (!isMountedRef.current) return;
       
+      // Só o salvamento mais recente pode atualizar o status (um antigo e lento não sobrescreve).
+      const seq = ++saveSeqRef.current;
       setSaveStatus('saving');
       
       try {
@@ -435,15 +439,24 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         // Extract sync events from the TipTap JSON before saving
         const syncEvents = extractSyncEvents(debouncedContent);
 
-        await setDoc(docRef, {
+        await commitWrite(setDoc(docRef, {
           content: debouncedContent,
           title: title,
           syncEvents: syncEvents,
           updatedAt: serverTimestamp(),
-        }, { merge: true });
+        }, { merge: true }), {
+          label: 'o documento',
+          onLateError: (err) => {
+            console.error('[DocumentEditor] Save FAILED (late):', err);
+            if (isMountedRef.current && seq === saveSeqRef.current) {
+              setSaveStatus('error');
+              setErrorMsg(friendlyWriteError(err));
+            }
+          },
+        });
         
         console.log("[DocumentEditor] Save successful!");
-        if (isMountedRef.current) {
+        if (isMountedRef.current && seq === saveSeqRef.current) {
           setSaveStatus('saved');
         }
       } catch (error: any) {
@@ -636,12 +649,13 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
     if (!newTagLabel.trim() || !projectId) return;
 
     try {
-      const docRef = await addDoc(collection(db, 'projectTags'), {
+      const docRef = doc(collection(db, 'projectTags'));
+      await commitWrite(setDoc(docRef, {
         projectId,
         label: newTagLabel.trim(),
         color: selectedTagColor,
         createdAt: serverTimestamp()
-      });
+      }), { label: 'a tag' });
       
       const newTag: ProjectTag = {
         id: docRef.id,

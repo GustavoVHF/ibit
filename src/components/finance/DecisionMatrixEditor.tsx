@@ -2,10 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { X, Scale, SlidersHorizontal, Trophy, AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
 import clsx from 'clsx';
-import { addDoc, collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { useAuth } from '../../contexts/AuthContext';
-import { handleFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
+import { commitWrite } from '../../utils/firestoreWrite';
 import { DecisionCriterion, DecisionMatrix, DecisionOption } from '../../types';
 import {
   computeMatrix,
@@ -67,23 +68,26 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
     };
     try {
       if (initial?.id) {
-        await updateDoc(doc(db, 'decisionMatrices', initial.id), { ...payload, updatedAt: serverTimestamp() });
+        await commitWrite(
+          updateDoc(doc(db, 'decisionMatrices', initial.id), { ...payload, updatedAt: serverTimestamp() }),
+          { label: 'a comparação' }
+        );
       } else {
-        await addDoc(collection(db, 'decisionMatrices'), {
-          projectId,
-          ...payload,
-          ownerId: user.uid,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        const ref = doc(collection(db, 'decisionMatrices'));
+        await commitWrite(
+          setDoc(ref, {
+            projectId,
+            ...payload,
+            ownerId: user.uid,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          }),
+          { label: 'a comparação' }
+        );
       }
       onClose();
     } catch (e) {
-      try {
-        handleFirestoreError(e, initial?.id ? OperationType.UPDATE : OperationType.CREATE, 'decisionMatrices');
-      } catch {
-        // handleFirestoreError sempre relança; o erro é exibido inline.
-      }
+      logFirestoreError(e, initial?.id ? OperationType.UPDATE : OperationType.CREATE, 'decisionMatrices');
       const msg = e instanceof Error ? e.message : String(e);
       setSaveError(
         /permission/i.test(msg)

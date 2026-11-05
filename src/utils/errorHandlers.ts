@@ -28,8 +28,8 @@ interface FirestoreErrorInfo {
   }
 }
 
-export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
+function buildErrorInfo(error: unknown, operationType: OperationType, path: string | null): FirestoreErrorInfo {
+  return {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
       userId: auth.currentUser?.uid,
@@ -46,7 +46,16 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     },
     operationType,
     path
-  }
+  };
+}
+
+/** Mesmo log de handleFirestoreError, mas sem lançar (para mostrar o erro no modal). */
+export function logFirestoreError(error: unknown, operationType: OperationType, path: string | null): void {
+  console.error('Firestore Error: ', JSON.stringify(buildErrorInfo(error, operationType, path)));
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo = buildErrorInfo(error, operationType, path);
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

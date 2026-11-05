@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { doc, collection, query, where, onSnapshot, addDoc, serverTimestamp, updateDoc, deleteDoc, documentId, writeBatch } from 'firebase/firestore';
-import { handleFirestoreError, OperationType } from '../utils/errorHandlers';
+import { logFirestoreError, OperationType } from '../utils/errorHandlers';
+import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { Project, Board, Task, UserProfile, ProjectTag } from '../types';
 import Sidebar from './Sidebar';
@@ -132,17 +133,18 @@ export default function ProjectBoard() {
     e.preventDefault();
     if (!newBoardName.trim() || !projectId) return;
     try {
-      await addDoc(collection(db, 'boards'), {
+      await commitWrite(addDoc(collection(db, 'boards'), {
         projectId,
         name: newBoardName.trim(),
         order: boards.length,
         ownerId: user?.uid,
         createdAt: serverTimestamp(),
-      });
+      }), { label: 'a coluna' });
       setNewBoardName('');
       setIsAddingBoard(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'boards');
+      logFirestoreError(error, OperationType.CREATE, 'boards');
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -153,14 +155,15 @@ export default function ProjectBoard() {
       return;
     }
     try {
-      await updateDoc(doc(db, 'boards', boardId), {
+      await commitWrite(updateDoc(doc(db, 'boards', boardId), {
         name: editingBoardName.trim(),
         updatedAt: serverTimestamp()
-      });
+      }), { label: 'o nome da coluna' });
       setEditingBoardId(null);
       setEditingBoardName('');
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `boards/${boardId}`);
+      logFirestoreError(error, OperationType.UPDATE, `boards/${boardId}`);
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -169,36 +172,41 @@ export default function ProjectBoard() {
     if (!newTaskTitle.trim() || !projectId || !user) return;
     const boardTasks = tasks.filter(t => t.boardId === boardId);
     try {
-      await addDoc(collection(db, 'tasks'), {
+      await commitWrite(addDoc(collection(db, 'tasks'), {
         projectId,
         boardId,
         title: newTaskTitle.trim(),
         order: boardTasks.length,
         createdAt: serverTimestamp(),
         ownerId: user.uid,
-      });
+      }), { label: 'a tarefa' });
       setNewTaskTitle('');
       setIsAddingTask(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'tasks');
+      logFirestoreError(error, OperationType.CREATE, 'tasks');
+      alert(friendlyWriteError(error));
     }
   };
 
   const handleDeleteTask = async (taskId: string) => {
-    try { await deleteDoc(doc(db, 'tasks', taskId)); } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `tasks/${taskId}`);
+    try {
+      await commitWrite(deleteDoc(doc(db, 'tasks', taskId)), { label: 'a exclusão da tarefa' });
+    } catch (error) {
+      logFirestoreError(error, OperationType.DELETE, `tasks/${taskId}`);
+      alert(friendlyWriteError(error));
     }
   };
 
   const handleDeleteBoard = async (boardId: string) => {
     try {
-      await deleteDoc(doc(db, 'boards', boardId));
       const tasksToDelete = tasks.filter(t => t.boardId === boardId);
-      for (const task of tasksToDelete) {
-        await deleteDoc(doc(db, 'tasks', task.id));
-      }
+      await commitWrite(Promise.all([
+        deleteDoc(doc(db, 'boards', boardId)),
+        ...tasksToDelete.map(task => deleteDoc(doc(db, 'tasks', task.id))),
+      ]), { label: 'a exclusão da coluna' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `boards/${boardId}`);
+      logFirestoreError(error, OperationType.DELETE, `boards/${boardId}`);
+      alert(friendlyWriteError(error));
     }
   };
 
@@ -215,7 +223,12 @@ export default function ProjectBoard() {
       newBoards.forEach((board, index) => {
         batch.update(doc(db, 'boards', board.id), { order: index });
       });
-      try { await batch.commit(); } catch (error) { handleFirestoreError(error, OperationType.UPDATE, 'boards-order'); }
+      try {
+        await commitWrite(batch.commit(), { label: 'a ordem das colunas' });
+      } catch (error) {
+        logFirestoreError(error, OperationType.UPDATE, 'boards-order');
+        alert(friendlyWriteError(error));
+      }
       return;
     }
     const sourceBoardId = source.droppableId;
@@ -238,7 +251,7 @@ export default function ProjectBoard() {
       newDestTasks.forEach((task, index) => { if (task.id !== taskToMove.id) { batch.update(doc(db, 'tasks', task.id), { order: index }); } });
     }
     try {
-      await batch.commit();
+      await commitWrite(batch.commit(), { label: 'a movimentação da tarefa' });
 
       // Mover card entre colunas é troca de status: registra no histórico
       if (sourceBoardId !== destBoardId) {
@@ -255,7 +268,8 @@ export default function ProjectBoard() {
         });
       }
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, 'tasks-movement');
+      logFirestoreError(error, OperationType.UPDATE, 'tasks-movement');
+      alert(friendlyWriteError(error));
     }
   };
 
