@@ -134,17 +134,51 @@ export function normalizeNode(n: any): ShopeeProduct {
   };
 }
 
+const KEYWORD_STOPWORDS = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'em', 'para', 'pra', 'com', 'sem', 'a', 'o', 'as', 'os', 'p']);
+
+function searchTokens(text: string): string[] {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 0);
+}
+
+const singular = (t: string) => (t.length > 3 && t.endsWith('s') ? t.slice(0, -1) : t);
+/** Palavras iniciais do nome que descrevem o produto; depois disso costuma ser palavra-chave "de enfeite". */
+const LEAD_WORDS = 6;
+
+/**
+ * Quanto o nome do produto corresponde à busca (0..1), sem acento e sem diferenciar
+ * maiúsculas/plural. Cada palavra da busca vale 1 se aparece nas primeiras LEAD_WORDS
+ * palavras do nome, 0.5 se aparece só depois, 0 se não aparece. Busca sem palavras
+ * significativas = 1.
+ */
+export function keywordMatch(keyword: string, productName: string): number {
+  const wanted = searchTokens(keyword).filter((t) => !KEYWORD_STOPWORDS.has(t));
+  if (wanted.length === 0) return 1;
+  const words = searchTokens(productName);
+  const total = wanted.reduce((sum, t) => {
+    const idx = words.findIndex((w) => w.startsWith(t) || singular(w) === singular(t));
+    return sum + (idx < 0 ? 0 : idx < LEAD_WORDS ? 1 : 0.5);
+  }, 0);
+  return total / wanted.length;
+}
+
 // Ranking da busca por palavra-chave (união de sortType 1 e 2, sem duplicatas):
-// score = 0.40*s + 0.30*q + 0.25*r + 0.05*b
+// score = m * (0.40*s + 0.30*q + 0.25*r + 0.05*b)
+//   m = keywordMatch(palavra-chave, nome)  (o produto precisa ser o que foi buscado; palavras no início do nome valem mais)
 //   s = log10(1+vendas) / log10(1+maxVendas)
 //   q = nota > 0 ? clamp((nota-3)/2, 0, 1) * min(1, log10(1+vendas)/3) : 0  (nota pesa conforme o volume)
 //   r = 1 - i/N pela posição na lista de relevância (0 se ausente)
 //   b = loja Mall/Star+ = 1, Star = 0.5, demais = 0
-// Desempate: r desc, depois vendas desc.
+// Desempate: m desc, score sem m desc, r desc, vendas desc.
 export function rankSearchResults(
   relevance: ShopeeProduct[],
   bySales: ShopeeProduct[],
   limit = SEARCH_LIMIT,
+  keyword = '',
 ): ShopeeProduct[] {
   const keyOf = (p: ShopeeProduct) => `${p.shopId}-${p.itemId}`;
   const n = relevance.length;
@@ -173,10 +207,14 @@ export function rankSearchResults(
     const q = rating > 0 ? Math.min(1, Math.max(0, (rating - 3) / 2)) * Math.min(1, volume / 3) : 0;
     const types = p.shopType ?? [];
     const b = types.includes(1) || types.includes(4) ? 1 : types.includes(2) ? 0.5 : 0;
-    return { p, r, sales, score: 0.4 * s + 0.3 * q + 0.25 * r + 0.05 * b };
+    const base = 0.4 * s + 0.3 * q + 0.25 * r + 0.05 * b;
+    const m = keywordMatch(keyword, p.productName);
+    return { p, r, sales, m, base, score: m * base };
   });
 
-  scored.sort((a, b) => b.score - a.score || b.r - a.r || b.sales - a.sales);
+  scored.sort(
+    (a, b) => b.score - a.score || b.m - a.m || b.base - a.base || b.r - a.r || b.sales - a.sales,
+  );
   return scored.slice(0, limit).map((x) => x.p);
 }
 
@@ -301,8 +339,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         callShopee(buildProductQuery({ mode: 'search', keyword, page, sortType: 2 })),
       ]);
       if (relevance.status === 'rejected' && bySales.status === 'rejected') throw relevance.reason;
+      for (const [sortType, r] of [[1, relevance], [2, bySales]] as const) {
+        if (r.status === 'rejected') {
+          const reason = r.reason instanceof ShopeeError ? `${r.reason.status} ${r.reason.message}` : 'unexpected';
+          console.warn(`Shopee search: sortType ${sortType} falhou (${reason}); ranqueando só a outra lista`);
+        }
+      }
       const list = (r: PromiseSettledResult<any[]>) => (r.status === 'fulfilled' ? r.value.map(normalizeNode) : []);
-      return res.status(200).json({ products: rankSearchResults(list(relevance), list(bySales)) });
+      return res
+        .status(200)
+        .json({ products: rankSearchResults(list(relevance), list(bySales), SEARCH_LIMIT, keyword) });
     }
     const nodes = await callShopee(request.query);
     if (nodes.length === 0) {
