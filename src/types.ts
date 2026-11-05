@@ -446,3 +446,19 @@ export interface ChangeHistoryEntry {
   createdAt: any; // Firestore Timestamp
   updatedAt?: any;
 }
+
+// Produto normalizado retornado por POST /api/shopee-product (Shopee Affiliate Open API)
+export interface ShopeeProduct {
+  itemId: string;
+  shopId: string;
+  productName: string;
+  price: number; // priceMin (fallback priceMax), em R$
+  priceMin: number;
+  priceMax: number;
+  ratingStar: number | null; // 0–5
+  sales: number | null;
+  shopName: string;
+  imageUrl: string;
+  productLink: string;
+  offerLink: string;
+}
