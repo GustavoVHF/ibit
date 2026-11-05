@@ -23,7 +23,8 @@ import {
   Calendar,
   Pencil,
   Paperclip,
-  Loader2
+  Loader2,
+  Scale
 } from 'lucide-react';
 import clsx from 'clsx';
 import { motion, AnimatePresence } from 'motion/react';
@@ -38,8 +39,10 @@ import { exportLedgerToExcel } from '../utils/export/ledgerTemplateEngine';
 import { logAutomaticChange } from '../utils/changeHistory';
 import { buildCashFlowSeries } from '../utils/financeMetrics';
 import OutflowComparisonCard from './finance/OutflowComparisonCard';
+import DecisionMatrix from './finance/DecisionMatrix';
 
-type FinanceTab = 'Dashboard' | 'Transações' | 'Orçamento';
+type FinanceTab = 'Dashboard' | 'Transações' | 'Orçamento' | 'Matriz de Decisão';
+const FINANCE_TABS: FinanceTab[] = ['Dashboard', 'Transações', 'Orçamento', 'Matriz de Decisão'];
 
 const CLOUDINARY_CLOUD_NAME = 'drmgydsjc';
 const CLOUDINARY_UPLOAD_PRESET = 'cirzsuhz';
@@ -91,6 +94,7 @@ export default function ProjectFinance() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<FinanceTab>('Dashboard');
+  const [matrixNewKey, setMatrixNewKey] = useState(0);
 
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
@@ -967,6 +971,16 @@ export default function ProjectFinance() {
             DEFINIR ORÇAMENTO
           </button>
         );
+      case 'Matriz de Decisão':
+        return (
+          <button 
+            onClick={() => setMatrixNewKey(k => k + 1)}
+            className="bg-[#ff7f00] text-white px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-orange-600 active:scale-95 shadow-md shadow-orange-100"
+          >
+            <Scale className="w-4 h-4" />
+            NOVA COMPARAÇÃO
+          </button>
+        );
       default:
         return null;
     }
@@ -1040,7 +1054,7 @@ export default function ProjectFinance() {
               </h2>
             </div>
             <div className="flex bg-gray-50 border border-gray-200 rounded-lg p-1">
-              {(['Dashboard', 'Transações', 'Orçamento'] as FinanceTab[]).map((tab, idx) => (
+              {FINANCE_TABS.map((tab, idx) => (
                 <React.Fragment key={tab}>
                   <button
                     onClick={() => setActiveTab(tab)}
@@ -1053,7 +1067,7 @@ export default function ProjectFinance() {
                   >
                     {tab}
                   </button>
-                  {idx < 2 && <div className="w-px bg-gray-200 my-1"></div>}
+                  {idx < FINANCE_TABS.length - 1 && <div className="w-px bg-gray-200 my-1"></div>}
                 </React.Fragment>
               ))}
             </div>
@@ -1066,6 +1080,7 @@ export default function ProjectFinance() {
             {activeTab === 'Dashboard' && renderDashboard()}
             {activeTab === 'Transações' && renderTransactions()}
             {activeTab === 'Orçamento' && renderBudgets()}
+            {activeTab === 'Matriz de Decisão' && <DecisionMatrix projectId={projectId!} newRequestKey={matrixNewKey} />}
           </div>
         </div>
       </main>

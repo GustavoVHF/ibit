@@ -355,6 +355,18 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidDecisionMatrix(data) {
+      return hasOnlyAllowedFields(['projectId', 'title', 'criteria', 'options', 'result', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.projectId is string &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.criteria is list && data.criteria.size() >= 1 && data.criteria.size() <= 6 &&
+             data.options is list && data.options.size() == 2 &&
+             (!('result' in data) || data.result == null || data.result is map) &&
+             data.ownerId is string &&
+             data.createdAt is timestamp &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
     // ===============================================================
     // Domain Validators & Role Checks
     // ===============================================================
@@ -619,6 +631,15 @@ service cloud.firestore {
       allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidBudget(request.resource.data);
       allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidBudget(request.resource.data) &&
                     areImmutableFieldsUnchanged(['projectId', 'createdAt']);
+      allow delete: if canWrite(resource.data.projectId) || isAdmin();
+    }
+
+    match /decisionMatrices/{matrixId} {
+      allow read: if isProjectMember(resource.data.projectId) || isAdmin();
+      allow create: if (canWrite(request.resource.data.projectId) || isAdmin()) && isValidDecisionMatrix(request.resource.data) &&
+                    request.resource.data.ownerId == request.auth.uid;
+      allow update: if (canWrite(resource.data.projectId) || isAdmin()) && isValidDecisionMatrix(request.resource.data) &&
+                    areImmutableFieldsUnchanged(['projectId', 'createdAt', 'ownerId']);
       allow delete: if canWrite(resource.data.projectId) || isAdmin();
     }
   }

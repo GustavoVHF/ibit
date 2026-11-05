@@ -462,3 +462,47 @@ export interface ShopeeProduct {
   productLink: string;
   offerLink: string;
 }
+
+// Matriz de Decisão Ponderada (Financeiro) — coleção `decisionMatrices`
+export type DecisionCriterionKey = 'preco' | 'pesoPorValor' | 'ratePreco' | 'rateQualidade' | 'sustentabilidade' | 'tempoEntrega';
+
+export interface DecisionCriterion {
+  key: DecisionCriterionKey;
+  weight: number; // peso bruto ≥ 0 (normalizado para 100% no cálculo)
+}
+
+export interface DecisionOption {
+  source: 'shopee' | 'manual';
+  storeName: string; // 'Shopee' | 'Mercado Livre' | texto livre
+  name: string;
+  link: string; // URL do produto (obrigatório para manual; productLink para shopee)
+  imageUrl?: string | null;
+  itemId?: string | null; // somente shopee
+  shopId?: string | null;
+  shopName?: string | null;
+  price: number | null; // R$
+  weightKg: number | null;
+  deliveryDays: number | null;
+  priceRating: number | null; // 1–10
+  qualityRating: number | null; // 0–5 estrelas
+  sustainability: number | null; // 1–10
+  ratingStar?: number | null; // valor bruto da Shopee
+  sales?: number | null;
+}
+
+export interface DecisionMatrixResult {
+  totals: number[];
+  winnerIndex: number | null; // null = empate
+}
+
+export interface DecisionMatrix {
+  id: string;
+  projectId: string;
+  title: string;
+  criteria: DecisionCriterion[];
+  options: DecisionOption[]; // exatamente 2
+  result: DecisionMatrixResult | null;
+  ownerId: string;
+  createdAt: any; // Firestore Timestamp
+  updatedAt?: any;
+}

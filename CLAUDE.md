@@ -232,6 +232,7 @@ O SDK é inicializado em `src/firebase.ts` com config de `firebase-applet-config
 | `projectStakeholders` | Stakeholders do projeto (Gantt/RACI) | `ProjectStakeholder` |
 | `transactions` | Transações financeiras | `Transaction` |
 | `budgets` | Orçamentos | `Budget` |
+| `decisionMatrices` | Matrizes de decisão ponderada | `DecisionMatrix` |
 
 ### Patterns de Segurança
 
@@ -371,10 +372,12 @@ Pacote `@google/genai` instalado mas seu uso atual é limitado.
 
 ### ProjectFinance.tsx
 
-- 3 tabs: Dashboard, Transações, Orçamento
-- Dashboard com 4 KPI cards (Saldo, Orçamento, Despesas do Mês, Entradas do Mês)
+- 4 tabs: Dashboard, Transações, Orçamento, Matriz de Decisão
+- Dashboard com 4 KPI cards (Saldo, Orçamento, Despesas do Mês, Entradas do Mês) + card Saída Interna × Externa (`finance/OutflowComparisonCard.tsx`)
 - PieChart de despesas por categoria (clicável para filtrar)
-- LineChart de fluxo de caixa cumulativo
+- LineChart de fluxo de caixa cumulativo com 3 linhas: Entrada de capital, Saída de capital interno (despesas sem `isExternal`) e Saída de capital externo (`isExternal`) — cálculo em `utils/financeMetrics.ts`
+- **Matriz de Decisão** (`src/components/finance/`): compara 2 produtos (Shopee via `/api/shopee-product` ou outra loja via link + dados manuais) com critérios ponderados (Weighted Sum Model, notas 0–10, pesos normalizados a 100%); matemática pura em `decisionMatrixHelpers.ts`; salvo em `decisionMatrices`
+- **`/api/shopee-product`** (Vercel function): proxy assinado da Shopee Affiliate Open API, exige `Authorization: Bearer <Firebase ID token>`; credenciais `SHOPEE_APP_ID`/`SHOPEE_APP_SECRET` só no servidor. Em `npm run dev` é servido pelo plugin `devApiPlugin` do `vite.config.ts` (somente essa rota)
 - CRUD de transações (income/expense) com link opcional para budget
 - Upload de nota fiscal via Cloudinary
 - Auto-criação de item no inventário ao registrar despesa (toggle)
