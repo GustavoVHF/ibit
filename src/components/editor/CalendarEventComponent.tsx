@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import { CalendarDays, Check } from 'lucide-react';
 import clsx from 'clsx';
+import { getLocale, getMessages } from '../../i18n';
 
 interface CalendarEventComponentProps {
   node: {
@@ -62,11 +63,11 @@ export default function CalendarEventComponent({
 
   // Format date for the chip display
   const formattedDate = date
-    ? new Date(date + 'T12:00:00').toLocaleDateString('pt-BR', {
+    ? new Date(date + 'T12:00:00').toLocaleDateString(getLocale(), {
         day: '2-digit',
         month: 'short',
       }).replace(' de ', ' ')
-    : 'Data';
+    : getMessages().editor.eventDatePlaceholder;
 
   return (
     <NodeViewWrapper
@@ -108,7 +109,7 @@ export default function CalendarEventComponent({
           {/* Date Picker Section */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-              <CalendarDays className="w-3 h-3" /> Escolher Data
+              <CalendarDays className="w-3 h-3" /> {getMessages().editor.chooseDate}
             </label>
             <input
               type="date"
@@ -141,9 +142,9 @@ export default function CalendarEventComponent({
               onChange={(e) => updateAttributes({ sync: e.target.checked })}
             />
             <div className="flex flex-col">
-              <span className="text-xs font-bold text-gray-700">Sincronizar Calendário</span>
+              <span className="text-xs font-bold text-gray-700">{getMessages().editor.syncCalendar}</span>
               <span className="text-[9px] text-gray-400 leading-tight mt-0.5 font-medium">
-                Envia a data e a 1ª coluna para o calendário geral do projeto
+                {getMessages().editor.syncCalendarHint}
               </span>
             </div>
           </label>

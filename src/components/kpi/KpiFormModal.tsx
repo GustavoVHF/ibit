@@ -8,6 +8,7 @@ import { ProjectKPI, UserProfile, KpiSector, KpiStatus, KpiComparator } from '..
 import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
 import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { KPI_SECTORS, KPI_STATUSES } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiFormModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ export default function KpiFormModal({
   projectMembers,
   defaultSector,
 }: KpiFormModalProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState(item?.name || '');
@@ -55,7 +57,7 @@ export default function KpiFormModal({
 
     const parsedTarget = parseFloat(targetValue.replace(',', '.'));
     if (Number.isNaN(parsedTarget)) {
-      setTargetError('Informe um valor numérico válido para a meta.');
+      setTargetError(t.kpi.invalidTarget);
       return;
     }
     setTargetError('');
@@ -119,10 +121,10 @@ export default function KpiFormModal({
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shrink-0">
           <div>
             <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
-              {item ? 'Editar KPI' : 'Novo KPI'}
+              {item ? t.kpi.editKpi : t.kpi.newKpi}
             </h2>
             <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-0.5">
-              Metas e Indicadores de Desempenho
+              {t.kpi.formSubtitle}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
@@ -136,7 +138,7 @@ export default function KpiFormModal({
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  NOME DO KPI *
+                  {t.kpi.nameLabel}
                 </label>
                 <input
                   type="text"
@@ -144,13 +146,13 @@ export default function KpiFormModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
-                  placeholder="Ex: Prototype test approval rate"
+                  placeholder={t.kpi.namePlaceholder}
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  SETOR *
+                  {t.kpi.sectorLabel}
                 </label>
                 <select
                   value={sector}
@@ -158,28 +160,28 @@ export default function KpiFormModal({
                   className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                 >
                   {KPI_SECTORS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{t.enums.kpiSector[s]}</option>
                   ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  DESCRIÇÃO
+                  {t.kpi.descriptionLabel}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   className="w-full bg-white border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm text-sm"
-                  placeholder="Contexto do indicador, como é medido, por que importa..."
+                  placeholder={t.kpi.descriptionPlaceholder}
                 />
               </div>
 
               {/* Responsável */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  RESPONSÁVEL
+                  {t.kpi.responsibleLabel}
                 </label>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 max-h-40 overflow-y-auto shadow-inner">
                   {projectMembers.map((member) => (
@@ -214,7 +216,7 @@ export default function KpiFormModal({
                     </div>
                   ))}
                   {projectMembers.length === 0 && (
-                    <span className="text-xs text-gray-400">Nenhum membro do projeto disponível.</span>
+                    <span className="text-xs text-gray-400">{t.kpi.noMembers}</span>
                   )}
                 </div>
               </div>
@@ -225,7 +227,7 @@ export default function KpiFormModal({
               {/* Meta */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  META / TARGET *
+                  {t.kpi.targetLabel}
                 </label>
                 <div className="grid grid-cols-[80px_1fr_90px] gap-2">
                   <select
@@ -251,20 +253,20 @@ export default function KpiFormModal({
                     value={targetUnit}
                     onChange={(e) => setTargetUnit(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-semibold rounded-lg shadow-sm text-sm"
-                    placeholder="% / dias"
+                    placeholder={t.kpi.unitPlaceholder}
                   />
                 </div>
                 {targetError ? (
                   <p className="text-[10px] text-red-500 font-bold mt-1.5">{targetError}</p>
                 ) : (
-                  <p className="text-[10px] text-gray-400 mt-1.5">Ex: ≥ 85% ou ≤ 3 revisões</p>
+                  <p className="text-[10px] text-gray-400 mt-1.5">{t.kpi.targetHint}</p>
                 )}
               </div>
 
               {/* Valor Atual */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  VALOR ATUAL *
+                  {t.kpi.currentLabel}
                 </label>
                 <input
                   type="text"
@@ -281,7 +283,7 @@ export default function KpiFormModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    DATA INICIAL
+                    {t.kpi.startLabel}
                   </label>
                   <input
                     type="date"
@@ -292,7 +294,7 @@ export default function KpiFormModal({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    PRAZO / DEADLINE *
+                    {t.kpi.deadlineLabel}
                   </label>
                   <input
                     type="date"
@@ -307,7 +309,7 @@ export default function KpiFormModal({
               {/* Status */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  STATUS *
+                  {t.kpi.statusLabel}
                 </label>
                 <select
                   value={status}
@@ -315,7 +317,7 @@ export default function KpiFormModal({
                   className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                 >
                   {KPI_STATUSES.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{t.enums.kpiStatus[s]}</option>
                   ))}
                 </select>
               </div>
@@ -330,7 +332,7 @@ export default function KpiFormModal({
             className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg"
             disabled={loading}
           >
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             type="submit"
@@ -339,7 +341,7 @@ export default function KpiFormModal({
             className="px-8 py-2.5 text-xs font-bold uppercase tracking-widest text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-lg shadow-lg shadow-orange-100 flex items-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {item ? 'Salvar Alterações' : 'Criar KPI'}
+            {item ? t.common.saveChanges : t.kpi.createKpi}
           </button>
         </div>
       </motion.div>

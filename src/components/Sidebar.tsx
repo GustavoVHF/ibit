@@ -11,6 +11,7 @@ import UserProfileModal from './UserProfileModal';
 import logoIbit from '../media/ibitlogo.svg';
 import { Project } from '../types';
 import { canManageMembers } from '../utils/roleHelpers';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface SidebarProps {
   projectId?: string;
@@ -21,6 +22,7 @@ interface SidebarProps {
 export default function Sidebar({ projectId, projectName, onOpenSettings }: SidebarProps) {
   const { user } = useAuth();
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -52,6 +54,7 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
       {/* Toggle Button */}
       <button
         onClick={toggleSidebar}
+        aria-label={t.nav.toggleSidebar}
         className="absolute -right-3 top-12 w-6 h-6 bg-white border border-gray-200 rounded-full flex items-center justify-center shadow-sm hover:border-[#ff7f00] hover:text-[#ff7f00] transition-all z-50 text-gray-400"
       >
         {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -61,7 +64,7 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
         <div className={`flex justify-center mb-2 transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-40'}`}>
           <img
             src={logoIbit}
-            alt="Logo Ibit"
+            alt={t.common.logoAlt}
             className="w-full h-full object-contain"
             referrerPolicy="no-referrer"
           />
@@ -82,20 +85,20 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                 ? 'bg-orange-50 text-[#ff7f00]'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                 } ${isCollapsed ? 'justify-center px-0' : ''}`}
-              title={isCollapsed ? "PROJETOS" : ""}
+              title={isCollapsed ? t.nav.projects : ""}
             >
               <LayoutDashboard className="w-5 h-5 shrink-0" />
-              {!isCollapsed && <span>PROJETOS</span>}
+              {!isCollapsed && <span>{t.nav.projects}</span>}
             </Link>
           ) : (
             <>
               <Link
                 to="/dashboard"
                 className={`flex items-center gap-3 px-4 py-3.5 text-gray-500 hover:text-gray-900 hover:bg-gray-50 font-bold tracking-wider text-sm rounded-lg transition-colors mb-2 ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "VOLTAR" : ""}
+                title={isCollapsed ? t.nav.back : ""}
               >
                 <ArrowLeft className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>VOLTAR</span>}
+                {!isCollapsed && <span>{t.nav.back}</span>}
               </Link>
 
               <Link
@@ -104,17 +107,17 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "DASHBOARD" : ""}
+                title={isCollapsed ? t.nav.dashboard : ""}
               >
                 <LayoutDashboard className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>DASHBOARD</span>}
+                {!isCollapsed && <span>{t.nav.dashboard}</span>}
               </Link>
 
               <div className={`h-px bg-gray-200 mx-4 transition-all duration-300 ${isCollapsed ? 'my-0.5' : 'my-5'}`} />
  
               {!isCollapsed && (
                 <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                  FERRAMENTAS
+                  {t.nav.tools}
                 </div>
               )}
  
@@ -124,10 +127,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "KANBAN" : ""}
+                title={isCollapsed ? t.nav.kanban : ""}
               >
                 <Kanban className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>KANBAN</span>}
+                {!isCollapsed && <span>{t.nav.kanban}</span>}
               </Link>
  
               <Link
@@ -136,10 +139,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "QUADRO" : ""}
+                title={isCollapsed ? t.nav.quadro : ""}
               >
                 <Image className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>QUADRO</span>}
+                {!isCollapsed && <span>{t.nav.quadro}</span>}
               </Link>
  
               <Link
@@ -148,10 +151,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "CALENDÁRIO" : ""}
+                title={isCollapsed ? t.nav.calendar : ""}
               >
                 <Calendar className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>CALENDÁRIO</span>}
+                {!isCollapsed && <span>{t.nav.calendar}</span>}
               </Link>
  
               <Link
@@ -160,10 +163,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "INVENTÁRIO" : ""}
+                title={isCollapsed ? t.nav.inventory : ""}
               >
                 <Archive className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>INVENTÁRIO</span>}
+                {!isCollapsed && <span>{t.nav.inventory}</span>}
               </Link>
  
               <Link
@@ -172,10 +175,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "ATIVOS" : ""}
+                title={isCollapsed ? t.nav.assets : ""}
               >
                 <Folder className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>ATIVOS</span>}
+                {!isCollapsed && <span>{t.nav.assets}</span>}
               </Link>
  
               <Link
@@ -184,10 +187,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "MATRIZ RACI" : ""}
+                title={isCollapsed ? t.nav.raci : ""}
               >
                 <Grid3X3 className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>MATRIZ RACI</span>}
+                {!isCollapsed && <span>{t.nav.raci}</span>}
               </Link>
 
               <Link
@@ -196,10 +199,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "STAKEHOLDERS" : ""}
+                title={isCollapsed ? t.nav.stakeholders : ""}
               >
                 <Briefcase className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>STAKEHOLDERS</span>}
+                {!isCollapsed && <span>{t.nav.stakeholders}</span>}
               </Link>
  
               <Link
@@ -208,10 +211,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "GESTÃO DE RISCOS" : ""}
+                title={isCollapsed ? t.nav.risks : ""}
               >
                 <AlertTriangle className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>GESTÃO DE RISCOS</span>}
+                {!isCollapsed && <span>{t.nav.risks}</span>}
               </Link>
 
               <Link
@@ -220,10 +223,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "KPIS" : ""}
+                title={isCollapsed ? t.nav.kpis : ""}
               >
                 <Target className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>KPIS</span>}
+                {!isCollapsed && <span>{t.nav.kpis}</span>}
               </Link>
 
               <Link
@@ -232,10 +235,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "STATUS REPORTS" : ""}
+                title={isCollapsed ? t.nav.statusReports : ""}
               >
                 <ClipboardList className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>STATUS REPORTS</span>}
+                {!isCollapsed && <span>{t.nav.statusReports}</span>}
               </Link>
 
               <Link
@@ -244,10 +247,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "GESTÃO DE MUDANÇAS" : ""}
+                title={isCollapsed ? t.nav.changes : ""}
               >
                 <History className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>GESTÃO DE MUDANÇAS</span>}
+                {!isCollapsed && <span>{t.nav.changes}</span>}
               </Link>
  
               <Link
@@ -256,10 +259,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "GANTT" : ""}
+                title={isCollapsed ? t.nav.gantt : ""}
               >
                 <BarChart className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>GANTT</span>}
+                {!isCollapsed && <span>{t.nav.gantt}</span>}
               </Link>
 
               <Link
@@ -268,10 +271,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   ? 'bg-orange-50 text-[#ff7f00]'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                   } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? "FINANCEIRO" : ""}
+                title={isCollapsed ? t.nav.finance : ""}
               >
                 <DollarSign className="w-5 h-5 shrink-0" />
-                {!isCollapsed && <span>FINANCEIRO</span>}
+                {!isCollapsed && <span>{t.nav.finance}</span>}
               </Link>
 
               {/* Seção Configurações */}
@@ -280,7 +283,7 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                   <div className={`h-px bg-gray-200 mx-4 transition-all duration-300 ${isCollapsed ? 'my-0.5' : 'my-5'}`} />
                   {!isCollapsed && (
                     <div className="pt-6 pb-2 px-4 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                      CONFIGURAÇÕES
+                      {t.nav.settings}
                     </div>
                   )}
 
@@ -288,10 +291,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                     <button
                       onClick={onOpenSettings}
                       className={`w-full flex items-center gap-3 px-4 py-3.5 text-gray-500 hover:text-[#ff7f00] hover:bg-orange-50 font-bold tracking-wider text-sm rounded-lg transition-colors text-left ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      title={isCollapsed ? "PERSONALIZAR" : ""}
+                      title={isCollapsed ? t.nav.customize : ""}
                     >
                       <Settings className="w-5 h-5 shrink-0" />
-                      {!isCollapsed && <span>PERSONALIZAR</span>}
+                      {!isCollapsed && <span>{t.nav.customize}</span>}
                     </button>
                   )}
 
@@ -302,10 +305,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                         ? 'bg-orange-50 text-[#ff7f00]'
                         : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                         } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      title={isCollapsed ? "MEMBROS" : ""}
+                      title={isCollapsed ? t.nav.members : ""}
                     >
                       <Users className="w-5 h-5 shrink-0" />
-                      {!isCollapsed && <span>MEMBROS</span>}
+                      {!isCollapsed && <span>{t.nav.members}</span>}
                     </Link>
                   )}
 
@@ -316,10 +319,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
                         ? 'bg-orange-50 text-[#ff7f00]'
                         : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'
                         } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                      title={isCollapsed ? "TAGS" : ""}
+                      title={isCollapsed ? t.nav.tags : ""}
                     >
                       <Tag className="w-5 h-5 shrink-0" />
-                      {!isCollapsed && <span>TAGS</span>}
+                      {!isCollapsed && <span>{t.nav.tags}</span>}
                     </Link>
                   )}
                 </>
@@ -336,7 +339,7 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
           title={isCollapsed ? user?.displayName || "" : ""}
         >
           {user?.photoURL ? (
-            <img src={user.photoURL} alt="Avatar" className="w-10 h-10 rounded-full border border-gray-200 object-cover shrink-0" referrerPolicy="no-referrer" />
+            <img src={user.photoURL} alt={t.common.avatarAlt} className="w-10 h-10 rounded-full border border-gray-200 object-cover shrink-0" referrerPolicy="no-referrer" />
           ) : (
             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200 text-gray-600 font-bold shrink-0">
               {user?.displayName?.charAt(0) || 'U'}
@@ -352,10 +355,10 @@ export default function Sidebar({ projectId, projectName, onOpenSettings }: Side
         <button
           onClick={handleLogout}
           className={`w-full flex items-center gap-2 px-4 py-3.5 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg font-bold tracking-wider text-sm ${isCollapsed ? 'justify-center' : 'justify-center'}`}
-          title={isCollapsed ? "SAIR" : ""}
+          title={isCollapsed ? t.nav.logout : ""}
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          {!isCollapsed && <span>SAIR</span>}
+          {!isCollapsed && <span>{t.nav.logout}</span>}
         </button>
       </div>
 

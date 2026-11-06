@@ -11,9 +11,11 @@ import MobileBottomNav from './MobileBottomNav';
 import UserProfileModal from './UserProfileModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { Project } from '../types';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,7 @@ export default function Dashboard() {
       const querySnapshot = await withTimeout(getDocs(q));
 
       if (querySnapshot.empty) {
-        setJoinError('Projeto não encontrado. Verifique se o código está correto.');
+        setJoinError(t.dashboard.joinNotFound);
         setIsJoining(false);
         return;
       }
@@ -121,7 +123,7 @@ export default function Dashboard() {
       const projectData = projectDoc.data() as Project;
 
       if (projectData.members.includes(user.uid)) {
-        setJoinError('Você já é membro deste projeto!');
+        setJoinError(t.dashboard.alreadyMember);
         setIsJoining(false);
         return;
       }
@@ -136,7 +138,7 @@ export default function Dashboard() {
       setJoinShortId('');
     } catch (error) {
       console.error("Erro ao ingressar no projeto:", error);
-      setJoinError('Falha ao ingressar. Verifique o código e tente novamente.');
+      setJoinError(t.dashboard.joinFailed);
     } finally {
       setIsJoining(false);
     }
@@ -215,7 +217,7 @@ export default function Dashboard() {
         <div className="max-w-6xl mx-auto">
           {/* Header — stacks on mobile */}
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6 sm:mb-8">
-            <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-gray-900">Meus Projetos</h2>
+            <h2 className="text-xl sm:text-2xl font-bold uppercase tracking-wider text-gray-900">{t.dashboard.myProjects}</h2>
             
             <div className="flex gap-2 sm:gap-4">
               <button 
@@ -223,15 +225,15 @@ export default function Dashboard() {
                 className="bg-white hover:bg-gray-50 border border-gray-300 text-gray-700 px-3 sm:px-5 py-2.5 flex items-center gap-2 transition-colors font-bold uppercase tracking-wider rounded-none text-xs sm:text-sm flex-1 sm:flex-none justify-center"
               >
                 <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
-                Ingressar
+                {t.dashboard.join}
               </button>
               <button 
                 onClick={() => setIsModalOpen(true)}
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-3 sm:px-5 py-2.5 flex items-center gap-2 transition-colors font-bold uppercase tracking-wider rounded-none text-xs sm:text-sm flex-1 sm:flex-none justify-center"
               >
                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline">Novo Projeto</span>
-                <span className="sm:hidden">Novo</span>
+                <span className="hidden sm:inline">{t.dashboard.newProject}</span>
+                <span className="sm:hidden">{t.dashboard.newShort}</span>
               </button>
             </div>
           </div>
@@ -241,22 +243,22 @@ export default function Dashboard() {
               <div className="inline-flex items-center justify-center w-20 h-20 bg-gray-50 border border-gray-200 mb-6 rounded-2xl">
                 <LayoutDashboard className="w-8 h-8 text-gray-400" />
               </div>
-              <h3 className="text-xl font-bold mb-2 uppercase text-gray-900">Nenhum projeto ainda</h3>
+              <h3 className="text-xl font-bold mb-2 uppercase text-gray-900">{t.dashboard.emptyTitle}</h3>
               <p className="text-gray-500 mb-6 max-w-md mx-auto">
-                Crie seu primeiro projeto ou ingresse na equipe com um código.
+                {t.dashboard.emptyText}
               </p>
               <div className="flex justify-center gap-4">
                 <button 
                   onClick={() => setIsJoinModalOpen(true)}
                   className="bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 px-6 py-3 font-bold uppercase tracking-wider transition-colors rounded-none"
                 >
-                  Ingressar
+                  {t.dashboard.join}
                 </button>
                 <button 
                   onClick={() => setIsModalOpen(true)}
                   className="bg-[#ff7f00] text-white hover:bg-orange-600 px-6 py-3 font-bold uppercase tracking-wider transition-colors rounded-none"
                 >
-                  Criar Primeiro Projeto
+                  {t.dashboard.createFirst}
                 </button>
               </div>
             </div>
@@ -288,7 +290,7 @@ export default function Dashboard() {
                       {project.name} - #{project.shortId || '---'}
                     </h3>
                     <p className="text-sm text-gray-500 line-clamp-2">
-                      {project.description || 'Sem descrição.'}
+                      {project.description || t.dashboard.noDescription}
                     </p>
                   </Link>
 
@@ -298,7 +300,7 @@ export default function Dashboard() {
                       <button 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProjectToDelete(project); setIsDeleteModalOpen(true); }}
                         className="p-1.5 bg-white text-red-500 hover:bg-red-50 hover:text-red-600 border border-red-100 shadow-sm rounded-md transition-all"
-                        title="Excluir Projeto"
+                        title={t.dashboard.deleteProject}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -306,7 +308,7 @@ export default function Dashboard() {
                       <button 
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setProjectToLeave(project); setIsLeaveModalOpen(true); }}
                         className="p-1.5 bg-white text-orange-500 hover:bg-orange-50 hover:text-[#ff7f00] border border-orange-100 shadow-sm rounded-md transition-all"
-                        title="Sair do Projeto"
+                        title={t.dashboard.leaveProject}
                       >
                         <LogOut className="w-4 h-4" />
                       </button>
@@ -330,7 +332,7 @@ export default function Dashboard() {
               className="bg-white border border-gray-200 w-full max-w-md overflow-hidden shadow-xl rounded-xl"
             >
               <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                <h3 className="text-xl font-bold uppercase text-gray-900">Novo Projeto</h3>
+                <h3 className="text-xl font-bold uppercase text-gray-900">{t.dashboard.newProject}</h3>
                 <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
@@ -338,28 +340,28 @@ export default function Dashboard() {
               
               <form onSubmit={handleCreateProject} className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">Nome da Equipe / Projeto *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">{t.dashboard.nameLabel}</label>
                   <input 
                     type="text" required value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] transition-all rounded-md"
-                    placeholder="Ex: STEM Racing 2026"
+                    placeholder={t.dashboard.namePlaceholder}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">Descrição</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">{t.dashboard.descriptionLabel}</label>
                   <textarea 
                     value={newProjectDesc} onChange={(e) => setNewProjectDesc(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] transition-all resize-none h-24 rounded-md"
-                    placeholder="Objetivos da temporada, membros..."
+                    placeholder={t.dashboard.descriptionPlaceholder}
                   />
                 </div>
 
                 <div className="pt-4 flex gap-3">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button type="submit" disabled={isCreating || !newProjectName.trim()} className="flex-1 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    {isCreating ? 'Criando...' : 'Criar Projeto'}
+                    {isCreating ? t.dashboard.creating : t.dashboard.createProject}
                   </button>
                 </div>
               </form>
@@ -378,7 +380,7 @@ export default function Dashboard() {
               className="bg-white border border-gray-200 w-full max-w-md overflow-hidden shadow-xl rounded-xl"
             >
               <div className="flex justify-between items-center p-6 border-b border-gray-100">
-                <h3 className="text-xl font-bold uppercase text-gray-900">Ingressar no Projeto</h3>
+                <h3 className="text-xl font-bold uppercase text-gray-900">{t.dashboard.joinTitle}</h3>
                 <button onClick={() => { setIsJoinModalOpen(false); setJoinError(''); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X className="w-6 h-6" />
                 </button>
@@ -391,22 +393,22 @@ export default function Dashboard() {
                   </div>
                 )}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">Código de 8 Caracteres *</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1 uppercase tracking-wider">{t.dashboard.codeLabel}</label>
                   <input 
                     type="text" required value={joinShortId} onChange={(e) => setJoinShortId(e.target.value.toUpperCase())}
                     maxLength={8}
                     className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold tracking-[0.2em] uppercase transition-all rounded-md"
-                    placeholder="Ex: A1B2C3D4"
+                    placeholder={t.dashboard.codePlaceholder}
                   />
-                  <p className="text-xs text-gray-500 mt-2">Peça o código de compartilhamento ao líder da sua equipe.</p>
+                  <p className="text-xs text-gray-500 mt-2">{t.dashboard.codeHelp}</p>
                 </div>
 
                 <div className="pt-4 flex gap-1">
                   <button type="button" onClick={() => { setIsJoinModalOpen(false); setJoinError(''); }} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button type="submit" disabled={isJoining || joinShortId.trim().length !== 8} className="flex-1 bg-gray-900 hover:bg-black disabled:opacity-50 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    {isJoining ? 'Buscando...' : 'Entrar na Equipe'}
+                    {isJoining ? t.dashboard.searching : t.dashboard.joinTeam}
                   </button>
                 </div>
               </form>
@@ -427,7 +429,7 @@ export default function Dashboard() {
             >
               <div className="flex justify-between items-center p-6 border-b border-gray-100">
                 <h3 className="text-xl font-bold uppercase text-gray-900 flex items-center gap-2">
-                  <LogOut className="w-5 h-5 text-orange-500" /> Sair do Projeto
+                  <LogOut className="w-5 h-5 text-orange-500" /> {t.dashboard.leaveProject}
                 </h3>
                 <button onClick={() => { setIsLeaveModalOpen(false); setProjectToLeave(null); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X className="w-6 h-6" />
@@ -436,18 +438,18 @@ export default function Dashboard() {
               
               <div className="p-6 space-y-4">
                 <p className="text-gray-600">
-                  Tem certeza que deseja sair de <strong className="text-gray-900 uppercase">{projectToLeave.name}</strong>?
+                  {t.dashboard.leaveConfirmBefore}<strong className="text-gray-900 uppercase">{projectToLeave.name}</strong>{t.dashboard.leaveConfirmAfter}
                 </p>
                 <div className="bg-orange-50 text-orange-800 p-3 rounded-md text-sm border border-orange-200">
-                  Você perderá o acesso a este Kanban. Se precisar voltar, terá que pedir o código de ingresso ao dono do projeto.
+                  {t.dashboard.leaveWarning}
                 </div>
 
                 <div className="pt-4 flex gap-3">
                   <button type="button" onClick={() => { setIsLeaveModalOpen(false); setProjectToLeave(null); }} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button type="button" onClick={handleLeaveProject} disabled={isLeaving} className="flex-1 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    {isLeaving ? 'Saindo...' : 'Confirmar Saída'}
+                    {isLeaving ? t.dashboard.leaving : t.dashboard.confirmLeave}
                   </button>
                 </div>
               </div>
@@ -467,7 +469,7 @@ export default function Dashboard() {
             >
               <div className="flex justify-between items-center p-6 border-b border-red-100 bg-red-50">
                 <h3 className="text-xl font-bold uppercase text-red-700 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" /> Excluir Permanentemente
+                  <AlertTriangle className="w-5 h-5" /> {t.dashboard.deleteTitle}
                 </h3>
                 <button onClick={() => { setIsDeleteModalOpen(false); setProjectToDelete(null); setDeleteConfirmId(''); }} className="text-red-400 hover:text-red-600 transition-colors">
                   <X className="w-6 h-6" />
@@ -476,12 +478,12 @@ export default function Dashboard() {
               
               <div className="p-6 space-y-4">
                 <p className="text-gray-700">
-                  Atenção! Todas as colunas e tarefas de <strong className="text-gray-900 uppercase">{projectToDelete.name}</strong> serão apagadas do banco de dados para sempre.
+                  {t.dashboard.deleteWarningBefore}<strong className="text-gray-900 uppercase">{projectToDelete.name}</strong>{t.dashboard.deleteWarningAfter}
                 </p>
                 
                 <div className="bg-gray-50 p-4 border border-gray-200 rounded-md">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                    Digite o ID <span className="text-red-600 tracking-[0.2em]">{projectToDelete.shortId}</span> para confirmar:
+                    {t.dashboard.typeIdBefore}<span className="text-red-600 tracking-[0.2em]">{projectToDelete.shortId}</span>{t.dashboard.typeIdAfter}
                   </label>
                   <input 
                     type="text" 
@@ -489,13 +491,13 @@ export default function Dashboard() {
                     onChange={(e) => setDeleteConfirmId(e.target.value.toUpperCase())}
                     maxLength={8}
                     className="w-full bg-white border border-red-300 px-4 py-3 text-red-700 focus:outline-none focus:border-red-500 font-bold tracking-[0.2em] uppercase transition-all rounded-md placeholder:text-red-200"
-                    placeholder="DIGITE AQUI"
+                    placeholder={t.dashboard.typeHere}
                   />
                 </div>
 
                 <div className="pt-4 flex gap-3">
                   <button type="button" onClick={() => { setIsDeleteModalOpen(false); setProjectToDelete(null); setDeleteConfirmId(''); }} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button 
                     type="button" 
@@ -503,7 +505,7 @@ export default function Dashboard() {
                     disabled={isDeleting || deleteConfirmId !== projectToDelete.shortId} 
                     className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none"
                   >
-                    {isDeleting ? 'Excluindo...' : 'Apagar Projeto'}
+                    {isDeleting ? t.dashboard.deleting : t.dashboard.deleteProjectButton}
                   </button>
                 </div>
               </div>

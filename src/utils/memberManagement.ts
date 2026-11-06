@@ -4,6 +4,7 @@ import { handleFirestoreError, OperationType } from './errorHandlers';
 import { commitWrite, withTimeout } from './firestoreWrite';
 import { Project, ProjectRole } from '../types';
 import { getUserRole, canManageMembers, canRemoveMember, canChangeRole } from './roleHelpers';
+import { getMessages } from '../i18n';
 
 /**
  * Change a member's role in a project.
@@ -21,14 +22,14 @@ export async function changeMemberRole(
     const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
-      throw new Error('Projeto não encontrado');
+      throw new Error(getMessages().errors.projectNotFound);
     }
 
     const project = { id: projectSnap.id, ...projectSnap.data() } as Project;
 
     // Validate permissions
     if (!canChangeRole(project, actorUid, targetUid, newRole)) {
-      throw new Error('Você não tem permissão para alterar este cargo');
+      throw new Error(getMessages().errors.noPermissionChangeRole);
     }
 
     // Initialize roles map if it doesn't exist (legacy project)
@@ -74,14 +75,14 @@ export async function removeMember(
     const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
-      throw new Error('Projeto não encontrado');
+      throw new Error(getMessages().errors.projectNotFound);
     }
 
     const project = { id: projectSnap.id, ...projectSnap.data() } as Project;
 
     // Validate permissions
     if (!canRemoveMember(project, actorUid, targetUid)) {
-      throw new Error('Você não tem permissão para remover este membro');
+      throw new Error(getMessages().errors.noPermissionRemoveMember);
     }
 
     // Remove from members array
@@ -120,20 +121,20 @@ export async function transferOwnership(
     const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
-      throw new Error('Projeto não encontrado');
+      throw new Error(getMessages().errors.projectNotFound);
     }
 
     const project = { id: projectSnap.id, ...projectSnap.data() } as Project;
 
     // Validate current owner
     if (project.ownerId !== currentOwnerUid) {
-      throw new Error('Apenas o dono pode transferir a posse');
+      throw new Error(getMessages().errors.onlyOwnerTransfers);
     }
 
     // Validate new owner is an admin
     const newOwnerRole = getUserRole(project, newOwnerUid);
     if (newOwnerRole !== 'admin') {
-      throw new Error('O novo dono deve ser um administrador');
+      throw new Error(getMessages().errors.newOwnerMustBeAdmin);
     }
 
     // Initialize roles map if it doesn't exist
@@ -181,14 +182,14 @@ export async function assignMemberTags(
     const projectSnap = await withTimeout(getDoc(projectRef));
 
     if (!projectSnap.exists()) {
-      throw new Error('Projeto não encontrado');
+      throw new Error(getMessages().errors.projectNotFound);
     }
 
     const project = { id: projectSnap.id, ...projectSnap.data() } as Project;
 
     // Validate permissions
     if (!canManageMembers(project, actorUid)) {
-      throw new Error('Você não tem permissão para atribuir tags');
+      throw new Error(getMessages().errors.noPermissionAssignTags);
     }
 
     // TODO: Implement memberTags collection

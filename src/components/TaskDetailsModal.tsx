@@ -9,6 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
 import { useAuth } from '../contexts/AuthContext';
 import { diffInDays, logAutomaticChange, toDateSafe } from '../utils/changeHistory';
+import { useI18n } from '../i18n/LanguageContext';
+import { STORED_DATA_LOCALE } from '../i18n';
 
 interface TaskDetailsModalProps {
   task: Task;
@@ -17,15 +19,15 @@ interface TaskDetailsModalProps {
 }
 
 const TASK_COLORS = [
-  { id: 'none', value: 'transparent', label: 'Nenhuma' },
-  { id: 'red', value: '#ef4444', label: 'Vermelho' },
-  { id: 'orange', value: '#f97316', label: 'Laranja' },
-  { id: 'yellow', value: '#eab308', label: 'Amarelo' },
-  { id: 'green', value: '#22c55e', label: 'Verde' },
-  { id: 'blue', value: '#3b82f6', label: 'Azul' },
-  { id: 'purple', value: '#a855f7', label: 'Roxo' },
-  { id: 'pink', value: '#ec4899', label: 'Rosa' },
-];
+  { id: 'none', value: 'transparent' },
+  { id: 'red', value: '#ef4444' },
+  { id: 'orange', value: '#f97316' },
+  { id: 'yellow', value: '#eab308' },
+  { id: 'green', value: '#22c55e' },
+  { id: 'blue', value: '#3b82f6' },
+  { id: 'purple', value: '#a855f7' },
+  { id: 'pink', value: '#ec4899' },
+] as const;
 
 export const TAG_COLORS = [
   { id: 'blue', color: 'bg-blue-600 text-white border-blue-700' },
@@ -40,6 +42,7 @@ export const TAG_COLORS = [
 
 export default function TaskDetailsModal({ task, onClose, projectMembers }: TaskDetailsModalProps) {
   const { user } = useAuth();
+  const { t: tr } = useI18n();
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description || '');
   
@@ -123,7 +126,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
       const dueDateChanged = !isSameDate(previousDueDate, currentDueDate);
 
       if (assigneesChanged || startDateChanged || dueDateChanged) {
-        const formatDate = (date: Date | null) => date?.toLocaleDateString('pt-BR') || 'Não definida';
+        const formatDate = (date: Date | null) => date?.toLocaleDateString(STORED_DATA_LOCALE) || 'Não definida';
         const formatAssignees = (uids: string[]) => {
           const names = uids.map((uid) => projectMembers.find((member) => member.uid === uid)?.name || 'Membro removido');
           return names.length > 0 ? names.join(', ') : 'Sem responsável';
@@ -205,7 +208,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
   };
 
   const handleDelete = async () => {
-    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+    if (!confirm(tr.task.deleteConfirm)) return;
     setIsSaving(true);
     try {
       await commitWrite(deleteDoc(doc(db, 'tasks', task.id)), { label: 'a exclusão da tarefa' });
@@ -227,8 +230,8 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
         className="bg-white border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-xl rounded-xl flex flex-col"
       >
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shrink-0">
-          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">Detalhes da Tarefa</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">{tr.task.title}</h2>
+          <button onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -236,13 +239,13 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
         <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
           {/* Title */}
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Título</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.task.titleLabel}</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm"
-              placeholder="Nome da tarefa..."
+              placeholder={tr.task.namePlaceholder}
             />
           </div>
 
@@ -252,14 +255,14 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
               <div>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   <AlignLeft className="w-4 h-4" />
-                  DESCRIÇÃO
+                  {tr.task.description}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={6}
                   className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm"
-                  placeholder="Adicione uma descrição..."
+                  placeholder={tr.task.descriptionPlaceholder}
                 />
               </div>
 
@@ -267,7 +270,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
               <div>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">
                   <UserIcon className="w-4 h-4" />
-                  RESPONSÁVEIS
+                  {tr.task.assignees}
                 </label>
                 <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 space-y-2 max-h-48 overflow-y-auto shadow-inner">
                   {projectMembers.map(member => (
@@ -311,7 +314,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
                 <div>
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                     <Clock className="w-4 h-4" />
-                    DATA DE INÍCIO
+                    {tr.task.startDate}
                   </label>
                   <input
                     type="date"
@@ -323,7 +326,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
                 <div>
                   <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                     <Calendar className="w-4 h-4" />
-                    DATA DE ENTREGA
+                    {tr.task.dueDate}
                   </label>
                   <input
                     type="date"
@@ -338,14 +341,14 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
               <div>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   <Palette className="w-4 h-4" />
-                  COR DE DESTAQUE
+                  {tr.task.highlightColor}
                 </label>
                 <div className="grid grid-cols-4 gap-2 bg-gray-50 p-3 rounded-xl border border-gray-100">
                   {TASK_COLORS.map(c => (
                     <button
                       key={c.id}
                       onClick={() => setColor(c.value)}
-                      title={c.label}
+                      title={tr.common.colors[c.id]}
                       className={`w-full aspect-square rounded-lg border-2 transition-all ${
                         color === c.value ? 'border-gray-900 scale-110 shadow-md' : 'border-transparent hover:scale-105'
                       }`}
@@ -361,7 +364,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
               <div>
                 <label className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
                   <Tag className="w-4 h-4" />
-                  TAGS DO PROJETO
+                  {tr.task.projectTags}
                 </label>
                 <div className="flex flex-wrap gap-2 mb-4 max-h-40 overflow-y-auto p-1 scrollbar-hide">
                   {projectTags.map(tag => (
@@ -385,7 +388,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
                   <form onSubmit={handleAddCustomTag} className="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-3">
                     <input
                       type="text" autoFocus value={newTagLabel} onChange={(e) => setNewTagLabel(e.target.value)}
-                      placeholder="Nome da tag..."
+                      placeholder={tr.task.tagNamePlaceholder}
                       className="w-full bg-white border border-gray-300 px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg shadow-sm"
                     />
                     <div className="flex flex-wrap gap-1.5 justify-center">
@@ -404,7 +407,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
                       ))}
                     </div>
                     <div className="flex gap-2">
-                       <button type="submit" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all">CRIAR</button>
+                       <button type="submit" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all">{tr.task.create}</button>
                        <button type="button" onClick={() => setIsAddingCustomTag(false)} className="px-3 py-2 bg-white border border-gray-200 text-gray-400 rounded-lg hover:text-gray-600"><X className="w-3 h-3" /></button>
                     </div>
                   </form>
@@ -413,7 +416,7 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
                     onClick={() => setIsAddingCustomTag(true)}
                     className="w-full py-2 border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#ff7f00] hover:text-[#ff7f00] rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
                   >
-                    + Nova Tag
+                    {tr.task.newTag}
                   </button>
                 )}
               </div>
@@ -428,21 +431,21 @@ export default function TaskDetailsModal({ task, onClose, projectMembers }: Task
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold uppercase tracking-wider transition-colors rounded-lg text-red-600 hover:bg-red-50"
           >
             <Trash2 className="w-4 h-4" />
-            EXCLUIR
+            {tr.common.delete}
           </button>
           <div className="flex gap-3">
             <button
               onClick={onClose}
               className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg"
             >
-              CANCELAR
+              {tr.common.cancel}
             </button>
             <button
               onClick={handleSave}
               disabled={isSaving || !title.trim()}
               className="px-8 py-2.5 text-xs font-bold uppercase tracking-widest text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-lg shadow-lg shadow-orange-100"
             >
-              {isSaving ? 'SALVANDO...' : 'SALVAR ALTERAÇÕES'}
+              {isSaving ? tr.common.saving : tr.common.saveChanges}
             </button>
           </div>
         </div>

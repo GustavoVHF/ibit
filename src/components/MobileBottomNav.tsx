@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FolderKanban, User } from 'lucide-react';
 import clsx from 'clsx';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface MobileBottomNavProps {
   onOpenProfile?: () => void;
@@ -10,6 +11,7 @@ interface MobileBottomNavProps {
 export default function MobileBottomNav({ onOpenProfile }: MobileBottomNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
 
   const isProjectsActive = location.pathname === '/dashboard';
 
@@ -28,7 +30,7 @@ export default function MobileBottomNav({ onOpenProfile }: MobileBottomNavProps)
         >
           <FolderKanban className="w-5 h-5" />
           <span className="text-[9px] font-bold uppercase tracking-wider">
-            Projetos
+            {t.nav.mobileProjects}
           </span>
         </button>
 
@@ -39,7 +41,7 @@ export default function MobileBottomNav({ onOpenProfile }: MobileBottomNavProps)
         >
           <User className="w-5 h-5" />
           <span className="text-[9px] font-bold uppercase tracking-wider">
-            Perfil
+            {t.nav.mobileProfile}
           </span>
         </button>
       </div>

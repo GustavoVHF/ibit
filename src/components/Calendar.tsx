@@ -17,11 +17,14 @@ import clsx from 'clsx';
 import { AnimatePresence } from 'motion/react';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useI18n } from '../i18n/LanguageContext';
+import { getMessages } from '../i18n';
 
 export default function CalendarTool() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useI18n();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState<Task[]>([]);
   const [docEvents, setDocEvents] = useState<any[]>([]); // To hold events from assetDocuments
@@ -94,7 +97,7 @@ export default function CalendarTool() {
             if (event.date) {
               eventsData.push({
                 id: `doc-${doc.id}-${index}`,
-                title: event.title || data.title || 'Evento de Documento',
+                title: event.title || data.title || getMessages().errors.documentEvent,
                 dueDate: new Date(event.date + 'T12:00:00'), // Parse as noon to avoid timezone shift
                 color: '#8b5cf6', // A distinct color for document events (e.g. purple)
                 isDocEvent: true,
@@ -124,12 +127,9 @@ export default function CalendarTool() {
     setCurrentDate(new Date());
   };
 
-  const monthNames = [
-    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-  ];
+  const monthNames = t.common.monthsLong;
 
-  const weekDays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+  const weekDays = t.common.weekdaysShort;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -200,7 +200,7 @@ export default function CalendarTool() {
             <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden border border-gray-100 shrink-0">
               {project?.photoURL ? <img src={project.photoURL} alt={project.name} className="w-full h-full object-cover" /> : <span className="text-xl">🏎️</span>}
             </div>
-            <div><h2 className="text-xl font-bold tracking-wider leading-tight text-gray-900">{project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}</h2></div>
+            <div><h2 className="text-xl font-bold tracking-wider leading-tight text-gray-900">{project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}</h2></div>
             <div className="flex items-center ml-4">
               <div className="flex -space-x-2 mr-3">
                 {projectMembers.map((member) => (
@@ -209,7 +209,7 @@ export default function CalendarTool() {
                   </div>
                 ))}
               </div>
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">{project?.members.length || 0} Membros</span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">{project?.members.length || 0} {t.common.membersTitle(project?.members.length || 0)}</span>
             </div>
           </div>
         </header>
@@ -220,7 +220,7 @@ export default function CalendarTool() {
                 <h2 className="text-sm sm:text-lg font-bold text-gray-900 w-32 sm:w-48 text-center uppercase tracking-widest">{monthNames[month]} {year}</h2>
                 <div className="flex items-center gap-1">
                   <button onClick={prevMonth} className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-all active:scale-95"><ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" /></button>
-                   <button onClick={goToToday} className={clsx("px-2 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all active:scale-95 rounded-lg border", isViewingCurrentMonth ? "bg-[#ff7f00] text-white border-[#ff7f00] shadow-md shadow-orange-100" : "bg-white text-gray-400 border-dashed border-gray-300 hover:border-[#ff7f00] hover:text-[#ff7f00]")}>HOJE</button>
+                   <button onClick={goToToday} className={clsx("px-2 sm:px-4 py-1 sm:py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all active:scale-95 rounded-lg border", isViewingCurrentMonth ? "bg-[#ff7f00] text-white border-[#ff7f00] shadow-md shadow-orange-100" : "bg-white text-gray-400 border-dashed border-gray-300 hover:border-[#ff7f00] hover:text-[#ff7f00]")}>{t.common.today}</button>
                   <button onClick={nextMonth} className="p-1.5 sm:p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-all active:scale-95"><ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" /></button>
                 </div>
              </div>
@@ -244,7 +244,7 @@ export default function CalendarTool() {
                       {dayTasks.map(task => { const hasColor = task.color && task.color !== 'transparent'; const displayColor = hasColor ? task.color : '#9ca3af'; return (
                         <div key={task.id} title={task.title} onClick={() => handleTaskClick(task.id, task.isDocEvent)} className="px-2 py-1.5 rounded-lg text-[10px] font-medium tracking-wide truncate cursor-pointer transition-all hover:translate-x-1 border border-transparent hover:border-black/5 flex items-center gap-2 group/task shadow-sm" style={{ backgroundColor: `${displayColor}15`, color: hasColor ? displayColor : '#4b5563', borderLeft: `3px solid ${displayColor}`, filter: 'brightness(0.98)' }}><span className="truncate flex-1">{task.title}</span>
                           {task.isDocEvent && <span className="text-[8px] bg-[#8b5cf6] text-white px-1.5 py-0.5 rounded-md uppercase tracking-wider font-bold shrink-0">DOC</span>}
-                          {!task.isDocEvent && task.assignedTo && (<div className="flex -space-x-1.5 ml-auto shrink-0">{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).slice(0, 3).map((uid, idx) => { const member = projectMembers.find(m => m.uid === uid); return (<div key={uid} className="w-4 h-4 rounded-full border border-white shadow-sm overflow-hidden bg-white shrink-0" title={member?.name || 'Membro'}>{member?.photoURL ? (<img src={member.photoURL} alt="Assignee" className="w-full h-full object-cover" />) : (<div className="w-full h-full bg-[#ff7f00] flex items-center justify-center text-white text-[7px] font-bold uppercase">{member?.name?.charAt(0) || <UserIcon className="w-2 h-2" />}</div>)}</div>); })}{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).length > 3 && (<div className="w-4 h-4 rounded-full border border-white bg-gray-200 flex items-center justify-center text-[6px] font-bold text-gray-600 shrink-0">+{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).length - 3}</div>)}</div>)}
+                          {!task.isDocEvent && task.assignedTo && (<div className="flex -space-x-1.5 ml-auto shrink-0">{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).slice(0, 3).map((uid, idx) => { const member = projectMembers.find(m => m.uid === uid); return (<div key={uid} className="w-4 h-4 rounded-full border border-white shadow-sm overflow-hidden bg-white shrink-0" title={member?.name || t.common.member}>{member?.photoURL ? (<img src={member.photoURL} alt="Assignee" className="w-full h-full object-cover" />) : (<div className="w-full h-full bg-[#ff7f00] flex items-center justify-center text-white text-[7px] font-bold uppercase">{member?.name?.charAt(0) || <UserIcon className="w-2 h-2" />}</div>)}</div>); })}{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).length > 3 && (<div className="w-4 h-4 rounded-full border border-white bg-gray-200 flex items-center justify-center text-[6px] font-bold text-gray-600 shrink-0">+{(Array.isArray(task.assignedTo) ? task.assignedTo : [task.assignedTo]).length - 3}</div>)}</div>)}
                         </div>
                       );})}
                     </div>

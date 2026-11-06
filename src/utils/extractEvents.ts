@@ -8,6 +8,8 @@
  * surrounding paragraph text or defaults to "Evento de Documento".
  */
 
+import { getMessages } from '../i18n';
+
 export interface SyncEvent {
   title: string;
   date: string;
@@ -64,7 +66,7 @@ function processTableRow(row: any): SyncEvent[] {
   for (const event of events) {
     if (event.sync && event.date) {
       results.push({
-        title: rowTitle || 'Evento sem título',
+        title: rowTitle || getMessages().errors.untitledEvent,
         date: event.date,
       });
     }
@@ -90,7 +92,7 @@ function processBlock(block: any): SyncEvent[] {
   for (const event of events) {
     if (event.sync && event.date) {
       results.push({
-        title: blockText || 'Evento de Documento',
+        title: blockText || getMessages().errors.documentEvent,
         date: event.date,
       });
     }

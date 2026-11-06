@@ -1,6 +1,7 @@
 import React from 'react';
 import { StatusReport, UserProfile } from '../../types';
 import { groupReportsByMonth } from './statusReportHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 import StatusReportCard from './StatusReportCard';
 
 interface StatusReportTimelineProps {
@@ -24,10 +25,11 @@ export default function StatusReportTimeline({
   onOpenImpactEvaluation,
   canApprove,
 }: StatusReportTimelineProps) {
+  const { t } = useI18n();
   if (reports.length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
-        <p className="text-gray-500 text-sm font-medium">Nenhum report encontrado para os filtros selecionados.</p>
+        <p className="text-gray-500 text-sm font-medium">{t.statusReports.empty}</p>
       </div>
     );
   }
@@ -44,7 +46,7 @@ export default function StatusReportTimeline({
             </h3>
             <div className="flex-1 h-px bg-gray-200" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-              {group.reports.length} {group.reports.length === 1 ? 'REPORT' : 'REPORTS'}
+              {group.reports.length} {t.statusReports.reportsCount(group.reports.length)}
             </span>
           </div>
 

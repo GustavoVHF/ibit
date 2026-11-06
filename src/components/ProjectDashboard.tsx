@@ -23,6 +23,8 @@ import { AnimatePresence } from 'motion/react';
 import { CheckCircle2, ListTodo, Calendar, Wallet, Tv, Link as LinkIcon, PieChart as PieChartIcon, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useI18n } from '../i18n/LanguageContext';
+import { getLocale } from '../i18n';
 
 function dueDateToDate(task: Task): Date | null {
   const raw = task.dueDate;
@@ -57,14 +59,14 @@ function computeMetrics(boards: Board[], tasks: Task[]) {
 }
 
 const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  return new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'BRL' }).format(value);
 };
 
 const CustomizedFlowLabel = (props: any) => {
   const { x, y, value, fill, position = 'top' } = props;
   if (!value && value !== 0) return null;
   // Format without cents if possible to save space
-  const formatted = new Intl.NumberFormat('pt-BR', { 
+  const formatted = new Intl.NumberFormat(getLocale(), { 
     style: 'currency', 
     currency: 'BRL',
     maximumFractionDigits: 0 
@@ -90,6 +92,7 @@ export default function ProjectDashboard() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   const [project, setProject] = useState<Project | null>(null);
   const [boards, setBoards] = useState<Board[]>([]);
@@ -237,11 +240,12 @@ export default function ProjectDashboard() {
   }, [project?.targetDate]);
 
   // Calculate chart data for Pie Chart (Despesas por Categoria)
+  const noCategoryLabel = t.projectDashboard.noCategory;
   const chartData = useMemo(() => {
     const expenseCategories: Record<string, number> = {};
     transactions.forEach(t => {
       if (t.type === 'expense') {
-        const cat = t.category || 'Sem Categoria';
+        const cat = t.category || noCategoryLabel;
         expenseCategories[cat] = (expenseCategories[cat] || 0) + t.amount;
       }
     });
@@ -249,9 +253,10 @@ export default function ProjectDashboard() {
       name: key,
       value: expenseCategories[key]
     })).sort((a, b) => b.value - a.value);
-  }, [transactions]);
+  }, [transactions, noCategoryLabel]);
 
   // Calculate cash flow data for Line Chart
+  const monthsShort = t.common.monthsShort;
   const cashFlowData = useMemo(() => {
     const sortedTrans = [...transactions].sort((a, b) => {
       const da = a.date?.toDate ? a.date.toDate() : new Date();
@@ -259,7 +264,7 @@ export default function ProjectDashboard() {
       return da.getTime() - db.getTime();
     });
 
-    const monthNames = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    const monthNames = monthsShort;
     const rawMonths: { name: string; key: string; income: number; expense: number }[] = [];
 
     sortedTrans.forEach(t => {
@@ -288,7 +293,7 @@ export default function ProjectDashboard() {
         Saída: accExpense
       };
     });
-  }, [transactions]);
+  }, [transactions, monthsShort]);
 
   const CHART_COLORS = ['#ff7f00', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#eab308', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
 
@@ -320,7 +325,7 @@ export default function ProjectDashboard() {
           onClick={toggleTVMode}
           className="fixed top-4 right-4 z-50 px-4 py-2 bg-red-600 text-white font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-red-700 transition-all shadow-xl animate-in fade-in duration-200"
         >
-          Sair do Modo TV
+          {t.projectDashboard.exitTvMode}
         </button>
       )}
 
@@ -379,7 +384,7 @@ export default function ProjectDashboard() {
                   ))}
                 </div>
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                  {project.members.length} {project.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                  {project.members.length} {t.common.membersCount(project.members.length)}
                 </span>
               </div>
             </div>
@@ -389,14 +394,14 @@ export default function ProjectDashboard() {
         {/* Subheader */}
         {!isTVMode && (
           <div className="border-b border-gray-200 bg-white px-6 py-4 flex items-center justify-between shrink-0">
-            <h1 className="text-xl font-bold uppercase tracking-wider text-gray-900">Dashboard</h1>
+            <h1 className="text-xl font-bold uppercase tracking-wider text-gray-900">{t.projectDashboard.title}</h1>
             <div className="flex gap-3">
               <button
                 onClick={toggleTVMode}
                 className="px-4 py-2 bg-[#ff7f00] text-white font-bold uppercase tracking-wider text-xs rounded-none hover:bg-orange-600 transition-colors flex items-center gap-2"
               >
                 <Tv className="w-4 h-4" />
-                Modo TV
+                {t.projectDashboard.tvMode}
               </button>
               <button
                 onClick={() => setIsAuditModalOpen(true)}
@@ -404,7 +409,7 @@ export default function ProjectDashboard() {
                 className="px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-bold uppercase tracking-wider text-xs rounded-none hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 <LinkIcon className="w-4 h-4" />
-                Acesso de Auditoria
+                {t.projectDashboard.auditAccess}
               </button>
             </div>
           </div>
@@ -420,7 +425,7 @@ export default function ProjectDashboard() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Tarefas a fazer
+                      {t.projectDashboard.todo}
                     </p>
                     <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">{todoCount}</p>
                   </div>
@@ -435,7 +440,7 @@ export default function ProjectDashboard() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Concluídas (7 dias)
+                      {t.projectDashboard.completed7}
                     </p>
                     <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">{completedLast7Days}</p>
                   </div>
@@ -456,19 +461,19 @@ export default function ProjectDashboard() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Contagem Regressiva
+                      {t.projectDashboard.countdown}
                     </p>
                     {daysUntil !== null ? (
                       <>
                         <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">
-                          {daysUntil} {daysUntil === 1 ? 'Dia' : 'Dias'}
+                          {daysUntil} {t.projectDashboard.days(daysUntil)}
                         </p>
                         {project.targetEventName && (
                           <p className="text-[9px] text-gray-500 mt-0.5 truncate">{project.targetEventName}</p>
                         )}
                       </>
                     ) : (
-                      <p className="text-xs font-bold text-gray-400">Configurar Evento</p>
+                      <p className="text-xs font-bold text-gray-400">{t.projectDashboard.configureEvent}</p>
                     )}
                   </div>
                 </div>
@@ -491,7 +496,7 @@ export default function ProjectDashboard() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Saldo Atual
+                      {t.projectDashboard.balance}
                     </p>
                     <p className={clsx(
                       "text-2xl sm:text-4xl font-bold tabular-nums leading-none",
@@ -511,12 +516,12 @@ export default function ProjectDashboard() {
               <div className="bg-white border border-gray-200 rounded-xl p-6 min-h-[220px] lg:min-h-0 lg:h-full flex flex-col">
                 <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
                   <PieChartIcon className="w-5 h-5 text-indigo-500" />
-                  Despesas por Categoria
+                  {t.projectDashboard.expensesByCategory}
                 </h3>
                 {chartData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center opacity-50 flex-1">
                     <PieChartIcon className="w-12 h-12 text-gray-200 mb-4" />
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nenhuma despesa registrada</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.projectDashboard.noExpenses}</p>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-4 min-h-0">
@@ -578,12 +583,12 @@ export default function ProjectDashboard() {
               <div className="bg-white border border-gray-200 rounded-xl p-6 min-h-[220px] lg:min-h-0 lg:h-full flex flex-col">
                 <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-green-500" />
-                  Fluxo de Caixa
+                  {t.projectDashboard.cashFlow}
                 </h3>
                 {cashFlowData.length === 0 ? (
                   <div className="flex flex-col items-center justify-center opacity-50 flex-1">
                     <TrendingUp className="w-12 h-12 text-gray-200 mb-4" />
-                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Nenhuma transação histórica</p>
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{t.projectDashboard.noTransactions}</p>
                   </div>
                 ) : (
                   <div className="flex-1 flex flex-col min-h-0">
@@ -599,8 +604,8 @@ export default function ProjectDashboard() {
                                 return (
                                   <div className="bg-white border border-gray-200 p-3 rounded-lg shadow-lg">
                                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{payload[0].payload.name}</p>
-                                    <p className="text-xs font-bold text-green-600">Entrada: {formatCurrency(payload[0].value)}</p>
-                                    <p className="text-xs font-bold text-red-600">Saída: {formatCurrency(payload[1].value)}</p>
+                                    <p className="text-xs font-bold text-green-600">{t.projectDashboard.income}: {formatCurrency(payload[0].value)}</p>
+                                    <p className="text-xs font-bold text-red-600">{t.projectDashboard.outflow}: {formatCurrency(payload[1].value)}</p>
                                   </div>
                                 );
                               }
@@ -611,6 +616,7 @@ export default function ProjectDashboard() {
                           <Line
                             type="monotone"
                             dataKey="Entrada"
+                        name={t.projectDashboard.income}
                             stroke="#22c55e"
                             strokeWidth={3}
                             dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
@@ -621,6 +627,7 @@ export default function ProjectDashboard() {
                           <Line
                             type="monotone"
                             dataKey="Saída"
+                        name={t.projectDashboard.outflow}
                             stroke="#ef4444"
                             strokeWidth={3}
                             dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
@@ -634,11 +641,11 @@ export default function ProjectDashboard() {
                     <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mt-6 pb-2 px-2 w-full shrink-0">
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">ENTRADA DE CAPITAL</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t.projectDashboard.capitalIn}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">SAÍDA DE CAPITAL</span>
+                        <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t.projectDashboard.capitalOut}</span>
                       </div>
                     </div>
                   </div>

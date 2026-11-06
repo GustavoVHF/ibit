@@ -9,16 +9,19 @@ import { commitWrite } from '../../utils/firestoreWrite';
 import { DecisionMatrix as DecisionMatrixDoc } from '../../types';
 import { optionLabel } from './decisionMatrixHelpers';
 import DecisionMatrixEditor from './DecisionMatrixEditor';
+import { getLocale } from '../../i18n';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface DecisionMatrixProps {
   projectId: string;
   newRequestKey: number;
 }
 
-const fmt2 = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmt2 = (v: number) => v.toLocaleString(getLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const millis = (ts: any): number => (ts?.toMillis ? ts.toMillis() : Date.now()); // pendente (serverTimestamp) = agora
 
 export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMatrixProps) {
+  const { t, locale } = useI18n();
   const [matrices, setMatrices] = useState<DecisionMatrixDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -46,8 +49,8 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
         }
         setLoadError(
           /permission/i.test(error.message)
-            ? 'Sem permissão para ler as matrizes. Verifique se as regras do Firestore foram publicadas.'
-            : 'Erro ao carregar as matrizes de decisão.'
+            ? t.finance.noPermissionRead
+            : t.finance.loadMatricesError
         );
         setLoading(false);
       }
@@ -76,7 +79,7 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
       setToDelete(null);
     } catch (e) {
       logFirestoreError(e, OperationType.DELETE, 'decisionMatrices');
-      setDeleteError('Erro ao excluir a comparação.');
+      setDeleteError(t.finance.deleteComparisonError);
     }
   };
 
@@ -101,13 +104,13 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
       ) : sorted.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center opacity-50 min-h-[400px]">
           <Scale className="w-16 h-16 text-[#ff7f00] mb-4 stroke-1" />
-          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest">Nenhuma comparação</h3>
+          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest">{t.finance.noComparison}</h3>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sorted.map((m) => {
             const winner = m.result?.winnerIndex;
-            const date = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleDateString('pt-BR') : '—';
+            const date = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleDateString(locale) : '—';
             return (
               <div
                 key={m.id}
@@ -122,7 +125,7 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
                       setToDelete(m);
                     }}
                     className="text-gray-400 hover:text-red-500"
-                    title="Excluir"
+                    title={t.common.delete}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -181,9 +184,9 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
               className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl"
             >
               <div className="p-6">
-                <h3 className="text-lg font-bold uppercase tracking-widest text-gray-900 mb-2">Excluir comparação?</h3>
+                <h3 className="text-lg font-bold uppercase tracking-widest text-gray-900 mb-2">{t.finance.deleteComparisonTitle}</h3>
                 <p className="text-sm text-gray-500">
-                  A comparação <b className="text-gray-900">{toDelete.title}</b> será removida permanentemente.
+                  {t.finance.deleteComparisonBefore}<b className="text-gray-900">{toDelete.title}</b>{t.finance.deleteComparisonAfter}
                 </p>
                 {deleteError && <p className="text-xs font-bold text-red-600 mt-3">{deleteError}</p>}
               </div>
@@ -193,14 +196,14 @@ export default function DecisionMatrix({ projectId, newRequestKey }: DecisionMat
                   onClick={() => setToDelete(null)}
                   className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  Cancelar
+                  {t.common.cancel}
                 </button>
                 <button
                   type="button"
                   onClick={confirmDelete}
                   className="flex-1 px-4 py-3 bg-red-600 text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-red-700 active:scale-95 transition-all"
                 >
-                  Excluir
+                  {t.common.delete}
                 </button>
               </div>
             </motion.div>

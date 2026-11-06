@@ -9,6 +9,7 @@ import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
 import { commitWrite, friendlyWriteError, withTimeout } from '../../utils/firestoreWrite';
 import { STATUS_REPORT_SECTORS, generateActionItemId } from './statusReportHelpers';
 import StarRating from './StarRating';
+import { useI18n } from '../../i18n/LanguageContext';
 
 const KANBAN_TODO_BOARD_NAME = 'A Fazer';
 
@@ -45,6 +46,7 @@ export default function NewStatusReportModal({
   projectMembers,
   defaultSector,
 }: NewStatusReportModalProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -107,7 +109,7 @@ export default function NewStatusReportModal({
       }
     } catch (err) {
       console.error('Upload Error', err);
-      alert('Erro ao fazer upload do anexo.');
+      alert(t.statusReports.attachmentUploadError);
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -295,10 +297,10 @@ export default function NewStatusReportModal({
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shrink-0">
           <div>
             <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
-              {item ? 'Editar Report' : 'Novo Report'}
+              {item ? t.statusReports.editReport : t.statusReports.newReport}
             </h2>
             <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-0.5">
-              Status Reports / Relatórios de Reunião
+              {t.statusReports.formSubtitle}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
@@ -314,7 +316,7 @@ export default function NewStatusReportModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    DATA *
+                    {t.statusReports.dateRequired}
                   </label>
                   <input
                     type="date"
@@ -326,7 +328,7 @@ export default function NewStatusReportModal({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    HORÁRIO *
+                    {t.statusReports.timeRequired}
                   </label>
                   <input
                     type="time"
@@ -341,7 +343,7 @@ export default function NewStatusReportModal({
               {/* Local */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  LOCAL *
+                  {t.statusReports.locationRequired}
                 </label>
                 <input
                   type="text"
@@ -349,14 +351,14 @@ export default function NewStatusReportModal({
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
-                  placeholder="Ex: Sala 13 - SESI, Google Meet"
+                  placeholder={t.statusReports.locationPlaceholder}
                 />
               </div>
 
               {/* Setor */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  SETOR / DEPARTAMENTO *
+                  {t.statusReports.sectorRequired}
                 </label>
                 <select
                   value={sector}
@@ -364,7 +366,7 @@ export default function NewStatusReportModal({
                   className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                 >
                   {STATUS_REPORT_SECTORS.map((s) => (
-                    <option key={s} value={s}>{s}</option>
+                    <option key={s} value={s}>{t.enums.statusReportSector[s]}</option>
                   ))}
                 </select>
               </div>
@@ -372,7 +374,7 @@ export default function NewStatusReportModal({
               {/* Pauta */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  PAUTA *
+                  {t.statusReports.agendaRequired}
                 </label>
                 <input
                   type="text"
@@ -380,14 +382,14 @@ export default function NewStatusReportModal({
                   value={agenda}
                   onChange={(e) => setAgenda(e.target.value)}
                   className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
-                  placeholder="Ex: Revisão de cronograma do protótipo"
+                  placeholder={t.statusReports.agendaPlaceholder}
                 />
               </div>
 
               {/* Participantes */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  PARTICIPANTES
+                  {t.statusReports.participantsLabel}
                 </label>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 max-h-40 overflow-y-auto shadow-inner">
                   {projectMembers.map((member) => {
@@ -425,7 +427,7 @@ export default function NewStatusReportModal({
                     );
                   })}
                   {projectMembers.length === 0 && (
-                    <span className="text-xs text-gray-400">Nenhum membro do projeto disponível.</span>
+                    <span className="text-xs text-gray-400">{t.statusReports.noMembers}</span>
                   )}
                 </div>
               </div>
@@ -436,14 +438,14 @@ export default function NewStatusReportModal({
               {/* Registros / Discussão */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  REGISTROS / DISCUSSÃO
+                  {t.statusReports.minutesLabel}
                 </label>
                 <textarea
                   value={minutes}
                   onChange={(e) => setMinutes(e.target.value)}
                   rows={4}
                   className="w-full bg-white border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm text-sm"
-                  placeholder="Ata da reunião, pontos discutidos, decisões tomadas..."
+                  placeholder={t.statusReports.minutesPlaceholder}
                 />
               </div>
 
@@ -451,7 +453,7 @@ export default function NewStatusReportModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">
-                    RESULTADO ALCANÇADO
+                    {t.statusReports.outcomeLabel}
                   </label>
                   <StarRating value={outcomeRating} onChange={setOutcomeRating} size="md" />
                 </div>
@@ -460,7 +462,7 @@ export default function NewStatusReportModal({
                   onChange={(e) => setOutcome(e.target.value)}
                   rows={3}
                   className="w-full bg-white border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm text-sm"
-                  placeholder="Principais entregas e conclusões da reunião..."
+                  placeholder={t.statusReports.outcomePlaceholder}
                 />
               </div>
 
@@ -468,7 +470,7 @@ export default function NewStatusReportModal({
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest">
-                    PLANOS DE AÇÃO
+                    {t.statusReports.actionPlansLabel}
                   </label>
                   <button
                     type="button"
@@ -476,7 +478,7 @@ export default function NewStatusReportModal({
                     className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[#ff7f00] hover:text-orange-600 transition-colors"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    Adicionar
+                    {t.common.add}
                   </button>
                 </div>
                 <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
@@ -486,7 +488,7 @@ export default function NewStatusReportModal({
                         type="text"
                         value={item.task}
                         onChange={(e) => updateActionItem(item.id, { task: e.target.value })}
-                        placeholder="Tarefa..."
+                        placeholder={t.statusReports.taskPlaceholder}
                         className="flex-1 bg-white border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-900 rounded-md focus:outline-none focus:border-[#ff7f00]"
                       />
                       <select
@@ -494,7 +496,7 @@ export default function NewStatusReportModal({
                         onChange={(e) => updateActionItem(item.id, { responsible: e.target.value })}
                         className="w-32 bg-white border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-700 rounded-md focus:outline-none focus:border-[#ff7f00]"
                       >
-                        <option value="">Responsável</option>
+                        <option value="">{t.statusReports.responsible}</option>
                         {projectMembers.map((m) => (
                           <option key={m.uid} value={m.uid}>{m.name}</option>
                         ))}
@@ -509,7 +511,7 @@ export default function NewStatusReportModal({
                     </div>
                   ))}
                   {actionItems.length === 0 && (
-                    <span className="text-xs text-gray-400">Nenhum plano de ação adicionado.</span>
+                    <span className="text-xs text-gray-400">{t.statusReports.noActionPlans}</span>
                   )}
                 </div>
               </div>
@@ -517,7 +519,7 @@ export default function NewStatusReportModal({
               {/* Anexos */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  ANEXOS (OPCIONAL)
+                  {t.statusReports.attachmentsLabel}
                 </label>
                 <div className="space-y-2">
                   {attachments.map((att, i) => (
@@ -551,7 +553,7 @@ export default function NewStatusReportModal({
                         />
                         <Upload className="w-4 h-4 text-gray-400 mb-1" />
                         <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
-                          Enviar imagem ou documento
+                          {t.statusReports.uploadAttachment}
                         </span>
                       </>
                     )}
@@ -579,7 +581,7 @@ export default function NewStatusReportModal({
                   </button>
                   <span className="text-xs font-bold text-gray-700 uppercase tracking-widest flex items-center gap-1.5">
                     <CalendarClock className="w-3.5 h-3.5 text-gray-400" />
-                    Agendar Próxima Reunião / Acompanhamento
+                    {t.statusReports.scheduleNext}
                   </span>
                 </label>
 
@@ -588,7 +590,7 @@ export default function NewStatusReportModal({
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                          Data
+                          {t.statusReports.date}
                         </label>
                         <input
                           type="date"
@@ -599,7 +601,7 @@ export default function NewStatusReportModal({
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                          Horário
+                          {t.statusReports.time}
                         </label>
                         <input
                           type="time"
@@ -612,13 +614,13 @@ export default function NewStatusReportModal({
 
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                        Pauta Prévia
+                        {t.statusReports.prepAgenda}
                       </label>
                       <input
                         type="text"
                         value={nextMeetingAgenda}
                         onChange={(e) => setNextMeetingAgenda(e.target.value)}
-                        placeholder="Pontos a serem cobrados/avaliados no próximo encontro..."
+                        placeholder={t.statusReports.prepAgendaPlaceholder}
                         className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-medium rounded-lg shadow-sm text-xs"
                       />
                     </div>
@@ -632,7 +634,7 @@ export default function NewStatusReportModal({
                           className="w-4 h-4 rounded border-gray-300 text-[#ff7f00] focus:ring-[#ff7f00]"
                         />
                         <span className="text-[11px] font-semibold text-gray-600">
-                          Sincronizar automaticamente no Calendário
+                          {t.statusReports.syncCalendar}
                         </span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer">
@@ -643,7 +645,7 @@ export default function NewStatusReportModal({
                           className="w-4 h-4 rounded border-gray-300 text-[#ff7f00] focus:ring-[#ff7f00]"
                         />
                         <span className="text-[11px] font-semibold text-gray-600">
-                          Criar card de preparação na coluna "A Fazer" do Kanban do setor
+                          {t.statusReports.createPrepCard}
                         </span>
                       </label>
                     </div>
@@ -661,7 +663,7 @@ export default function NewStatusReportModal({
             className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg"
             disabled={loading}
           >
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             type="submit"
@@ -670,7 +672,7 @@ export default function NewStatusReportModal({
             className="px-8 py-2.5 text-xs font-bold uppercase tracking-widest text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-lg shadow-lg shadow-orange-100 flex items-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {item ? 'Salvar Alterações' : 'Criar Report'}
+            {item ? t.common.saveChanges : t.statusReports.createReport}
           </button>
         </div>
       </motion.div>

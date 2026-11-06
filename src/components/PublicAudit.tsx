@@ -4,6 +4,8 @@ import { CheckCircle2, ListTodo, Calendar, Wallet, Loader2, PieChart as PieChart
 import clsx from 'clsx';
 import ibitLogo from '../media/ibitlogo.svg';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { useI18n } from '../i18n/LanguageContext';
+import { getLocale, getMessages } from '../i18n';
 
 interface PublicDashboardData {
   project: {
@@ -32,6 +34,7 @@ interface PublicDashboardData {
 }
 
 export default function PublicAudit() {
+  const { t } = useI18n();
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<PublicDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,14 +52,14 @@ export default function PublicAudit() {
           // Check if we're in development and API is not available
           if (response.status === 404 && window.location.hostname === 'localhost') {
             console.log('[PublicAudit] API not available in local development');
-            setError('Funcionalidade disponível apenas em produção. Faça deploy no Vercel para testar.');
+            setError(getMessages().projectSettings.prodOnly);
             setLoading(false);
             return;
           }
 
           const errorData = await response.json();
           console.log('[PublicAudit] API error:', errorData);
-          setError(errorData.error || 'Link inválido ou expirado');
+          setError(errorData.error || getMessages().projectSettings.invalidLink);
           setLoading(false);
           return;
         }
@@ -71,9 +74,9 @@ export default function PublicAudit() {
 
         // Check if we're in development
         if (window.location.hostname === 'localhost') {
-          setError('Funcionalidade disponível apenas em produção. Faça deploy no Vercel para testar.');
+          setError(getMessages().projectSettings.prodOnly);
         } else {
-          setError('Erro ao carregar dados');
+          setError(getMessages().projectSettings.loadError);
         }
         setLoading(false);
       }
@@ -85,7 +88,7 @@ export default function PublicAudit() {
   }, [token]);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    return new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const CHART_COLORS = ['#ff7f00', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#eab308', '#ec4899', '#14b8a6', '#f97316', '#6366f1'];
@@ -93,7 +96,7 @@ export default function PublicAudit() {
   const CustomizedFlowLabel = (props: any) => {
     const { x, y, value, fill, position = 'top' } = props;
     if (!value && value !== 0) return null;
-    const formatted = new Intl.NumberFormat('pt-BR', { 
+    const formatted = new Intl.NumberFormat(getLocale(), { 
       style: 'currency', 
       currency: 'BRL',
       maximumFractionDigits: 0 
@@ -135,7 +138,7 @@ export default function PublicAudit() {
     return (
       <div className="min-h-screen bg-[#f8f9fa] flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin mb-4" />
-        <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Carregando dashboard...</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">{t.projectSettings.loadingDashboard}</p>
       </div>
     );
   }
@@ -148,10 +151,10 @@ export default function PublicAudit() {
             <span className="text-3xl">⚠️</span>
           </div>
           <h1 className="text-xl font-bold uppercase tracking-wider text-gray-900 mb-2">
-            Acesso Negado
+            {t.projectSettings.accessDenied}
           </h1>
           <p className="text-sm text-gray-600">
-            {error || 'Link inválido ou expirado'}
+            {error || t.projectSettings.invalidLink}
           </p>
         </div>
       </div>
@@ -178,7 +181,7 @@ export default function PublicAudit() {
                 {project.name} - #{project.shortId}
               </h1>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">
-                Dashboard Público - Somente Leitura
+                {t.projectSettings.publicReadOnly}
               </p>
             </div>
           </div>
@@ -203,7 +206,7 @@ export default function PublicAudit() {
               ))}
             </div>
             <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-              {members.length} {members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+              {members.length} {t.common.membersCount(members.length)}
             </span>
           </div>
         </div>
@@ -220,7 +223,7 @@ export default function PublicAudit() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Tarefas a fazer
+                      {t.projectDashboard.todo}
                     </p>
                     <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">{kpis.todoCount}</p>
                   </div>
@@ -235,7 +238,7 @@ export default function PublicAudit() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Concluídas (7 dias)
+                      {t.projectDashboard.completed7}
                     </p>
                     <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">{kpis.completedLast7Days}</p>
                   </div>
@@ -250,19 +253,19 @@ export default function PublicAudit() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Contagem Regressiva
+                      {t.projectDashboard.countdown}
                     </p>
                     {kpis.countdown !== null ? (
                       <>
                         <p className="text-2xl sm:text-4xl font-bold tabular-nums text-[#ff7f00] leading-none">
-                          {kpis.countdown} {kpis.countdown === 1 ? 'Dia' : 'Dias'}
+                          {kpis.countdown} {t.projectDashboard.days(kpis.countdown)}
                         </p>
                         {project.targetEventName && (
                           <p className="text-[9px] text-gray-500 mt-0.5 truncate">{project.targetEventName}</p>
                         )}
                       </>
                     ) : (
-                      <p className="text-xs font-bold text-gray-400">Sem evento</p>
+                      <p className="text-xs font-bold text-gray-400">{t.projectSettings.noEvent}</p>
                     )}
                   </div>
                 </div>
@@ -279,7 +282,7 @@ export default function PublicAudit() {
                   </div>
                   <div className="text-left min-w-0">
                     <p className="text-[10px] sm:text-[11px] font-bold text-gray-400 uppercase tracking-[0.15em] sm:tracking-[0.2em] mb-1 truncate">
-                      Saldo Atual
+                      {t.projectDashboard.balance}
                     </p>
                     <p className={clsx(
                       "font-bold tabular-nums leading-none truncate",
@@ -299,12 +302,12 @@ export default function PublicAudit() {
           <div className="bg-white border border-gray-200 rounded-xl p-6 min-h-[450px] flex flex-col col-span-1">
             <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
               <PieChartIcon className="w-5 h-5 text-indigo-500" />
-              Despesas por Categoria
+              {t.projectDashboard.expensesByCategory}
             </h3>
             {data.charts.chartData.length === 0 ? (
               <div className="flex flex-col items-center justify-center opacity-50 flex-1">
                 <PieChartIcon className="w-14 h-14 text-gray-200 mb-4" />
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Nenhuma despesa registrada</p>
+                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{t.projectDashboard.noExpenses}</p>
               </div>
             ) : (
                 <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-4 min-h-0">
@@ -366,12 +369,12 @@ export default function PublicAudit() {
           <div className="bg-white border border-gray-200 rounded-xl p-6 min-h-[450px] flex flex-col col-span-1">
             <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-500" />
-              Fluxo de Caixa
+              {t.projectDashboard.cashFlow}
             </h3>
             {data.charts.cashFlowData.length === 0 ? (
               <div className="flex flex-col items-center justify-center opacity-50 flex-1">
                 <TrendingUp className="w-14 h-14 text-gray-200 mb-4" />
-                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">Nenhuma transação histórica</p>
+                <p className="text-[11px] text-gray-400 font-bold uppercase tracking-wider">{t.projectDashboard.noTransactions}</p>
               </div>
             ) : (
               <div className="flex-1 flex flex-col min-h-0">
@@ -386,6 +389,7 @@ export default function PublicAudit() {
                       <Line
                         type="monotone"
                         dataKey="Entrada"
+                        name={t.projectDashboard.income}
                         stroke="#22c55e"
                         strokeWidth={3}
                         dot={{ fill: '#22c55e', strokeWidth: 2, r: 4 }}
@@ -396,6 +400,7 @@ export default function PublicAudit() {
                       <Line
                         type="monotone"
                         dataKey="Saída"
+                        name={t.projectDashboard.outflow}
                         stroke="#ef4444"
                         strokeWidth={3}
                         dot={{ fill: '#ef4444', strokeWidth: 2, r: 4 }}
@@ -409,11 +414,11 @@ export default function PublicAudit() {
                 <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 mt-6 pb-2 px-2 w-full shrink-0">
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">ENTRADA DE CAPITAL</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t.projectDashboard.capitalIn}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                    <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">SAÍDA DE CAPITAL</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t.projectDashboard.capitalOut}</span>
                   </div>
                 </div>
               </div>
@@ -425,8 +430,8 @@ export default function PublicAudit() {
       <footer className="mt-auto border-t border-gray-200 bg-white py-10 w-full shrink-0">
         <div className="max-w-7xl mx-auto px-6 flex flex-col items-center justify-center gap-4">
           <div className="flex flex-col items-center gap-2">
-            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">POWERED BY</span>
-            <img src={ibitLogo} alt="Logo IBIT" className="h-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer" />
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">{t.projectSettings.poweredBy}</span>
+            <img src={ibitLogo} alt={t.common.logoAlt} className="h-6 opacity-40 grayscale hover:opacity-100 hover:grayscale-0 transition-all cursor-pointer" />
           </div>
           <span className="text-[9px] text-gray-400 font-bold uppercase tracking-[0.2em] mt-2">
             Escuderia IBIT © {new Date().getFullYear()}

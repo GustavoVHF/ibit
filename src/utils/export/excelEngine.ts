@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { getLocale, getMessages } from '../../i18n';
 
 /** IBIT brand palette applied to generated spreadsheets. */
 const BRAND = {
@@ -55,7 +56,7 @@ export async function exportToExcel<T>(opts: ExcelExportOptions<T>): Promise<voi
   workbook.creator = 'IBIT Platform';
   workbook.created = new Date();
 
-  const sheet = workbook.addWorksheet(opts.sheetName.slice(0, 31) || 'Dados');
+  const sheet = workbook.addWorksheet(opts.sheetName.slice(0, 31) || getMessages().export.defaultSheet);
 
   // Title row (merged across all columns)
   const titleRow = sheet.addRow([opts.title]);
@@ -63,7 +64,7 @@ export async function exportToExcel<T>(opts: ExcelExportOptions<T>): Promise<voi
   sheet.mergeCells(1, 1, 1, opts.columns.length);
   titleRow.height = 26;
 
-  const generatedRow = sheet.addRow([`Exportado em ${new Date().toLocaleString('pt-BR')}`]);
+  const generatedRow = sheet.addRow([getMessages().export.exportedAt(new Date().toLocaleString(getLocale()))]);
   generatedRow.font = { italic: true, size: 9, color: { argb: 'FF9CA3AF' } };
   sheet.mergeCells(2, 1, 2, opts.columns.length);
   sheet.addRow([]); // spacer

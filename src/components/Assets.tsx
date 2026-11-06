@@ -49,11 +49,13 @@ import { handleFirestoreError, logFirestoreError, OperationType } from '../utils
 import { commitWrite, friendlyWriteError } from '../utils/firestoreWrite';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function Assets() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useI18n();
   
   const [project, setProject] = useState<Project | null>(null);
   const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
@@ -105,7 +107,7 @@ export default function Assets() {
 
       await addDoc(collection(db, 'assetDocuments'), {
         projectId,
-        title: parsed.title || 'Documento Importado',
+        title: parsed.title || t.assets.importedDefault,
         content: parsed.content,
         type: 'note',
         createdAt: serverTimestamp(),
@@ -119,7 +121,7 @@ export default function Assets() {
       }
     } catch (error) {
       console.error('Error importing JSON:', error);
-      alert('Erro ao importar arquivo. Verifique se é um arquivo JSON de documento válido exportado pelo IBIT.');
+      alert(t.assets.importError);
     }
   };
 
@@ -294,7 +296,7 @@ export default function Assets() {
         projectId,
         folderId: currentFolderId || null,
         type: 'note',
-        title: 'Documento sem título',
+        title: t.assets.untitledDocument,
         content: {},
         ownerId: user.uid,
         createdAt: serverTimestamp(),
@@ -309,7 +311,7 @@ export default function Assets() {
   };
 
   const getBreadcrumbs = () => {
-    const crumbs = [{ id: null, name: 'INÍCIO' }];
+    const crumbs = [{ id: null, name: t.assets.home }];
     if (currentFolderId) {
       const buildCrumbs = (folderId: string): { id: string | null, name: string }[] => {
         const folder = folders.find(f => f.id === folderId);
@@ -441,7 +443,7 @@ export default function Assets() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -460,7 +462,7 @@ export default function Assets() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {t.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -471,7 +473,7 @@ export default function Assets() {
             <div className="hidden sm:flex items-center gap-2 shrink-0">
               <Folder className="w-5 h-5 text-[#ff7f00]" />
               <h2 className="text-sm sm:text-lg font-bold text-gray-900 uppercase tracking-widest">
-                ATIVOS
+                {t.assets.title}
               </h2>
             </div>
             
@@ -479,7 +481,7 @@ export default function Assets() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text"
-                placeholder="Procurar..."
+                placeholder={t.common.search}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -493,7 +495,7 @@ export default function Assets() {
               className="bg-white text-gray-700 border border-gray-300 px-3 sm:px-5 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 flex-1 sm:flex-none justify-center"
             >
               <Plus className="w-4 h-4" />
-              PASTA
+              {t.assets.folder}
             </button>
             
             <input
@@ -506,10 +508,10 @@ export default function Assets() {
             <button 
               onClick={() => importInputRef.current?.click()}
               className="bg-white text-gray-700 border border-gray-300 px-3 sm:px-5 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 flex-1 sm:flex-none justify-center"
-              title="Importar Documento (.json)"
+              title={t.assets.importTitle}
             >
               <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">IMPORTAR</span>
+              <span className="hidden sm:inline">{t.assets.import}</span>
             </button>
 
             {/* New Asset Dropdown */}
@@ -519,7 +521,7 @@ export default function Assets() {
                 className="w-full bg-[#ff7f00] hover:bg-orange-600 text-white px-3 sm:px-5 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 justify-center"
               >
                 <Plus className="w-4 h-4" />
-                NOVO ATIVO
+                {t.assets.newAsset}
               </button>
               
               <AnimatePresence>
@@ -539,8 +541,8 @@ export default function Assets() {
                         <LinkIcon className="w-4 h-4 text-blue-500" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Adicionar Link</span>
-                        <p className="text-[10px] text-gray-400">Link externo ou URL</p>
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">{t.assets.addLink}</span>
+                        <p className="text-[10px] text-gray-400">{t.assets.addLinkHint}</p>
                       </div>
                     </button>
                     <div className="h-px bg-gray-100" />
@@ -552,8 +554,8 @@ export default function Assets() {
                         <FilePlus2 className="w-4 h-4 text-[#ff7f00]" />
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Criar Documento</span>
-                        <p className="text-[10px] text-gray-400">Editor de texto rico</p>
+                        <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">{t.assets.createDocument}</span>
+                        <p className="text-[10px] text-gray-400">{t.assets.createDocumentHint}</p>
                       </div>
                     </button>
                   </motion.div>
@@ -585,7 +587,7 @@ export default function Assets() {
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center opacity-50">
               <Loader2 className="w-10 h-10 text-[#ff7f00] animate-spin mb-4" />
-              <p className="font-bold uppercase tracking-widest text-xs">Carregando seus ativos...</p>
+              <p className="font-bold uppercase tracking-widest text-xs">{t.assets.loadingAssets}</p>
             </div>
           ) : (
             <DragDropContext onDragEnd={onDragEnd}>
@@ -611,12 +613,12 @@ export default function Assets() {
                         {snapshot.isDraggingOver ? (
                           <>
                             <ArrowLeft className="w-12 h-12 text-[#ff7f00]" />
-                            <span className="text-xs font-bold text-[#ff7f00] uppercase tracking-widest text-center">Mover para cima</span>
+                            <span className="text-xs font-bold text-[#ff7f00] uppercase tracking-widest text-center">{t.assets.moveUp}</span>
                           </>
                         ) : (
                           <>
                             <ArrowLeft className="w-12 h-12 text-gray-200 group-hover:text-[#ff7f00] transition-colors" />
-                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center transition-colors group-hover:text-gray-900 line-clamp-2">VOLTAR</span>
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center transition-colors group-hover:text-gray-900 line-clamp-2">{t.common.back}</span>
                           </>
                         )}
                         <div className="hidden">{provided.placeholder}</div>
@@ -667,7 +669,7 @@ export default function Assets() {
                       {snapshot.isDraggingOver ? (
                         <div className="flex flex-col items-center justify-center gap-3">
                           <Folder className="w-16 h-16 text-[#ff7f00] fill-[#ff7f00]/20" />
-                          <span className="text-sm font-bold text-[#ff7f00] uppercase tracking-wider text-center">Soltar aqui</span>
+                          <span className="text-sm font-bold text-[#ff7f00] uppercase tracking-wider text-center">{t.assets.dropHere}</span>
                         </div>
                       ) : (
                         <>
@@ -769,7 +771,7 @@ export default function Assets() {
                       </div>
                       <div className="flex flex-col items-center gap-1 overflow-hidden w-full">
                         <span className="text-sm font-bold text-gray-900 uppercase tracking-wider text-center line-clamp-2">{assetDoc.title}</span>
-                        <span className="text-[10px] text-gray-400">Documento</span>
+                        <span className="text-[10px] text-gray-400">{t.assets.documentLabel}</span>
                       </div>
                     </div>
                   )}
@@ -779,7 +781,7 @@ export default function Assets() {
               {filteredFolders.length === 0 && filteredLinks.length === 0 && filteredDocuments.length === 0 && (
                 <div className="col-span-full h-64 flex flex-col items-center justify-center text-gray-400 opacity-50">
                   <Folder className="w-12 h-12 mb-4 border-2 border-dashed border-gray-200 p-2 rounded-xl" />
-                  <p className="font-bold uppercase tracking-widest text-[10px]">Nenhum ativo encontrado nesta view</p>
+                  <p className="font-bold uppercase tracking-widest text-[10px]">{t.assets.empty}</p>
                 </div>
               )}
 
@@ -812,8 +814,8 @@ export default function Assets() {
         )}
         {itemToDelete && (
           <DeleteConfirmModal 
-            title={`EXCLUIR ${itemToDelete.type.toUpperCase()}`}
-            message={`Tem certeza que deseja excluir "${itemToDelete.name}"? ${itemToDelete.type === 'folder' ? 'Isso também removerá todos os links dentro desta pasta.' : ''}`}
+            title={t.assets.deleteTitle(itemToDelete.type)}
+            message={t.assets.deleteMessage(itemToDelete.name, itemToDelete.type === 'folder')}
             onConfirm={handleDelete}
             onCancel={() => setItemToDelete(null)}
           />
@@ -857,6 +859,7 @@ interface FolderModalProps {
 
 function FolderModal({ projectId, parentId, folder, onClose }: FolderModalProps) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [name, setName] = useState(folder?.name || '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -891,23 +894,23 @@ function FolderModal({ projectId, parentId, folder, onClose }: FolderModalProps)
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{folder ? 'EDITAR PASTA' : 'NOVA PASTA'}</h3>
+          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{folder ? t.assets.editFolder : t.assets.newFolder}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NOME DA PASTA</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.assets.folderName}</label>
             <input 
               type="text" autoFocus required value={name} onChange={(e) => setName(e.target.value)} 
               className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg" 
-              placeholder="Ex: Financeiro, Engenharia..." 
+              placeholder={t.assets.folderPlaceholder} 
             />
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50">CANCELAR</button>
+            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50">{t.common.cancel}</button>
             <button type="submit" disabled={isSaving || !name.trim()} className="flex-1 px-6 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSaving ? 'SALVANDO...' : 'SALVAR'}
+              {isSaving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>
@@ -925,6 +928,7 @@ interface LinkModalProps {
 
 function LinkModal({ projectId, folderId, link, onClose }: LinkModalProps) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [name, setName] = useState(link?.name || '');
   const [url, setUrl] = useState(link?.url || '');
   const [isSaving, setIsSaving] = useState(false);
@@ -966,21 +970,21 @@ function LinkModal({ projectId, folderId, link, onClose }: LinkModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{link ? 'EDITAR LINK' : 'NOVO LINK'}</h3>
+          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{link ? t.assets.editLink : t.assets.newLink}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NOME DO ATIVO</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.assets.assetName}</label>
               <input 
                 type="text" autoFocus required value={name} onChange={(e) => setName(e.target.value)} 
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg" 
-                placeholder="Ex: Planilha de Custos, Manual PDF..." 
+                placeholder={t.assets.assetNamePlaceholder} 
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">URL / LINK EXTERNO</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.assets.url}</label>
               <div className="relative">
                 <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
@@ -992,10 +996,10 @@ function LinkModal({ projectId, folderId, link, onClose }: LinkModalProps) {
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50">CANCELAR</button>
+            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50">{t.common.cancel}</button>
             <button type="submit" disabled={isSaving || !name.trim() || !url.trim()} className="flex-1 px-6 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2">
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSaving ? 'SALVANDO...' : 'SALVAR'}
+              {isSaving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>
@@ -1005,6 +1009,7 @@ function LinkModal({ projectId, folderId, link, onClose }: LinkModalProps) {
 }
 
 function DeleteConfirmModal({ title, message, onConfirm, onCancel }: { title: string, message: string, onConfirm: () => void, onCancel: () => void }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl">
@@ -1015,8 +1020,8 @@ function DeleteConfirmModal({ title, message, onConfirm, onCancel }: { title: st
         <div className="p-6 space-y-6">
           <p className="text-gray-700 font-medium">{message}</p>
           <div className="flex gap-3">
-            <button onClick={onCancel} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-widest rounded-lg hover:bg-gray-50 text-xs">CANCELAR</button>
-            <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 font-bold uppercase tracking-widest rounded-lg shadow-lg shadow-red-100 text-xs">EXCLUIR</button>
+            <button onClick={onCancel} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-widest rounded-lg hover:bg-gray-50 text-xs">{t.common.cancel}</button>
+            <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 font-bold uppercase tracking-widest rounded-lg shadow-lg shadow-red-100 text-xs">{t.common.delete}</button>
           </div>
         </div>
       </motion.div>

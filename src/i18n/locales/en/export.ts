@@ -1,0 +1,33 @@
+import type { Messages } from '../pt-BR';
+
+export const exportNs: Messages['export'] = {
+  exportTitle: 'Export',
+  exportUpper: 'EXPORT',
+  exporting: 'Exporting...',
+  exportError: 'Error exporting. Please try again.',
+  format: 'Format',
+  resolution: 'Resolution (Pixels)',
+  width: 'Width',
+  height: 'Height',
+  orientation: 'Orientation',
+  portrait: 'Portrait',
+  landscape: 'Landscape',
+  templates: 'Presets',
+  chrome: 'IBIT header, footer and logo',
+  templateLabels: {
+    '4k-landscape': '4K Landscape',
+    '4k-portrait': '4K Portrait',
+    'a4-portrait': 'A4 Portrait',
+    'a4-landscape': 'A4 Landscape',
+  },
+  generatedAt: (date: string, time: string) => `Generated on ${date} · ${time}`,
+  responsible: (name: string) => `Owner: ${name}`,
+  accessLevel: (level: string) => `Access level: ${level}`,
+  projectMembers: 'Project Members',
+  exportedAt: (date: string) => `Exported on ${date}`,
+  defaultSheet: 'Data',
+  subtotal: (group: string) => `Subtotal — ${group}`,
+  grandTotal: 'GRAND TOTAL',
+  wordPage: 'IBIT · Page ',
+  wordOf: ' of ',
+};

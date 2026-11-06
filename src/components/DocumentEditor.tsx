@@ -64,6 +64,7 @@ import ExportButton from './export/ExportButton';
 import { buildOfficialFooterHTML, PdfExportOptions, pixelRatioFromDpi } from '../utils/export/pdfEngine';
 import { exportToWord } from '../utils/export/wordEngine';
 import { tiptapJsonToWordSections } from '../utils/export/tiptapToWord';
+import { useI18n } from '../i18n/LanguageContext';
 
 // --- Custom Tag Extension ---
 const TagNode = Node.create({
@@ -117,6 +118,7 @@ interface DocumentEditorProps {
 
 export default function DocumentEditor({ documentId, onClose }: DocumentEditorProps) {
   const { isCollapsed } = useSidebar();
+  const { t, locale } = useI18n();
   const [title, setTitle] = useState('');
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
   const [loading, setLoading] = useState(true);
@@ -183,11 +185,11 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       if (response.ok) {
         editor?.chain().focus().setImage({ src: data.secure_url }).run();
       } else {
-        throw new Error(data.error?.message || 'Erro ao fazer upload da imagem.');
+        throw new Error(data.error?.message || t.editor.imageUploadError);
       }
     } catch (error: any) {
       console.error('[DocumentEditor] Image upload failed:', error);
-      setErrorMsg('Erro ao carregar imagem.');
+      setErrorMsg(t.editor.imageLoadError);
     } finally {
       setIsUploadingImage(false);
       if (fileInputRef.current) {
@@ -211,14 +213,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${title.replace(/\s+/g, '-') || 'documento'}-${new Date().toISOString().substring(0, 10)}.json`;
+      a.download = `${title.replace(/\s+/g, '-') || t.editor.fileName}-${new Date().toISOString().substring(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('[JSON Export] Error:', err);
-      setErrorMsg('Erro ao exportar JSON');
+      setErrorMsg(t.editor.exportJsonError);
     }
   };
 
@@ -261,12 +263,12 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       // their own title inline in the editor content, so unlike other pages
       // this export skips the official title/subtitle header block — only
       // the export-date + IBIT logo footer metadata is added.
-      const dateStr = new Date().toLocaleDateString('pt-BR');
+      const dateStr = new Date().toLocaleDateString(locale);
       let footer: HTMLDivElement | null = null;
       if (options.chrome) {
         footer = document.createElement('div');
         footer.setAttribute('data-pdf-footer', 'true');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Documento exportado da plataforma IBIT em ${dateStr}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, t.editor.pdfFooter(dateStr));
         original.appendChild(footer);
       }
 
@@ -328,12 +330,12 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         heightLeft -= availableHeight;
       }
 
-      const fileName = `${title.replace(/\s+/g, '-') || 'documento'}-${new Date().toISOString().substring(0, 10)}.pdf`;
+      const fileName = `${title.replace(/\s+/g, '-') || t.editor.fileName}-${new Date().toISOString().substring(0, 10)}.pdf`;
       pdf.save(fileName);
 
     } catch (err) {
       console.error('[PDF Export] Error:', err);
-      setErrorMsg('Erro ao exportar PDF');
+      setErrorMsg(t.editor.exportPdfError);
       setTimeout(() => setErrorMsg(null), 3000);
     } finally {
       // Restore original styles
@@ -354,14 +356,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       const docJson = editor.getJSON();
       const sections = tiptapJsonToWordSections(docJson as any);
       await exportToWord({
-        filename: `${title.replace(/\s+/g, '-') || 'documento'}-${new Date().toISOString().substring(0, 10)}.docx`,
-        title: title || 'Documento',
-        subtitle: 'Documento exportado da plataforma IBIT',
+        filename: `${title.replace(/\s+/g, '-') || t.editor.fileName}-${new Date().toISOString().substring(0, 10)}.docx`,
+        title: title || t.editor.wordTitle,
+        subtitle: t.editor.wordSubtitle,
         sections,
       });
     } catch (err) {
       console.error('[Word Export] Error:', err);
-      setErrorMsg('Erro ao exportar Word');
+      setErrorMsg(t.editor.exportWordError);
       setTimeout(() => setErrorMsg(null), 3000);
     }
   };
@@ -473,7 +475,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         console.error('[DocumentEditor] Save FAILED:', error);
         if (isMountedRef.current) {
           setSaveStatus('error');
-          setErrorMsg(error.message || "Erro desconhecido.");
+          setErrorMsg(error.message || t.editor.unknownError);
         }
       }
     }, 1500);
@@ -607,7 +609,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
 
         // Only set content on first load (don't overwrite user's typing)
         if (isInitialLoadRef.current && editor) {
-          setTitle(data.title || 'Documento sem título');
+          setTitle(data.title || t.assets.untitledDocument);
           
           if (data.content && Object.keys(data.content).length > 0) {
             editor.commands.setContent(data.content);
@@ -623,7 +625,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       setLoading(false);
     }, (error) => {
       console.error("[DocumentEditor] Snapshot error:", error);
-      setErrorMsg("Erro ao carregar documento.");
+      setErrorMsg(t.editor.loadError);
       setLoading(false);
     });
 
@@ -729,7 +731,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
       <div className="fixed inset-0 z-50 bg-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-[#ff7f00] animate-spin" />
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Abrindo documento...</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t.editor.opening}</p>
         </div>
       </div>
     );
@@ -754,7 +756,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
           <div className="flex items-center gap-2">
             <FileText className="w-4 h-4 text-[#ff7f00]" />
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:inline">
-              Editando Ativo
+              {t.editor.editingAsset}
             </span>
           </div>
         </div>
@@ -771,37 +773,37 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
             {saveStatus === 'saving' && !isUploadingImage && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Salvando...</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.saving}</span>
               </div>
             )}
             {isUploadingImage && (
               <div className="flex items-center gap-1.5 text-blue-500">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Carregando imagem...</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.uploadingImage}</span>
               </div>
             )}
             {saveStatus === 'syncing' && (
               <div className="flex items-center gap-1.5 text-gray-400">
                 <Cloud className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Sincronizando...</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.syncing}</span>
               </div>
             )}
             {saveStatus === 'saved' && (
               <div className="flex items-center gap-1.5 text-emerald-500">
                 <Cloud className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Salvo</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.saved}</span>
               </div>
             )}
             {saveStatus === 'unsaved' && (
               <div className="flex items-center gap-1.5 text-orange-400">
                 <Cloud className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Editando...</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.editing}</span>
               </div>
             )}
             {saveStatus === 'error' && (
               <div className="flex items-center gap-1.5 text-red-500">
                 <CloudOff className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-bold uppercase tracking-widest">Erro</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">{t.editor.error}</span>
               </div>
             )}
           </div>
@@ -813,21 +815,21 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           active={editor.isActive('bold')}
-          title="Negrito"
+          title={t.editor.bold}
         >
           <Bold className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           active={editor.isActive('italic')}
-          title="Itálico"
+          title={t.editor.italic}
         >
           <Italic className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleStrike().run()}
           active={editor.isActive('strike')}
-          title="Tachado"
+          title={t.editor.strike}
         >
           <Strikethrough className="w-4 h-4" />
         </ToolbarButton>
@@ -837,21 +839,21 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           active={editor.isActive('heading', { level: 1 })}
-          title="Título 1"
+          title={t.editor.heading(1)}
         >
           <Heading1 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           active={editor.isActive('heading', { level: 2 })}
-          title="Título 2"
+          title={t.editor.heading(2)}
         >
           <Heading2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
           active={editor.isActive('heading', { level: 3 })}
-          title="Título 3"
+          title={t.editor.heading(3)}
         >
           <Heading3 className="w-4 h-4" />
         </ToolbarButton>
@@ -861,28 +863,28 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           active={editor.isActive('bulletList')}
-          title="Lista"
+          title={t.editor.bulletList}
         >
           <List className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           active={editor.isActive('orderedList')}
-          title="Lista numerada"
+          title={t.editor.orderedList}
         >
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleTaskList().run()}
           active={editor.isActive('taskList')}
-          title="Checklist"
+          title={t.editor.checklist}
         >
           <ListTodo className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           active={editor.isActive('blockquote')}
-          title="Citação"
+          title={t.editor.quote}
         >
           <Quote className="w-4 h-4" />
         </ToolbarButton>
@@ -892,21 +894,21 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         <ToolbarButton
           onClick={() => handleAlignment('left')}
           active={editor.isActive({ textAlign: 'left' })}
-          title="Alinhar à esquerda"
+          title={t.editor.alignLeft}
         >
           <AlignLeft className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleAlignment('center')}
           active={editor.isActive({ textAlign: 'center' })}
-          title="Centralizar"
+          title={t.editor.alignCenter}
         >
           <AlignCenter className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => handleAlignment('right')}
           active={editor.isActive({ textAlign: 'right' })}
-          title="Alinhar à direita"
+          title={t.editor.alignRight}
         >
           <AlignRight className="w-4 h-4" />
         </ToolbarButton>
@@ -915,19 +917,19 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
 
         <ToolbarButton
           onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
-          title="Inserir Tabela"
+          title={t.editor.insertTable}
         >
           <TableIcon className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => fileInputRef.current?.click()}
-          title="Inserir Imagem"
+          title={t.editor.insertImage}
         >
           <ImagePlus className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().insertCalendarEvent().run()}
-          title="Inserir Evento de Calendário"
+          title={t.editor.insertEvent}
         >
           <CalendarDays className="w-4 h-4" />
         </ToolbarButton>
@@ -942,7 +944,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                 setShowTagMenu(!showTagMenu);
               }}
               active={showTagMenu}
-              title="Adicionar Tag"
+              title={t.editor.addTag}
               disabled={editor.isActive('heading')}
             >
               <TagIcon className="w-4 h-4" />
@@ -955,12 +957,12 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                 style={{ top: tagMenuPos.top, left: tagMenuPos.left }}
               >
               <div className="px-3 py-1.5 flex items-center justify-between border-b border-gray-50 mb-1">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tags do Projeto</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.editor.projectTags}</span>
                 <button 
                   onClick={() => setIsAddingTag(!isAddingTag)}
                   className="text-[10px] font-bold text-[#ff7f00] hover:underline"
                 >
-                  {isAddingTag ? 'CANCELAR' : '+ NOVA'}
+                  {isAddingTag ? t.editor.cancelUpper : t.editor.newShort}
                 </button>
               </div>
 
@@ -971,7 +973,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                     autoFocus
                     value={newTagLabel}
                     onChange={(e) => setNewTagLabel(e.target.value)}
-                    placeholder="Nome da tag..."
+                    placeholder={t.task.tagNamePlaceholder}
                     className="w-full bg-white border border-gray-200 px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg shadow-sm"
                   />
                   <div className="flex flex-wrap gap-1.5 justify-center">
@@ -993,14 +995,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                     onClick={handleCreateTag}
                     className="w-full bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all shadow-md"
                   >
-                    CRIAR TAG
+                    {t.editor.createTag}
                   </button>
                 </div>
               ) : (
                 <div className="max-h-60 overflow-y-auto no-scrollbar flex flex-wrap gap-2 p-3">
                   {projectTags.length === 0 ? (
                     <div className="w-full py-3 text-xs text-gray-400 text-center italic">
-                      Nenhuma tag encontrada.
+                      {t.editor.noTagsFound}
                     </div>
                   ) : (
                     projectTags.map(tag => (
@@ -1045,7 +1047,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
 
         {/* Custom Styles Controls */}
         <div className="flex items-center gap-3 px-3 py-1 bg-gray-50 rounded-xl border border-gray-200 ml-1">
-           <div className="flex items-center gap-1.5" title="Espaçamento entre linhas (0 = padrão)">
+           <div className="flex items-center gap-1.5" title={t.editor.lineHeight}>
               <AlignJustify className="w-3.5 h-3.5 text-gray-400" />
               <input 
                 type="number" 
@@ -1061,7 +1063,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
               />
            </div>
            <div className="w-px h-5 bg-gray-200 shrink-0" />
-           <div className="flex items-center gap-1.5" title="Espaçamento entre letras">
+           <div className="flex items-center gap-1.5" title={t.editor.letterSpacing}>
               <Type className="w-3.5 h-3.5 text-gray-400" />
               <input 
                 type="number" 
@@ -1083,14 +1085,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
-          title="Desfazer"
+          title={t.editor.undo}
         >
           <Undo2 className="w-4 h-4" />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
-          title="Refazer"
+          title={t.editor.redo}
         >
           <Redo2 className="w-4 h-4" />
         </ToolbarButton>
@@ -1099,14 +1101,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
 
         <ToolbarButton
           onClick={handleExportJSON}
-          title="Exportar JSON"
+          title={t.editor.exportJson}
         >
           <Download className="w-4 h-4" />
         </ToolbarButton>
 
         <ExportButton
           formats={['pdf', 'word']}
-          title="Exportar Documento"
+          title={t.editor.exportDocument}
           onExportPdf={handleExportPDF}
           onExportWord={handleExportWord}
           label=""
@@ -1240,7 +1242,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
             onKeyDown={handleTitleKeyDown}
-            placeholder="Documento sem título"
+            placeholder={t.assets.untitledDocument}
             className="w-full text-4xl sm:text-5xl font-black text-gray-900 placeholder-gray-200 focus:outline-none border-none bg-transparent mb-8 tracking-tight leading-[1.2] resize-none overflow-hidden p-0"
           />
 
@@ -1257,43 +1259,43 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-3 py-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1">
-            Linhas
+            {t.editor.rows}
           </div>
           <button 
             className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-[#ff7f00] transition-colors"
             onClick={() => { editor.chain().focus().addRowBefore().run(); setTableMenuContext(null); }}
           >
-            Adicionar linha acima
+            {t.editor.addRowAbove}
           </button>
           <button 
             className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-[#ff7f00] transition-colors"
             onClick={() => { editor.chain().focus().addRowAfter().run(); setTableMenuContext(null); }}
           >
-            Adicionar linha abaixo
+            {t.editor.addRowBelow}
           </button>
           {!editor.isActive('tableHeader') && (
             <button 
               className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
               onClick={() => { editor.chain().focus().deleteRow().run(); setTableMenuContext(null); }}
             >
-              Excluir linha atual
+              {t.editor.deleteRow}
             </button>
           )}
           
           <div className="px-3 py-1.5 mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1 border-t">
-            Colunas
+            {t.editor.columns}
           </div>
           <button 
             className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-orange-50 hover:text-[#ff7f00] transition-colors"
             onClick={() => { editor.chain().focus().addColumnAfter().run(); setTableMenuContext(null); }}
           >
-            Adicionar coluna
+            {t.editor.addColumn}
           </button>
           <button  
             className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 transition-colors"
             onClick={() => { editor.chain().focus().deleteColumn().run(); setTableMenuContext(null); }}
           >
-            Excluir coluna atual
+            {t.editor.deleteColumn}
           </button>
 
           <div className="border-t border-gray-100 mt-1 pt-1">
@@ -1301,7 +1303,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
               className="w-full text-left px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
               onClick={() => { editor.chain().focus().deleteTable().run(); setTableMenuContext(null); }}
             >
-              Excluir Tabela Inteira
+              {t.editor.deleteTable}
             </button>
           </div>
         </div>
@@ -1319,14 +1321,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
             >
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
-                  {isAddingTag ? 'CRIAR NOVA TAG' : 'SELECIONAR TAG'}
+                  {isAddingTag ? t.editor.createNewTag : t.editor.selectTag}
                 </h3>
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => setIsAddingTag(!isAddingTag)}
                     className="px-4 py-2 bg-orange-50 text-[#ff7f00] text-[10px] font-black rounded-full uppercase tracking-widest"
                   >
-                    {isAddingTag ? 'VOLTAR' : '+ NOVA'}
+                    {isAddingTag ? t.editor.backUpper : t.editor.newShort}
                   </button>
                   <button onClick={() => { setShowTagMenu(false); setIsAddingTag(false); }} className="p-2 bg-gray-100 rounded-full">
                     <X className="w-4 h-4 text-gray-500" />
@@ -1341,7 +1343,7 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                     autoFocus
                     value={newTagLabel}
                     onChange={(e) => setNewTagLabel(e.target.value)}
-                    placeholder="Nome da tag..."
+                    placeholder={t.task.tagNamePlaceholder}
                     className="w-full bg-gray-50 border border-gray-200 px-4 py-4 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-2xl"
                   />
                   <div className="grid grid-cols-4 gap-3">
@@ -1363,14 +1365,14 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
                     onClick={handleCreateTag}
                     className="w-full bg-[#ff7f00] text-white py-5 text-xs font-black uppercase tracking-widest rounded-2xl hover:bg-orange-600 transition-all shadow-xl shadow-orange-100"
                   >
-                    CRIAR TAG
+                    {t.editor.createTag}
                   </button>
                 </div>
               ) : (
                 <div className="flex flex-wrap gap-3">
                   {projectTags.length === 0 ? (
                     <div className="w-full py-10 text-center text-xs text-gray-400 italic">
-                      Nenhuma tag disponível no projeto.
+                      {t.editor.noTagsInProject}
                     </div>
                   ) : (
                     projectTags.map(tag => (
@@ -1415,8 +1417,8 @@ export default function DocumentEditor({ documentId, onClose }: DocumentEditorPr
               className="bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm text-center border border-gray-200"
             >
               <Loader2 className="w-16 h-16 animate-spin text-[#ff7f00] mb-6" />
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-gray-500 text-sm font-medium">Renderizando documento e tabelas de alta resolução. Isso pode levar alguns segundos.</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.editor.exporting}</h2>
+              <p className="text-gray-500 text-sm font-medium">{t.editor.exportingText}</p>
             </motion.div>
           </div>
         )}

@@ -1,0 +1,15 @@
+export const profile = {
+  title: 'Meu Perfil',
+  imageOnly: 'Por favor, selecione apenas arquivos de imagem.',
+  uploadError: 'Erro ao fazer upload da imagem.',
+  uploadFailed: 'Falha no upload. Verifique se o preset permite public_id.',
+  photoAlt: 'Perfil',
+  changePhoto: 'Trocar Foto',
+  upload: 'Upload',
+  userName: 'NOME DE USUÁRIO',
+  emailReadOnly: 'EMAIL (NÃO EDITÁVEL)',
+  languageLabel: 'IDIOMA',
+  languageEnglish: 'English',
+  languageSwitchAria: 'Exibir o site em inglês',
+  close: 'Fechar',
+};

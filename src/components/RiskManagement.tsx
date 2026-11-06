@@ -38,6 +38,7 @@ import logoIbit from '../media/ibitlogo.svg';
 import ExportButton from './export/ExportButton';
 import { buildOfficialHeaderHTML, buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
 import { exportRiskMatrixFromTemplate } from '../utils/export/riskTemplateEngine';
+import { useI18n } from '../i18n/LanguageContext';
 
 type TabType = 'Interno' | 'Externo';
 
@@ -45,6 +46,7 @@ export default function RiskManagement() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, locale } = useI18n();
   
   const [project, setProject] = useState<Project | null>(null);
   const [risks, setRisks] = useState<ProjectRisk[]>([]);
@@ -143,29 +145,29 @@ export default function RiskManagement() {
 
   const getProbabilityBadge = (prob: string) => {
     switch (prob) {
-      case 'B': return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Baixa (B)</span>;
-      case 'M': return <span className="bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Média (M)</span>;
-      case 'A': return <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Alta (A)</span>;
-      case 'C': return <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Crítica (C)</span>;
+      case 'B': return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.risks.probLow}</span>;
+      case 'M': return <span className="bg-yellow-50 text-yellow-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.risks.probMedium}</span>;
+      case 'A': return <span className="bg-orange-50 text-orange-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.risks.probHigh}</span>;
+      case 'C': return <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.risks.probCritical}</span>;
       default: return <span className="text-gray-400">-</span>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'Aberto': return <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Aberto</span>;
-      case 'Andamento': return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Andamento</span>;
-      case 'Mitigado': return <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Mitigado</span>;
-      case 'Encerrado': return <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">Encerrado</span>;
+      case 'Aberto': return <span className="bg-red-50 text-red-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.riskStatus.Aberto}</span>;
+      case 'Andamento': return <span className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.riskStatus.Andamento}</span>;
+      case 'Mitigado': return <span className="bg-green-50 text-green-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.riskStatus.Mitigado}</span>;
+      case 'Encerrado': return <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.riskStatus.Encerrado}</span>;
       default: return <span className="text-gray-400">-</span>;
     }
   };
 
   const getExternalTypeBadge = (extType?: 'Ameaça' | 'Oportunidade') => {
     if (extType === 'Oportunidade') {
-      return <span className="bg-green-50 text-green-600 px-2.5 py-0.5 rounded text-xs font-bold whitespace-nowrap">Oportunidade</span>;
+      return <span className="bg-green-50 text-green-600 px-2.5 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.externalType.Oportunidade}</span>;
     }
-    return <span className="bg-red-50 text-red-600 px-2.5 py-0.5 rounded text-xs font-bold whitespace-nowrap">Ameaça</span>;
+    return <span className="bg-red-50 text-red-600 px-2.5 py-0.5 rounded text-xs font-bold whitespace-nowrap">{t.enums.externalType['Ameaça']}</span>;
   };
 
   const renderResponsibleCell = (respUid?: string) => {
@@ -213,7 +215,7 @@ export default function RiskManagement() {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '-';
     const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-    return date.toLocaleDateString('pt-BR');
+    return date.toLocaleDateString(locale);
   };
 
   // Separate sequence calculators for Internal vs External
@@ -229,10 +231,10 @@ export default function RiskManagement() {
 
   const probabilityLabel = (prob: string) => {
     switch (prob) {
-      case 'B': return 'Baixa (B)';
-      case 'M': return 'Média (M)';
-      case 'A': return 'Alta (A)';
-      case 'C': return 'Crítica (C)';
+      case 'B': return t.risks.probLow;
+      case 'M': return t.risks.probMedium;
+      case 'A': return t.risks.probHigh;
+      case 'C': return t.risks.probCritical;
       default: return '-';
     }
   };
@@ -252,8 +254,8 @@ export default function RiskManagement() {
 
       container.innerHTML = options.chrome
         ? buildOfficialHeaderHTML({
-            title: project?.name || 'Projeto',
-            subtitle: `Matriz de Riscos ${isExterno ? 'Externa' : 'Interna'}`,
+            title: project?.name || t.common.project,
+            subtitle: t.risks.pdfSubtitle(isExterno),
             responsibleName: user?.displayName || undefined,
           })
         : '';
@@ -269,15 +271,15 @@ export default function RiskManagement() {
 
       let headerHTML = `<thead><tr>
         <th style="${thStyle}width:5%;">ID</th>
-        ${isExterno ? `<th style="${thStyle}width:8%;">TIPO</th>` : ''}
-        <th style="${thStyle}width:14%;">${isExterno ? 'RISCO' : 'AMEAÇA'}</th>
-        ${isExterno ? `<th style="${thStyle}width:12%;">CAUSA</th>` : ''}
-        <th style="${thStyle}width:18%;">DESCRIÇÃO</th>
-        <th style="${thStyle}width:8%;">PROBABILIDADE</th>
-        <th style="${thStyle}width:6%;text-align:center;">IMPACTO</th>
-        <th style="${thStyle}width:8%;">PRIORIDADE</th>
-        <th style="${thStyle}width:10%;">RESPONSÁVEL</th>
-        <th style="${thStyle}width:8%;">STATUS</th>
+        ${isExterno ? `<th style="${thStyle}width:8%;">${t.risks.colType}</th>` : ''}
+        <th style="${thStyle}width:14%;">${isExterno ? t.risks.colRisk : t.risks.colThreat}</th>
+        ${isExterno ? `<th style="${thStyle}width:12%;">${t.risks.colCause}</th>` : ''}
+        <th style="${thStyle}width:18%;">${t.risks.colDescription}</th>
+        <th style="${thStyle}width:8%;">${t.risks.colProbability}</th>
+        <th style="${thStyle}width:6%;text-align:center;">${t.risks.colImpact}</th>
+        <th style="${thStyle}width:8%;">${t.risks.colPriority}</th>
+        <th style="${thStyle}width:10%;">${t.risks.colResponsible}</th>
+        <th style="${thStyle}width:8%;">${t.risks.colStatus}</th>
       </tr></thead>`;
 
       let bodyHTML = '<tbody>';
@@ -286,7 +288,7 @@ export default function RiskManagement() {
         const member = projectMembers.find(m => m.uid === item.responsible);
         bodyHTML += `<tr style="background:${rowBg};">
           <td style="${tdStyle}font-family:monospace;">#${item.numericId || '-'}</td>
-          ${isExterno ? `<td style="${tdStyle}">${item.externalType || 'Ameaça'}</td>` : ''}
+          ${isExterno ? `<td style="${tdStyle}">${t.enums.externalType[item.externalType || 'Ameaça']}</td>` : ''}
           <td style="${tdStyle}font-weight:800;color:#111827;">${item.risk}</td>
           ${isExterno ? `<td style="${tdStyle}">${item.cause || '-'}</td>` : ''}
           <td style="${tdStyle}">${item.description || '-'}</td>
@@ -294,7 +296,7 @@ export default function RiskManagement() {
           <td style="${tdStyle}text-align:center;font-weight:800;">${item.impact}</td>
           <td style="${tdStyle}">${item.priority || '-'}</td>
           <td style="${tdStyle}">${member?.name || '-'}</td>
-          <td style="${tdStyle}">${item.status}</td>
+          <td style="${tdStyle}">${t.enums.riskStatus[item.status] ?? item.status}</td>
         </tr>`;
       });
       bodyHTML += '</tbody>';
@@ -305,14 +307,14 @@ export default function RiskManagement() {
 
       if (options.chrome) {
         const footer = document.createElement('div');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Matriz de riscos exportada da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, t.risks.pdfFooter(new Date().toLocaleDateString(locale)));
         container.appendChild(footer);
       }
 
       await new Promise(r => setTimeout(r, 400));
 
       await captureContainerAsPdf(container, {
-        filename: `riscos-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        filename: `${t.risks.fileName}-${(project?.name || t.risks.fileProject).replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.pdf`,
         widthPx: options.widthPx,
         heightPx: options.heightPx,
         dpi: options.dpi,
@@ -322,7 +324,7 @@ export default function RiskManagement() {
       document.body.removeChild(container);
     } catch (err) {
       console.error('[Risk Management PDF Export] Error:', err);
-      alert('Erro ao exportar PDF. Tente novamente.');
+      alert(t.risks.pdfError);
     } finally {
       setIsExporting(false);
     }
@@ -330,7 +332,7 @@ export default function RiskManagement() {
 
   const handleExportExcel = async () => {
     await exportRiskMatrixFromTemplate({
-      filename: `riscos-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      filename: `${t.risks.fileName}-${(project?.name || t.risks.fileProject).replace(/\s+/g, '-')}-${activeTab.toLowerCase()}-${new Date().toISOString().substring(0, 10)}.xlsx`,
       rows: filteredItems.map((item) => ({
         title: item.risk,
         probabilityLabel: item.probability, // template uses raw letters (B/M/A/C), same convention as the platform
@@ -383,7 +385,7 @@ export default function RiskManagement() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
           </div>
@@ -401,8 +403,8 @@ export default function RiskManagement() {
                 )}
               >
                 <ShieldAlert className="w-4 h-4" />
-                <span className="hidden sm:inline">MATRIZ INTERNA</span>
-                <span className="sm:hidden">INTERNA</span>
+                <span className="hidden sm:inline">{t.risks.tabInternal}</span>
+                <span className="sm:hidden">{t.risks.tabInternalShort}</span>
               </button>
               <button
                 onClick={() => setActiveTab('Externo')}
@@ -412,8 +414,8 @@ export default function RiskManagement() {
                 )}
               >
                 <AlertTriangle className="w-4 h-4" />
-                <span className="hidden sm:inline">MATRIZ EXTERNA</span>
-                <span className="sm:hidden">EXTERNA</span>
+                <span className="hidden sm:inline">{t.risks.tabExternal}</span>
+                <span className="sm:hidden">{t.risks.tabExternalShort}</span>
               </button>
             </div>
 
@@ -421,7 +423,7 @@ export default function RiskManagement() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input 
                 type="text"
-                placeholder={activeTab === 'Interno' ? "Procurar ameaça..." : "Procurar risco ou causa..."}
+                placeholder={activeTab === 'Interno' ? t.risks.searchThreat : t.risks.searchRisk}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -432,7 +434,7 @@ export default function RiskManagement() {
           <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-center">
             <ExportButton
               formats={['pdf', 'excel']}
-              title="Exportar Matriz de Riscos"
+              title={t.risks.exportTitle}
               onExportPdf={handleExportPDF}
               onExportExcel={handleExportExcel}
               disabledFormats={{ pdf: filteredItems.length === 0, excel: filteredItems.length === 0 }}
@@ -444,7 +446,7 @@ export default function RiskManagement() {
               className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
             >
               <Plus className="w-4 h-4" />
-              <span>{activeTab === 'Interno' ? 'NOVA AMEAÇA' : 'NOVO RISCO'}</span>
+              <span>{activeTab === 'Interno' ? t.risks.newThreat : t.risks.newRisk}</span>
             </button>
           </div>
         </div>
@@ -456,24 +458,24 @@ export default function RiskManagement() {
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-16">ID</th>
                   {activeTab === 'Externo' && (
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-28">TIPO</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-28">{t.risks.colType}</th>
                   )}
                   <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-48">
-                    {activeTab === 'Interno' ? 'AMEAÇA' : 'RISCO'}
+                    {activeTab === 'Interno' ? t.risks.colThreat : t.risks.colRisk}
                   </th>
                   {activeTab === 'Externo' && (
-                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-48">CAUSA</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-48">{t.risks.colCause}</th>
                   )}
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">DESCRIÇÃO</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-32">ÁREA DE IMPACTO</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-24">PROBABILIDADE</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-20">IMPACTO</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-24">PRIORIDADE</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-center">RESP.</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[150px]">PLANO DE AÇÃO</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-28">STATUS</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-32">ÚLTIMA REVISÃO</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right w-24">AÇÕES</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">{t.risks.colDescription}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-32">{t.risks.colImpactArea}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-24">{t.risks.colProbability}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-20">{t.risks.colImpact}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-24">{t.risks.colPriority}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-center">{t.risks.colResp}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[150px]">{t.risks.colActionPlan}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-28">{t.risks.colStatus}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-32">{t.risks.colLastReview}</th>
+                  <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right w-24">{t.common.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -553,7 +555,7 @@ export default function RiskManagement() {
                 {filteredItems.length === 0 && (
                   <tr>
                     <td colSpan={activeTab === 'Externo' ? 14 : 12} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">
-                      Nenhum risco encontrado para esta matriz.
+                      {t.risks.empty}
                     </td>
                   </tr>
                 )}
@@ -577,22 +579,22 @@ export default function RiskManagement() {
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">Excluir Risco</h3>
+                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{t.risks.deleteTitle}</h3>
                 <p className="text-gray-500 text-center text-sm mb-6">
-                  Tem certeza que deseja excluir o risco <strong>{itemToDelete.risk}</strong>? Esta ação não pode ser desfeita.
+                  {t.risks.deleteBefore}<strong>{itemToDelete.risk}</strong>{t.risks.deleteAfter}
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setItemToDelete(null)}
                     className="flex-1 py-2.5 bg-gray-50 text-gray-700 font-bold text-sm uppercase tracking-wider rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     onClick={handleDeleteItem}
                     className="flex-1 py-2.5 bg-red-600 text-white font-bold text-sm uppercase tracking-wider rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    Excluir
+                    {t.common.delete}
                   </button>
                 </div>
               </div>
@@ -627,8 +629,8 @@ export default function RiskManagement() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando relatório da matriz de riscos...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.risks.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{t.risks.exportingText}</p>
             </div>
           </motion.div>
         )}
@@ -656,6 +658,7 @@ function RiskModal({
   projectMembers, 
   nextNumericId 
 }: RiskModalProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   
   const [risk, setRisk] = useState(item?.risk || '');
@@ -740,10 +743,10 @@ function RiskModal({
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shrink-0">
           <div>
             <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
-              {item ? 'Detalhes do Risco' : (modalType === 'Interno' ? 'Nova Ameaça' : 'Novo Risco Externo')}
+              {item ? t.risks.riskDetails : (modalType === 'Interno' ? t.risks.newThreatTitle : t.risks.newExternalRisk)}
             </h2>
             <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-0.5">
-              Matriz {modalType.toUpperCase()} {item && `#${item.numericId}`}
+              {t.risks.matrixLabel(t.enums.riskType[modalType])} {item && `#${item.numericId}`}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
@@ -759,7 +762,7 @@ function RiskModal({
               {/* Título / Ameaça */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  {modalType === 'Interno' ? 'AMEAÇA *' : 'RISCO *'}
+                  {modalType === 'Interno' ? t.risks.threatRequired : t.risks.riskRequired}
                 </label>
                 <input
                   type="text"
@@ -767,21 +770,21 @@ function RiskModal({
                   value={risk}
                   onChange={(e) => setRisk(e.target.value)}
                   className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
-                  placeholder={modalType === 'Interno' ? "Ex: Indisponibilidade de servidor crítico" : "Ex: Mudança abrupta na regulamentação cambial"}
+                  placeholder={modalType === 'Interno' ? t.risks.threatPlaceholder : t.risks.riskPlaceholder}
                 />
               </div>
 
               {/* Descrição */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  DESCRIÇÃO
+                  {t.risks.description}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   className="w-full bg-white border border-gray-300 px-4 py-2.5 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm text-sm"
-                  placeholder="Detalhamento sobre o risco, causas prováveis ou impactos preliminares..."
+                  placeholder={t.risks.descriptionPlaceholder}
                 />
               </div>
 
@@ -789,14 +792,14 @@ function RiskModal({
               {modalType === 'Externo' && (
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    CAUSA
+                    {t.risks.cause}
                   </label>
                   <input
                     type="text"
                     value={cause}
                     onChange={(e) => setCause(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-semibold rounded-lg shadow-sm text-sm"
-                    placeholder="Ex: Instabilidade geopolítica internacional"
+                    placeholder={t.risks.causePlaceholder}
                   />
                 </div>
               )}
@@ -804,7 +807,7 @@ function RiskModal({
               {/* Responsável (Lista vertical rolante com foto, nome e rádio - idêntica à de tarefas/stakeholders) */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                  RESPONSÁVEL
+                  {t.risks.responsible}
                 </label>
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2 max-h-48 overflow-y-auto shadow-inner">
                   {projectMembers.map(member => (
@@ -839,7 +842,7 @@ function RiskModal({
                     </div>
                   ))}
                   {projectMembers.length === 0 && (
-                    <span className="text-xs text-gray-400">Nenhum membro do projeto disponível.</span>
+                    <span className="text-xs text-gray-400">{t.risks.noMembers}</span>
                   )}
                 </div>
               </div>
@@ -851,7 +854,7 @@ function RiskModal({
               {modalType === 'Externo' && (
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    TIPO DE RISCO EXTERNO *
+                    {t.risks.externalTypeLabel}
                   </label>
                   <div className="flex gap-3">
                     <button
@@ -864,7 +867,7 @@ function RiskModal({
                           : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
                       )}
                     >
-                      Ameaça
+                      {t.enums.externalType['Ameaça']}
                     </button>
                     <button
                       type="button"
@@ -876,7 +879,7 @@ function RiskModal({
                           : "bg-white border-gray-300 text-gray-600 hover:border-gray-400"
                       )}
                     >
-                      Oportunidade
+                      {t.enums.externalType.Oportunidade}
                     </button>
                   </div>
                 </div>
@@ -886,34 +889,34 @@ function RiskModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    PROBABILIDADE *
+                    {t.risks.probabilityRequired}
                   </label>
                   <select
                     value={probability}
                     onChange={(e) => setProbability(e.target.value as ProjectRisk['probability'])}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                   >
-                    <option value="B">Baixa (B)</option>
-                    <option value="M">Média (M)</option>
-                    <option value="A">Alta (A)</option>
-                    <option value="C">Crítica (C)</option>
+                    <option value="B">{t.risks.probLow}</option>
+                    <option value="M">{t.risks.probMedium}</option>
+                    <option value="A">{t.risks.probHigh}</option>
+                    <option value="C">{t.risks.probCritical}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    IMPACTO *
+                    {t.risks.impactRequired}
                   </label>
                   <select
                     value={impact}
                     onChange={(e) => setImpact(parseInt(e.target.value, 10) as ProjectRisk['impact'])}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                   >
-                    <option value="1">1 - Muito Baixo</option>
-                    <option value="2">2 - Baixo</option>
-                    <option value="3">3 - Moderado</option>
-                    <option value="4">4 - Alto</option>
-                    <option value="5">5 - Muito Alto</option>
+                    <option value="1">{t.risks.impact1}</option>
+                    <option value="2">{t.risks.impact2}</option>
+                    <option value="3">{t.risks.impact3}</option>
+                    <option value="4">{t.risks.impact4}</option>
+                    <option value="5">{t.risks.impact5}</option>
                   </select>
                 </div>
               </div>
@@ -922,30 +925,30 @@ function RiskModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    PRIORIDADE
+                    {t.risks.priority}
                   </label>
                   <input
                     type="text"
                     value={priority}
                     onChange={(e) => setPriority(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
-                    placeholder="Ex: Crítica, Alta"
+                    placeholder={t.risks.priorityPlaceholder}
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                    STATUS *
+                    {t.risks.statusRequired}
                   </label>
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as ProjectRisk['status'])}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm text-sm"
                   >
-                    <option value="Aberto">Aberto</option>
-                    <option value="Andamento">Andamento</option>
-                    <option value="Mitigado">Mitigado</option>
-                    <option value="Encerrado">Encerrado</option>
+                    <option value="Aberto">{t.enums.riskStatus.Aberto}</option>
+                    <option value="Andamento">{t.enums.riskStatus.Andamento}</option>
+                    <option value="Mitigado">{t.enums.riskStatus.Mitigado}</option>
+                    <option value="Encerrado">{t.enums.riskStatus.Encerrado}</option>
                   </select>
                 </div>
               </div>
@@ -953,7 +956,7 @@ function RiskModal({
               {/* Área de Impacto com justificativa */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  ÁREA DE IMPACTO
+                  {t.risks.impactArea}
                 </label>
                 <div className="flex gap-2">
                   {[
@@ -986,7 +989,7 @@ function RiskModal({
                     value={impactJustification}
                     onChange={(e) => setImpactJustification(e.target.value)}
                     className="w-full bg-white border border-gray-300 px-3 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg shadow-sm text-xs font-semibold"
-                    placeholder="Justificativa da área de impacto..."
+                    placeholder={t.risks.impactJustificationPlaceholder}
                   />
                 </div>
               </div>
@@ -994,14 +997,14 @@ function RiskModal({
               {/* Plano de Ação */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                  PLANO DE AÇÃO
+                  {t.risks.actionPlan}
                 </label>
                 <textarea
                   value={actionPlan}
                   onChange={(e) => setActionPlan(e.target.value)}
                   rows={3}
                   className="w-full bg-white border border-gray-300 px-4 py-2 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-lg shadow-sm text-sm"
-                  placeholder="Passos práticos definidos para mitigação, contingência ou transferência..."
+                  placeholder={t.risks.actionPlanPlaceholder}
                 />
               </div>
 
@@ -1016,7 +1019,7 @@ function RiskModal({
             className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg"
             disabled={loading}
           >
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             type="submit"
@@ -1025,7 +1028,7 @@ function RiskModal({
             className="px-8 py-2.5 text-xs font-bold uppercase tracking-widest text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-lg shadow-lg shadow-orange-100 flex items-center gap-2"
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {item ? 'Salvar Alterações' : 'Criar Risco'}
+            {item ? t.common.saveChanges : t.risks.createRisk}
           </button>
         </div>
       </motion.div>

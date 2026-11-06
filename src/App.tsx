@@ -7,6 +7,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SidebarProvider } from './contexts/SidebarContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import ProjectBoard from './components/ProjectBoard';
@@ -43,6 +44,7 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
+    <LanguageProvider>
     <AuthProvider>
       <SidebarProvider>
         <Router>
@@ -190,5 +192,6 @@ export default function App() {
         </Router>
       </SidebarProvider>
     </AuthProvider>
+    </LanguageProvider>
   );
 }

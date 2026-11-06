@@ -53,11 +53,14 @@ import logoIbit from '../media/ibitlogo.svg';
 import ExportButton from './export/ExportButton';
 import { buildOfficialHeaderHTML, buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
 import { exportLedgerToExcel } from '../utils/export/ledgerTemplateEngine';
+import { useI18n } from '../i18n/LanguageContext';
+import { STORED_DATA_LOCALE } from '../i18n';
 
 export default function Inventory() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t: tr, locale } = useI18n();
   
   const [project, setProject] = useState<Project | null>(null);
   const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
@@ -175,7 +178,7 @@ export default function Inventory() {
   }, [inventory]);
 
   const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(value);
   };
 
   const handleDeleteItem = async () => {
@@ -363,27 +366,27 @@ export default function Inventory() {
     // Group items by location, same "sectioned ledger" layout as the platform's own budget template.
     const groupsMap = new Map<string, InventoryItem[]>();
     selectedOrFilteredItems.forEach((item) => {
-      const key = item.location?.trim() || 'Sem Localização';
+      const key = item.location?.trim() || tr.inventory.noLocation;
       if (!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key)!.push(item);
     });
 
     await exportLedgerToExcel({
-      filename: `inventario-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.xlsx`,
-      sheetName: 'Inventário',
-      title: `Inventário — ${project?.name || 'Projeto'}`,
+      filename: `${tr.inventory.fileName}-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: tr.inventory.sheetName,
+      title: tr.inventory.excelTitle(project?.name || tr.common.project),
       totalColumnIndex: 4,
       columns: [
-        { header: 'Produto', type: 'string', width: 28, value: (r: InventoryItem) => r.name },
-        { header: 'Quantidade', type: 'number', width: 14, value: (r: InventoryItem) => r.quantity },
-        { header: 'Preço Unit.', type: 'currency', width: 16, value: (r: InventoryItem) => r.unitPrice },
+        { header: tr.inventory.excelProduct, type: 'string', width: 28, value: (r: InventoryItem) => r.name },
+        { header: tr.inventory.excelQuantity, type: 'number', width: 14, value: (r: InventoryItem) => r.quantity },
+        { header: tr.inventory.excelUnitPrice, type: 'currency', width: 16, value: (r: InventoryItem) => r.unitPrice },
         {
-          header: 'Tags',
+          header: tr.inventory.excelTags,
           type: 'string',
           width: 24,
           value: (r: InventoryItem) => (r.tags || []).map((tagId: string) => projectTags.find(t => t.id === tagId)?.label).filter(Boolean).join(', '),
         },
-        { header: 'Total', type: 'currency', width: 16, value: (r: InventoryItem) => r.quantity * r.unitPrice },
+        { header: tr.inventory.excelTotal, type: 'currency', width: 16, value: (r: InventoryItem) => r.quantity * r.unitPrice },
       ],
       groups: Array.from(groupsMap.entries()).map(([name, rows]) => ({ name, rows })),
     });
@@ -431,7 +434,7 @@ export default function Inventory() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || tr.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -450,7 +453,7 @@ export default function Inventory() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {tr.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -464,13 +467,13 @@ export default function Inventory() {
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-orange-800 uppercase tracking-widest">
-                  {selectedItems.length} {selectedItems.length === 1 ? 'PRODUTO SELECIONADO' : 'PRODUTOS SELECIONADOS'}
+                  {selectedItems.length} {tr.inventory.selectedCount(selectedItems.length)}
                 </span>
                 <button
                   onClick={() => setSelectedItems([])}
                   className="text-xs text-gray-500 hover:text-gray-900 font-bold uppercase tracking-widest border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-all active:scale-95"
                 >
-                  LIMPAR SELEÇÃO
+                  {tr.inventory.clearSelection}
                 </button>
                 <button
                   onClick={() => {
@@ -479,13 +482,13 @@ export default function Inventory() {
                   }}
                   className="text-xs text-gray-500 hover:text-gray-900 font-bold uppercase tracking-widest border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg transition-all active:scale-95"
                 >
-                  SAIR DA SELEÇÃO
+                  {tr.inventory.exitSelection}
                 </button>
               </div>
               <div className="flex items-center gap-2">
                 <ExportButton
                   formats={['pdf', 'excel']}
-                  title="Exportar Inventário"
+                  title={tr.inventory.exportTitle}
                   onExportPdf={handleExportPDF}
                   onExportExcel={handleExportExcel}
                   disabledFormats={{ excel: selectedOrFilteredItems.length === 0 }}
@@ -496,7 +499,7 @@ export default function Inventory() {
                   className="bg-red-600 hover:bg-red-700 text-white px-4 py-2.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-red-100"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>EXCLUIR SELECIONADOS</span>
+                  <span>{tr.inventory.deleteSelected}</span>
                 </button>
               </div>
             </div>
@@ -506,7 +509,7 @@ export default function Inventory() {
                 <div className="hidden sm:flex items-center gap-2 shrink-0">
                   <Package className="w-5 h-5 text-[#ff7f00]" />
                   <h2 className="text-sm sm:text-lg font-bold text-gray-900 uppercase tracking-widest">
-                    INVENTÁRIO
+                    {tr.inventory.title}
                   </h2>
                 </div>
                 
@@ -514,7 +517,7 @@ export default function Inventory() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input 
                     type="text"
-                    placeholder="Procurar..."
+                    placeholder={tr.common.search}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -525,7 +528,7 @@ export default function Inventory() {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <ExportButton
                   formats={['pdf', 'excel']}
-                  title="Exportar Inventário"
+                  title={tr.inventory.exportTitle}
                   onExportPdf={handleExportPDF}
                   onExportExcel={handleExportExcel}
                   disabledFormats={{ excel: filteredItems.length === 0, pdf: filteredItems.length === 0 }}
@@ -547,7 +550,7 @@ export default function Inventory() {
                   )}
                 >
                   <CheckSquare className="w-4 h-4" />
-                  <span>{isSelectionMode ? 'CONCLUIR SELEÇÃO' : 'SELECIONAR'}</span>
+                  <span>{isSelectionMode ? tr.inventory.finishSelection : tr.inventory.select}</span>
                 </button>
 
                 <button 
@@ -555,8 +558,8 @@ export default function Inventory() {
                   className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 w-full sm:w-auto justify-center"
                 >
                   <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">ADICIONAR PRODUTO</span>
-                  <span className="sm:hidden">ADICIONAR</span>
+                  <span className="hidden sm:inline">{tr.inventory.addProduct}</span>
+                  <span className="sm:hidden">{tr.common.add}</span>
                 </button>
               </div>
             </>
@@ -599,13 +602,13 @@ export default function Inventory() {
                       </div>
                     </th>
                   )}
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">PRODUTO</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">LOCALIZAÇÃO</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">QUANTIDADE</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">PREÇO UNIT.</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">TAGS / TAREFA</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">RESPONSÁVEIS</th>
-                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">AÇÕES</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.inventory.colProduct}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.inventory.colLocation}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">{tr.inventory.colQuantity}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.inventory.colUnitPrice}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.inventory.colTagsTask}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">{tr.inventory.colAssignees}</th>
+                  <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{tr.common.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -644,7 +647,7 @@ export default function Inventory() {
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-2 text-xs text-gray-600 uppercase font-medium">
                         <MapPin className="w-3 h-3 text-gray-400" />
-                        {item.location || 'NÃO DEFINIDO'}
+                        {item.location || tr.inventory.notDefined}
                       </div>
                     </td>
                     <td className="px-4 py-4 text-center">
@@ -652,7 +655,7 @@ export default function Inventory() {
                         "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold",
                         item.quantity > 5 ? "bg-blue-50 text-blue-700" : (item.quantity > 0 ? "bg-orange-50 text-orange-700" : "bg-red-50 text-red-700")
                       )}>
-                        {item.quantity} un
+                        {item.quantity} {tr.inventory.unitShort}
                       </span>
                     </td>
                     <td className="px-4 py-4 text-xs font-medium text-gray-600">
@@ -672,7 +675,7 @@ export default function Inventory() {
                                   )}
                                   style={tag?.color?.startsWith('#') ? { backgroundColor: tag.color } : {}}
                                 >
-                                  {tag ? tag.label : 'Tag Removida'}
+                                  {tag ? tag.label : tr.inventory.tagRemoved}
                                 </span>
                               );
                             })}
@@ -684,7 +687,7 @@ export default function Inventory() {
                             className="flex items-center gap-1 text-[10px] font-bold text-gray-400 hover:text-[#ff7f00] transition-colors uppercase"
                           >
                             <ExternalLink className="w-3 h-3" />
-                            TAREFA VINCULADA
+                            {tr.inventory.linkedTask}
                           </button>
                         )}
                       </div>
@@ -733,16 +736,16 @@ export default function Inventory() {
                   <td className="px-4 py-4" colSpan={isSelectionMode ? 4 : 3}>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-                        {selectedItems.length > 0 ? "TOTAL SELECIONADO" : "TOTAL FILTRADO"}
+                        {selectedItems.length > 0 ? tr.inventory.totalSelected : tr.inventory.totalFiltered}
                       </span>
                       <span className="text-xs font-bold text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded-full">
-                        {selectedOrFilteredItems.length} {selectedOrFilteredItems.length === 1 ? 'PRODUTO' : 'PRODUTOS'}
+                        {selectedOrFilteredItems.length} {tr.inventory.productsCount(selectedOrFilteredItems.length)}
                       </span>
                     </div>
                   </td>
                   <td className="px-4 py-4 text-right pr-12" colSpan={4}>
                     <div className="flex items-center justify-end gap-3">
-                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">VALOR TOTAL:</span>
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{tr.inventory.totalValue}</span>
                       <span className="text-lg font-black text-[#ff7f00] tracking-wide">
                         {formatCurrency(filteredTotalValue)}
                       </span>
@@ -768,16 +771,16 @@ export default function Inventory() {
         )}
         {itemToDelete && (
           <DeleteConfirmModal 
-            title="EXCLUIR PRODUTO"
-            message={`Tem certeza que deseja excluir o produto "${itemToDelete.name}"? Esta ação não pode ser desfeita.`}
+            title={tr.inventory.deleteProductTitle}
+            message={tr.inventory.deleteProductMessage(itemToDelete.name)}
             onConfirm={handleDeleteItem}
             onCancel={() => setItemToDelete(null)}
           />
         )}
         {isBulkDeleteConfirmOpen && (
           <DeleteConfirmModal 
-            title="EXCLUIR PRODUTOS SELECIONADOS"
-            message={`Tem certeza que deseja excluir os ${selectedItems.length} produtos selecionados? Esta ação não pode ser desfeita.`}
+            title={tr.inventory.deleteSelectedTitle}
+            message={tr.inventory.deleteSelectedMessage(selectedItems.length)}
             onConfirm={handleBulkDelete}
             onCancel={() => setIsBulkDeleteConfirmOpen(false)}
           />
@@ -810,8 +813,8 @@ export default function Inventory() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando relatório do inventário...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{tr.inventory.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{tr.inventory.exportingText}</p>
             </div>
           </motion.div>
         )}
@@ -828,6 +831,7 @@ interface DeleteConfirmModalProps {
 }
 
 function DeleteConfirmModal({ title, message, onConfirm, onCancel }: DeleteConfirmModalProps) {
+  const { t: tr } = useI18n();
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div 
@@ -851,13 +855,13 @@ function DeleteConfirmModal({ title, message, onConfirm, onCancel }: DeleteConfi
               onClick={onCancel}
               className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-widest transition-colors rounded-lg hover:bg-gray-50 text-xs"
             >
-              CANCELAR
+              {tr.common.cancel}
             </button>
             <button 
               onClick={onConfirm}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 font-bold uppercase tracking-widest transition-colors rounded-lg shadow-lg shadow-red-100 text-xs"
             >
-              EXCLUIR
+              {tr.common.delete}
             </button>
           </div>
         </div>
@@ -877,6 +881,7 @@ interface ItemModalProps {
 
 function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: ItemModalProps) {
   const { user } = useAuth();
+  const { t: tr, locale } = useI18n();
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
   const [quantity, setQuantity] = useState(item?.quantity.toString() || '');
@@ -922,7 +927,7 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
         projectId,
         source: 'Inventário',
         title: `${item ? 'Item atualizado' : 'Novo item'}: ${data.name}`,
-        description: `${data.quantity} un. · ${data.location || 'Local não definido'} · ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(data.totalPrice)}`,
+        description: `${data.quantity} un. · ${data.location || 'Local não definido'} · ${new Intl.NumberFormat(STORED_DATA_LOCALE, { style: 'currency', currency: 'BRL' }).format(data.totalPrice)}`,
         actorUid: user?.uid,
         actorName: user?.displayName || user?.email || undefined,
         impactAmount: item ? data.totalPrice - item.totalPrice : data.totalPrice,
@@ -981,21 +986,21 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
   const calculateTotal = () => {
     const qNum = quantity === '' ? 0 : Number(quantity);
     const pNum = unitPrice === '' ? 0 : Number(unitPrice);
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(qNum * pNum);
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(qNum * pNum);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl flex flex-col">
         <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
-          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{item ? 'EDITAR PRODUTO' : 'NOVO PRODUTO'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
+          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{item ? tr.inventory.editProduct : tr.inventory.newProduct}</h3>
+          <button onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide text-gray-900">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NOME DO PRODUTO *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.productName}</label>
                 <input 
                   type="text" 
                   required 
@@ -1006,12 +1011,12 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">SOBRE / DESCRIÇÃO</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.about}</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none h-32 rounded-lg" placeholder="" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">QUANTIDADE</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.quantity}</label>
                   <input 
                     type="number" 
                     required 
@@ -1022,7 +1027,7 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">PREÇO UNITÁRIO (R$)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.unitPrice}</label>
                   <input 
                     type="number" 
                     required 
@@ -1035,14 +1040,14 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">DEPÓSITO / LOCALIZAÇÃO</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.location}</label>
                 <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-medium rounded-lg" placeholder="" />
               </div>
             </div>
             <div className="space-y-6">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                   <TagIcon className="w-4 h-4" /> TAGS
+                   <TagIcon className="w-4 h-4" /> {tr.inventory.tags}
                 </label>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {projectTags.map(tag => (
@@ -1066,7 +1071,7 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                   <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-3">
                     <input
                       type="text" autoFocus value={newTagLabel} onChange={(e) => setNewTagLabel(e.target.value)}
-                      placeholder="Nome da tag..."
+                      placeholder={tr.task.tagNamePlaceholder}
                       className="w-full bg-white border border-gray-300 px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg"
                     />
                     <div className="flex flex-wrap gap-1.5 justify-center">
@@ -1085,7 +1090,7 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                       ))}
                     </div>
                     <div className="flex gap-2">
-                       <button onClick={handleAddCustomTag} type="button" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all active:scale-95">CRIAR</button>
+                       <button onClick={handleAddCustomTag} type="button" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all active:scale-95">{tr.task.create}</button>
                        <button onClick={() => setIsAddingCustomTag(false)} type="button" className="px-3 py-2 bg-white border border-gray-200 text-gray-400 rounded-lg hover:bg-gray-50 transition-all"><X className="w-3 h-3" /></button>
                     </div>
                   </div>
@@ -1095,12 +1100,12 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                     onClick={() => setIsAddingCustomTag(true)}
                     className="w-full py-2 border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#ff7f00] hover:text-[#ff7f00] rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
                   >
-                    + NOVA TAG
+                    {tr.inventory.newTag}
                   </button>
                 )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">RESPONSÁVEIS</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.task.assignees}</label>
                 <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-1.5 max-h-48 overflow-y-auto">
                   {members.map(member => (
                     <div key={member.uid} onClick={() => toggleAssignee(member.uid)} className={clsx("flex items-center justify-between p-2 rounded-lg cursor-pointer transition-all", assignedTo.includes(member.uid) ? "bg-orange-50 border border-orange-100" : "hover:bg-white border border-transparent")}>
@@ -1114,9 +1119,9 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">VINCULAR A UMA TAREFA</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.inventory.linkTask}</label>
                 <select value={taskId} onChange={(e) => setTaskId(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-xs font-bold text-gray-900 focus:outline-none focus:border-[#ff7f00] appearance-none rounded-lg bg-no-repeat bg-[right_1rem_center] cursor-pointer">
-                  <option value="">Nenhuma tarefa</option>
+                  <option value="">{tr.inventory.noTask}</option>
                   {tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                 </select>
               </div>
@@ -1124,10 +1129,10 @@ function ItemModal({ projectId, item, members, tasks, projectTags, onClose }: It
           </div>
         </form>
         <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center shrink-0 rounded-b-2xl">
-          <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">SOMA TOTAL</span><span className="text-xl font-bold text-[#ff7f00]">{calculateTotal()}</span></div>
+          <div className="flex flex-col"><span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{tr.inventory.totalSum}</span><span className="text-xl font-bold text-[#ff7f00]">{calculateTotal()}</span></div>
           <div className="flex gap-3">
-            <button onClick={onClose} type="button" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">CANCELAR</button>
-            <button onClick={handleSubmit} disabled={isSaving || !name.trim()} className="px-8 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95">{isSaving ? 'SALVANDO...' : 'SALVAR'}</button>
+            <button onClick={onClose} type="button" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">{tr.common.cancel}</button>
+            <button onClick={handleSubmit} disabled={isSaving || !name.trim()} className="px-8 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95">{isSaving ? tr.common.saving : tr.common.save}</button>
           </div>
         </div>
       </motion.div>

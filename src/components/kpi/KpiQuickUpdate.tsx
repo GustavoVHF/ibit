@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Loader2, Zap } from 'lucide-react';
 import { ProjectKPI } from '../../types';
 import { formatTarget } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiQuickUpdateProps {
   kpi: ProjectKPI;
@@ -16,6 +17,7 @@ interface KpiQuickUpdateProps {
  * opening the full edit form. Triggered by clicking the current value cell.
  */
 export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateProps) {
+  const { t } = useI18n();
   const [value, setValue] = useState(String(kpi.currentValue));
   const [note, setNote] = useState('');
   const [saving, setSaving] = useState(false);
@@ -53,7 +55,7 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
           <div className="flex items-center justify-between p-5 border-b border-gray-100">
             <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
               <Zap className="w-4 h-4 text-[#ff7f00]" />
-              Atualização Rápida
+              {t.kpi.quickUpdate}
             </h3>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
               <X className="w-5 h-5" />
@@ -64,13 +66,13 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
             <div>
               <p className="text-xs font-bold text-gray-900 truncate" title={kpi.name}>{kpi.name}</p>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
-                Meta: {formatTarget(kpi)}
+                {t.kpi.target}: {formatTarget(kpi)}
               </p>
             </div>
 
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                Novo Valor Atual
+                {t.kpi.newCurrentValue}
               </label>
               <div className="flex items-center gap-2">
                 <input
@@ -90,13 +92,13 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
 
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                Nota (opcional)
+                {t.kpi.noteOptional}
               </label>
               <input
                 type="text"
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Ex: Resultado do sprint 4"
+                placeholder={t.kpi.notePlaceholder}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:border-[#ff7f00]"
               />
             </div>
@@ -108,7 +110,7 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
               disabled={saving}
               className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               onClick={handleSave}
@@ -116,7 +118,7 @@ export default function KpiQuickUpdate({ kpi, onClose, onSave }: KpiQuickUpdateP
               className="flex-1 px-4 py-2.5 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-xs rounded-lg transition-colors flex items-center justify-center gap-2 shadow-md shadow-orange-100"
             >
               {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              Atualizar
+              {t.kpi.update}
             </button>
           </div>
         </motion.div>

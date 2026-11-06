@@ -2,53 +2,55 @@ import React from 'react';
 import clsx from 'clsx';
 import { CalendarClock, CircleDollarSign, History, Hourglass } from 'lucide-react';
 import { ChangeHistoryTotals, formatSignedCurrency, formatSignedDays, impactTone } from './changeHistoryHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface ChangeHistorySummaryCardsProps {
   totals: ChangeHistoryTotals;
 }
 
 export default function ChangeHistorySummaryCards({ totals }: ChangeHistorySummaryCardsProps) {
+  const { t } = useI18n();
   const cards = [
     {
       id: 'total',
-      label: 'Total de Mudanças Registradas',
+      label: t.changes.cardTotal,
       icon: History,
       iconTone: 'text-[#ff7f00]',
       iconBg: 'bg-orange-50 border-orange-100',
       value: String(totals.total),
       valueTone: 'text-gray-900',
-      hint: 'Registros contínuos',
+      hint: t.changes.cardTotalHint,
     },
     {
       id: 'pending',
-      label: 'Mudanças Pendentes de Avaliação',
+      label: t.changes.cardPending,
       icon: Hourglass,
       iconTone: 'text-yellow-600',
       iconBg: 'bg-yellow-50 border-yellow-100',
       value: String(totals.pending),
       valueTone: totals.pending > 0 ? 'text-yellow-600' : 'text-gray-900',
-      hint: 'Aguardando gestor',
+      hint: t.changes.cardPendingHint,
     },
     {
       id: 'schedule-impact',
-      label: 'Impacto Total no Prazo Acumulado',
+      label: t.changes.cardSchedule,
       icon: CalendarClock,
       iconTone: 'text-indigo-600',
       iconBg: 'bg-indigo-50 border-indigo-100',
       value: formatSignedDays(totals.approvedDays),
       valueTone: impactTone(totals.approvedDays),
-      hint: 'Na baseline aprovada',
+      hint: t.changes.cardScheduleHint,
       hintTone: impactTone(totals.approvedDays),
     },
     {
       id: 'budget-impact',
-      label: 'Impacto Total no Orçamento Acumulado',
+      label: t.changes.cardBudget,
       icon: CircleDollarSign,
       iconTone: 'text-emerald-600',
       iconBg: 'bg-emerald-50 border-emerald-100',
       value: formatSignedCurrency(totals.approvedAmount),
       valueTone: impactTone(totals.approvedAmount),
-      hint: 'Impacto aprovado',
+      hint: t.changes.cardBudgetHint,
       hintTone: impactTone(totals.approvedAmount),
     },
   ];

@@ -10,10 +10,12 @@ import Sidebar from './Sidebar';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { Trash2, Tag, Crown, AlertTriangle, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function ProjectMembers() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -96,19 +98,19 @@ export default function ProjectMembers() {
       await changeMemberRole(projectId, targetUid, newRole as 'admin' | 'editor' | 'viewer', user.uid);
     } catch (error) {
       console.error('Error changing role:', error);
-      alert('Erro ao alterar cargo. Verifique as permissões.');
+      alert(t.members.changeRoleError);
     }
   };
 
   const handleRemoveMember = async (targetUid: string) => {
     if (!project || !user || !projectId) return;
-    if (!confirm('Tem certeza que deseja remover este membro?')) return;
+    if (!confirm(t.members.removeConfirm)) return;
 
     try {
       await removeMember(projectId, targetUid, user.uid);
     } catch (error) {
       console.error('Error removing member:', error);
-      alert('Erro ao remover membro. Verifique as permissões.');
+      alert(t.members.removeError);
     }
   };
 
@@ -122,7 +124,7 @@ export default function ProjectMembers() {
       setSelectedNewOwner('');
     } catch (error) {
       console.error('Error transferring ownership:', error);
-      alert('Erro ao transferir posse. Verifique as permissões.');
+      alert(t.members.transferError);
     } finally {
       setIsTransferring(false);
     }
@@ -181,7 +183,7 @@ export default function ProjectMembers() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project.members.length} {project.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project.members.length} {t.common.membersCount(project.members.length)}
               </span>
             </div>
           </div>
@@ -192,8 +194,8 @@ export default function ProjectMembers() {
           <div className="max-w-5xl mx-auto space-y-6 mt-8">
             {/* Title */}
             <div>
-              <h1 className="text-2xl font-bold tracking-wider uppercase text-gray-900">Gestão de Membros</h1>
-              <p className="text-sm text-gray-500 mt-1">Gerencie cargos e permissões dos membros do projeto</p>
+              <h1 className="text-2xl font-bold tracking-wider uppercase text-gray-900">{t.members.title}</h1>
+              <p className="text-sm text-gray-500 mt-1">{t.members.subtitle}</p>
             </div>
 
             {/* Transfer Ownership (Owner only) */}
@@ -203,9 +205,9 @@ export default function ProjectMembers() {
                   <div className="flex items-start gap-3">
                     <Crown className="w-5 h-5 text-[#ff7f00] mt-0.5 shrink-0" />
                     <div>
-                      <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900">Transferir Posse</h3>
+                      <h3 className="text-sm font-bold uppercase tracking-wider text-gray-900">{t.members.transferTitle}</h3>
                       <p className="text-xs text-gray-600 mt-1">
-                        Você pode transferir a posse do projeto para um administrador. Você se tornará administrador após a transferência.
+                        {t.members.transferText}
                       </p>
                     </div>
                   </div>
@@ -214,7 +216,7 @@ export default function ProjectMembers() {
                     disabled={admins.length === 0}
                     className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-none shrink-0"
                   >
-                    Transferir
+                    {t.members.transfer}
                   </button>
                 </div>
               </div>
@@ -226,9 +228,9 @@ export default function ProjectMembers() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Membro</th>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Cargo</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Ações</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.members.colMember}</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.members.colRole}</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.common.actions}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
@@ -263,9 +265,9 @@ export default function ProjectMembers() {
                                 onChange={(e) => handleRoleChange(member.uid, e.target.value as ProjectRole)}
                                 className="text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-md border border-gray-300 focus:outline-none focus:border-[#ff7f00] bg-white"
                               >
-                                <option value="admin">ADMIN</option>
-                                <option value="editor">EDITOR</option>
-                                <option value="viewer">ESPECTADOR</option>
+                                <option value="admin">{t.enums.projectRole.admin}</option>
+                                <option value="editor">{t.enums.projectRole.editor}</option>
+                                <option value="viewer">{t.enums.projectRole.viewer}</option>
                               </select>
                             ) : (
                               <span className={`inline-block px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md ${getRoleColor(memberRole)}`}>
@@ -278,7 +280,7 @@ export default function ProjectMembers() {
                               onClick={() => handleRemoveMember(member.uid)}
                               disabled={!canRemove}
                               className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-none"
-                              title={canRemove ? "Remover membro" : "Não é possível remover"}
+                              title={canRemove ? t.members.removeMember : t.members.cannotRemove}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -306,7 +308,7 @@ export default function ProjectMembers() {
             >
               <div className="flex justify-between items-center p-6 border-b border-orange-100 bg-orange-50">
                 <h3 className="text-xl font-bold uppercase text-gray-900 flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-[#ff7f00]" /> Transferir Posse
+                  <Crown className="w-5 h-5 text-[#ff7f00]" /> {t.members.transferTitle}
                 </h3>
                 <button onClick={() => { setIsTransferModalOpen(false); setSelectedNewOwner(''); }} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X className="w-6 h-6" />
@@ -315,15 +317,15 @@ export default function ProjectMembers() {
 
               <div className="p-6 space-y-4">
                 <p className="text-sm text-gray-700">
-                  Selecione um administrador para se tornar o novo dono do projeto. Você será rebaixado para administrador.
+                  {t.members.transferModalText}
                 </p>
 
                 <div className="space-y-2">
                   <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">
-                    Novo Dono
+                    {t.members.newOwner}
                   </label>
                   {admins.length === 0 ? (
-                    <p className="text-sm text-red-600">Não há administradores disponíveis para transferência.</p>
+                    <p className="text-sm text-red-600">{t.members.noAdmins}</p>
                   ) : (
                     <div className="space-y-2">
                       {admins.map((admin) => (
@@ -366,7 +368,7 @@ export default function ProjectMembers() {
                     onClick={() => { setIsTransferModalOpen(false); setSelectedNewOwner(''); }}
                     className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none hover:bg-gray-50"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     type="button"
@@ -374,7 +376,7 @@ export default function ProjectMembers() {
                     disabled={isTransferring || !selectedNewOwner}
                     className="flex-1 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none"
                   >
-                    {isTransferring ? 'Transferindo...' : 'Confirmar'}
+                    {isTransferring ? t.members.transferring : t.common.confirm}
                   </button>
                 </div>
               </div>

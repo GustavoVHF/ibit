@@ -1,12 +1,14 @@
 import { ChangeHistoryEntry, ChangeSector, ChangeSource, ChangeStatus } from '../../types';
+import { getLocale, getMessages, STORED_DATA_LOCALE } from '../../i18n';
 
 export const CHANGE_SECTORS: ChangeSector[] = ['Engenharia', 'Marketing', 'Financeiro', 'Design', 'Gestão'];
 export const CHANGE_STATUSES: ChangeStatus[] = ['Pendente', 'Aprovado', 'Recusado', 'Postergado'];
 
-export const DECISION_OPTIONS: { status: ChangeStatus; label: string }[] = [
-  { status: 'Aprovado', label: 'Aprovar' },
-  { status: 'Recusado', label: 'Recusar' },
-  { status: 'Postergado', label: 'Postergar' },
+// label is resolved on read so it follows the current language.
+export const DECISION_OPTIONS: { status: ChangeStatus; readonly label: string }[] = [
+  { status: 'Aprovado', get label() { return getMessages().changes.decisionApprove; } },
+  { status: 'Recusado', get label() { return getMessages().changes.decisionReject; } },
+  { status: 'Postergado', get label() { return getMessages().changes.decisionPostpone; } },
 ];
 
 export const SECTOR_TAG_STYLES: Record<ChangeSector, string> = {
@@ -49,11 +51,11 @@ export const SOURCE_STYLES: Record<ChangeSource, string> = {
 };
 
 export function statusLabel(status: ChangeStatus): string {
-  return status === 'Prolongado' ? 'Postergado' : status;
+  return getMessages().enums.changeStatus[status === 'Prolongado' ? 'Postergado' : status];
 }
 
 export function sourceLabel(entry: ChangeHistoryEntry): string {
-  return entry.source || 'Solicitação direta';
+  return entry.source ? getMessages().enums.changeSource[entry.source] ?? entry.source : getMessages().changes.directRequest;
 }
 
 export function toJsDate(timestamp: any): Date | null {
@@ -64,17 +66,25 @@ export function toJsDate(timestamp: any): Date | null {
 
 export function formatDate(timestamp: any): string {
   const date = toJsDate(timestamp);
-  return date ? date.toLocaleDateString('pt-BR') : '-';
+  return date ? date.toLocaleDateString(getLocale()) : '-';
 }
 
 export function formatDateTime(timestamp: any): string {
   const date = toJsDate(timestamp);
   if (!date) return '-';
-  return `${date.toLocaleDateString('pt-BR')} às ${date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+  const locale = getLocale();
+  return getMessages().changes.dateTime(date.toLocaleDateString(locale), date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }));
+}
+
+/** Same as formatDateTime, but always in Portuguese: used for text written to Firestore. */
+export function formatDateTimeStored(timestamp: any): string {
+  const date = toJsDate(timestamp);
+  if (!date) return '-';
+  return `${date.toLocaleDateString(STORED_DATA_LOCALE)} às ${date.toLocaleTimeString(STORED_DATA_LOCALE, { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 export function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  return new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'BRL' }).format(value);
 }
 
 export function formatSignedCurrency(value: number): string {

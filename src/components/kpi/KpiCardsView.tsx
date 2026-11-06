@@ -9,6 +9,7 @@ import {
   computeProgress,
   formatDate,
 } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiCardsViewProps {
   kpis: ProjectKPI[];
@@ -20,10 +21,11 @@ interface KpiCardsViewProps {
 }
 
 export default function KpiCardsView({ kpis, projectMembers, onEdit, onDelete, onQuickUpdate, onEvolution }: KpiCardsViewProps) {
+  const { t } = useI18n();
   if (kpis.length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
-        <p className="text-gray-500 text-sm font-medium">Nenhum KPI encontrado para os filtros selecionados.</p>
+        <p className="text-gray-500 text-sm font-medium">{t.kpi.emptyFiltered}</p>
       </div>
     );
   }
@@ -48,11 +50,11 @@ export default function KpiCardsView({ kpis, projectMembers, onEdit, onDelete, o
                   style={{ backgroundColor: sectorColor }}
                 />
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest truncate">
-                  {kpi.sector}
+                  {t.enums.kpiSector[kpi.sector] ?? kpi.sector}
                 </span>
               </div>
               <span className={`px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap ${statusStyle.badge}`}>
-                {kpi.status}
+                {t.enums.kpiStatus[kpi.status] ?? kpi.status}
               </span>
             </div>
 
@@ -71,12 +73,12 @@ export default function KpiCardsView({ kpis, projectMembers, onEdit, onDelete, o
                   <button
                     onClick={() => onQuickUpdate(kpi)}
                     className="text-sm font-bold text-gray-900 hover:text-[#ff7f00] transition-colors cursor-pointer"
-                    title="Atualizar valor rapidamente"
+                    title={t.kpi.quickUpdateTitle}
                   >
                     {formatCurrent(kpi)}
                   </button>
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                    Meta {formatTarget(kpi)}
+                    {t.kpi.targetPrefix} {formatTarget(kpi)}
                   </span>
                 </div>
                 <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -110,7 +112,7 @@ export default function KpiCardsView({ kpis, projectMembers, onEdit, onDelete, o
                     <button
                       onClick={() => onEvolution(kpi)}
                       className="p-1 bg-white border border-gray-200 hover:bg-orange-50 text-gray-400 hover:text-[#ff7f00] rounded transition-all shadow-sm"
-                      title="Ver evolução"
+                      title={t.kpi.viewEvolution}
                     >
                       <LineChart className="w-3.5 h-3.5" />
                     </button>
@@ -118,7 +120,7 @@ export default function KpiCardsView({ kpis, projectMembers, onEdit, onDelete, o
                   <button
                     onClick={() => onEdit(kpi)}
                     className="p-1 bg-white border border-gray-200 hover:bg-orange-50 text-gray-400 hover:text-[#ff7f00] rounded transition-all shadow-sm"
-                    title="Editar"
+                    title={t.kpi.edit}
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>

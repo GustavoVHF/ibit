@@ -26,6 +26,8 @@ import {
   validateProductIdentity,
 } from './decisionMatrixHelpers';
 import ProductSourcePicker from './ProductSourcePicker';
+import { getLocale } from '../../i18n';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface DecisionMatrixEditorProps {
   projectId: string;
@@ -35,11 +37,8 @@ interface DecisionMatrixEditorProps {
 
 type Step = 1 | 2 | 3;
 
-const STEPS: { id: Step; label: string }[] = [
-  { id: 1, label: 'Produtos' },
-  { id: 2, label: 'Critérios' },
-  { id: 3, label: 'Resultado' },
-];
+// Step labels come from t.finance.steps at render time.
+const STEPS: { id: Step }[] = [{ id: 1 }, { id: 2 }, { id: 3 }];
 
 // Campo da opção editado em cada linha do passo 2 (mesmos limites do antigo formulário).
 const VALUE_INPUTS: Record<
@@ -51,7 +50,7 @@ const VALUE_INPUTS: Record<
   ratePreco: { field: 'priceRating', step: '1', min: 1, max: 10, placeholder: '1–10', suffix: '/10' },
   rateQualidade: { field: 'qualityRating', step: '0.1', min: 0, max: 5, placeholder: '0–5', suffix: '★' },
   sustentabilidade: { field: 'sustainability', step: '1', min: 1, max: 10, placeholder: '1–10', suffix: '/10' },
-  tempoEntrega: { field: 'deliveryDays', step: '1', min: 1, placeholder: '0', suffix: 'dias' },
+  tempoEntrega: { field: 'deliveryDays', step: '1', min: 1, placeholder: '0', suffix: '' },
 };
 
 const parseNum = (s: string): number | null => {
@@ -60,8 +59,8 @@ const parseNum = (s: string): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 
-const fmt2 = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtPct = (v: number) => `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
+const fmt2 = (v: number) => v.toLocaleString(getLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = (v: number) => `${(v * 100).toLocaleString(getLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
 
 const navBtnCls =
   'px-6 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors';
@@ -70,6 +69,7 @@ const primaryBtnCls =
 
 export default function DecisionMatrixEditor({ projectId, initial, onClose }: DecisionMatrixEditorProps) {
   const { user } = useAuth();
+  const { t, locale } = useI18n();
   const [title, setTitle] = useState(initial?.title ?? '');
   const [options, setOptions] = useState<DecisionOption[]>(() =>
     initial?.options?.length === 2
@@ -149,8 +149,8 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
       const msg = e instanceof Error ? e.message : String(e);
       setSaveError(
         /permission/i.test(msg)
-          ? 'Sem permissão para salvar. Verifique se as regras do Firestore foram publicadas.'
-          : 'Erro ao salvar a comparação. Tente novamente.'
+          ? t.finance.noPermissionSave
+          : t.finance.saveComparisonError
       );
     } finally {
       setSaving(false);
@@ -177,13 +177,13 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
               value={title}
               maxLength={199}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título da comparação"
+              placeholder={t.finance.comparisonTitle}
               className={clsx(
                 'flex-1 min-w-0 bg-white border border-gray-300 px-4 py-2.5 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg transition-colors',
                 step === 3 && !title.trim() ? 'placeholder-red-400' : 'placeholder-gray-300'
               )}
             />
-            <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors shrink-0">
+            <button type="button" onClick={onClose} aria-label={t.common.close} className="text-gray-400 hover:text-gray-900 transition-colors shrink-0">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -202,7 +202,7 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                       : 'text-gray-500 hover:text-gray-900'
                 )}
               >
-                {s.id} {s.label}
+                {s.id} {t.finance.steps[s.id]}
               </button>
             ))}
           </div>
@@ -232,8 +232,8 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                   <thead>
                     <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">
                       <th className="w-10 py-3 pl-4" />
-                      <th className="text-left py-3 pr-3">Critério</th>
-                      <th className="text-left py-3 px-3">Peso</th>
+                      <th className="text-left py-3 pr-3">{t.finance.criterion}</th>
+                      <th className="text-left py-3 px-3">{t.finance.weight}</th>
                       <th className="text-right py-3 px-3">%</th>
                       {options.map((_, i) => (
                         <th key={i} className="text-left py-3 px-3 max-w-[160px] truncate" title={optionName(i)}>
@@ -300,7 +300,7 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                                     )}
                                   />
                                   <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none">
-                                    {input.suffix}
+                                    {input.suffix || t.finance.daysSuffix}
                                   </span>
                                 </div>
                               </td>
@@ -313,17 +313,17 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                 </table>
               </div>
               <p className="text-xs text-gray-400">
-                Soma dos pesos: {totalWeight.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}% · normalizado automaticamente
+                {t.finance.weightsSum(totalWeight.toLocaleString(locale, { maximumFractionDigits: 2 }))}
               </p>
               {showErrors && result.issues.length > 0 && (
-                <p className="text-xs font-bold text-red-600">{generalIssue ? generalIssue.message : 'Preencha os campos destacados'}</p>
+                <p className="text-xs font-bold text-red-600">{generalIssue ? generalIssue.message : t.finance.fillHighlighted}</p>
               )}
             </div>
           )}
 
           {step === 3 &&
             (!complete ? (
-              <p className="text-sm text-gray-500">Complete os produtos e os critérios para ver o resultado.</p>
+              <p className="text-sm text-gray-500">{t.finance.completeToSee}</p>
             ) : (
               <div className="space-y-4">
                 <div
@@ -335,7 +335,7 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                   <div className="flex items-center gap-3 min-w-0">
                     <Trophy className={clsx('w-5 h-5 shrink-0', winner != null ? 'text-[#ff7f00]' : 'text-gray-400')} />
                     <p className="text-sm font-bold text-gray-900 truncate">
-                      {winner != null ? `Vencedor: ${optionName(winner)}` : 'Empate'}
+                      {winner != null ? t.finance.winner(optionName(winner)) : t.finance.tie}
                     </p>
                   </div>
                   <p className="text-sm font-bold text-gray-700 tabular-nums shrink-0">
@@ -347,8 +347,8 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-200">
-                        <th className="text-left py-3 px-4">Critério</th>
-                        <th className="text-right py-3 px-3">Peso</th>
+                        <th className="text-left py-3 px-4">{t.finance.criterion}</th>
+                        <th className="text-right py-3 px-3">{t.finance.weight}</th>
                         {options.map((_, i) => (
                           <th key={i} className="text-right py-3 px-4 max-w-[160px] truncate" title={optionName(i)}>
                             {optionName(i)}
@@ -376,7 +376,7 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                         );
                       })}
                       <tr className="bg-gray-50">
-                        <td className="py-3 px-4 font-bold text-gray-900 uppercase tracking-widest text-xs">Nota final</td>
+                        <td className="py-3 px-4 font-bold text-gray-900 uppercase tracking-widest text-xs">{t.finance.finalScore}</td>
                         <td className="py-3 px-3 text-right tabular-nums text-gray-500">100%</td>
                         {result.totals.map((t, i) => (
                           <td
@@ -398,12 +398,12 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
           {saveError ? (
             <p className="text-xs font-bold text-red-600">{saveError}</p>
           ) : step === 3 && complete && !title.trim() ? (
-            <p className="text-xs font-bold text-red-600">Informe o título para salvar</p>
+            <p className="text-xs font-bold text-red-600">{t.finance.titleRequired}</p>
           ) : null}
           <div className="flex gap-3 ml-auto">
             {step > 1 && (
               <button type="button" onClick={() => setStep((step - 1) as Step)} className={navBtnCls}>
-                Voltar
+                {t.common.back}
               </button>
             )}
             {step < 3 ? (
@@ -412,12 +412,12 @@ export default function DecisionMatrixEditor({ projectId, initial, onClose }: De
                 onClick={() => goTo((step + 1) as Step)}
                 className={clsx(primaryBtnCls, step === 2 && !complete && 'opacity-50')}
               >
-                Próximo
+                {t.finance.next}
               </button>
             ) : (
               <button type="button" onClick={handleSave} disabled={!canSave} className={primaryBtnCls}>
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                Salvar
+                {t.common.save}
               </button>
             )}
           </div>

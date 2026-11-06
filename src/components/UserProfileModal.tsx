@@ -7,6 +7,7 @@ import { X, Upload, User as UserIcon, Loader2 } from 'lucide-react';
 import { logFirestoreError, OperationType } from '../utils/errorHandlers';
 import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestoreWrite';
 import { motion } from 'motion/react';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface UserProfileModalProps {
   onClose: () => void;
@@ -14,6 +15,7 @@ interface UserProfileModalProps {
 
 export default function UserProfileModal({ onClose }: UserProfileModalProps) {
   const { user } = useAuth();
+  const { t, language, toggleLanguage } = useI18n();
   const [name, setName] = useState(user?.displayName || '');
   const [photoURL, setPhotoURL] = useState(user?.photoURL || '');
   const [isUploading, setIsUploading] = useState(false);
@@ -30,7 +32,7 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
     if (!file || !user) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Por favor, selecione apenas arquivos de imagem.');
+      setError(t.profile.imageOnly);
       return;
     }
 
@@ -55,11 +57,11 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
       if (response.ok) {
         setPhotoURL(data.secure_url);
       } else {
-        throw new Error(data.error?.message || 'Erro ao fazer upload da imagem.');
+        throw new Error(data.error?.message || t.profile.uploadError);
       }
     } catch (err: any) {
       console.error('Cloudinary Error:', err);
-      setError('Falha no upload. Verifique se o preset permite public_id.');
+      setError(t.profile.uploadFailed);
     } finally {
       setIsUploading(false);
     }
@@ -108,8 +110,8 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
         className="bg-white border border-gray-200 w-full max-w-md overflow-hidden shadow-xl rounded-xl"
       >
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">Meu Perfil</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">{t.profile.title}</h2>
+          <button onClick={onClose} aria-label={t.profile.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -128,17 +130,17 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
             >
               {photoURL ? (
                 <>
-                  <img src={photoURL} alt="Perfil" className="w-full h-full object-cover" />
+                  <img src={photoURL} alt={t.profile.photoAlt} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-center p-2">
                     <Upload className="w-5 h-5 mb-1" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Trocar Foto</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider">{t.profile.changePhoto}</span>
                   </div>
                 </>
               ) : (
                 <div className="text-gray-400 flex flex-col items-center group-hover:text-[#ff7f00] transition-colors p-4 text-center">
                   <UserIcon className="w-10 h-10 mb-2" />
                   <span className="text-[10px] font-bold uppercase tracking-wider">
-                    Upload
+                    {t.profile.upload}
                   </span>
                 </div>
               )}
@@ -162,7 +164,7 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
           <div className="space-y-4">
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                NOME DE USUÁRIO
+                {t.profile.userName}
               </label>
               <input
                 type="text"
@@ -175,7 +177,7 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
             
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                EMAIL (NÃO EDITÁVEL)
+                {t.profile.emailReadOnly}
               </label>
               <input
                 type="email"
@@ -183,6 +185,32 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
                 value={user?.email || ''}
                 className="w-full bg-gray-50 border border-gray-200 px-4 py-3 text-gray-400 font-bold rounded-none cursor-not-allowed"
               />
+            </div>
+
+            <div>
+              <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
+                {t.profile.languageLabel}
+              </span>
+              {/* Applies immediately; not tied to the form's Save button. */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={language === 'en'}
+                aria-label={t.profile.languageSwitchAria}
+                onClick={toggleLanguage}
+                className="flex items-center gap-3 group"
+              >
+                <span
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${language === 'en' ? 'bg-[#ff7f00]' : 'bg-gray-300'}`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${language === 'en' ? 'translate-x-5' : 'translate-x-0.5'}`}
+                  />
+                </span>
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-700 group-hover:text-[#ff7f00] transition-colors">
+                  {t.profile.languageEnglish}
+                </span>
+              </button>
             </div>
           </div>
 
@@ -192,7 +220,7 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
               onClick={onClose}
               className="flex-1 px-6 py-3 text-xs font-bold uppercase tracking-wider text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-none"
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               type="submit"
@@ -200,7 +228,7 @@ export default function UserProfileModal({ onClose }: UserProfileModalProps) {
               className="flex-1 px-6 py-3 text-xs font-bold uppercase tracking-wider text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-none flex items-center justify-center gap-2"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isSaving ? 'Salvando...' : 'Salvar'}
+              {isSaving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>

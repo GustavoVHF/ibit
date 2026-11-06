@@ -50,11 +50,13 @@ import logoIbit from '../media/ibitlogo.svg';
 import ExportButton from './export/ExportButton';
 import { buildOfficialFooterHTML, captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
 import { exportRaciFromTemplate } from '../utils/export/raciTemplateEngine';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function RACIMatrix() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, locale } = useI18n();
   
   const [project, setProject] = useState<Project | null>(null);
   const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
@@ -222,7 +224,7 @@ export default function RACIMatrix() {
   };
 
   const getBreadcrumbs = () => {
-    const crumbs = [{ id: null, name: 'INÍCIO' }];
+    const crumbs = [{ id: null, name: t.assets.home }];
     if (currentMatrixId) {
       const matrix = matrices.find(m => m.id === currentMatrixId);
       if (matrix) crumbs.push({ id: matrix.id, name: matrix.name.toUpperCase() });
@@ -321,8 +323,8 @@ export default function RACIMatrix() {
       container.innerHTML = options.chrome ? `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #ff7f00;">
           <div>
-            <div style="font-size:24px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.1em;">${project?.name || 'Projeto'}</div>
-            <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Matriz RACI - ${currentMatrix?.name || 'Matriz'}</div>
+            <div style="font-size:24px;font-weight:800;color:#111;text-transform:uppercase;letter-spacing:0.1em;">${project?.name || t.common.project}</div>
+            <div style="font-size:12px;color:#9ca3af;font-weight:600;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">${t.raci.pdfMatrixLine(currentMatrix?.name || t.raci.matrixFallback)}</div>
           </div>
         </div>
       ` : '';
@@ -337,7 +339,7 @@ export default function RACIMatrix() {
         <thead>
           <tr style="background:#f9fafb;border-bottom:2px solid #e5e7eb;">
             <th style="width:${COL_TASK_W}px;padding:16px;text-align:left;border-right:1px solid #e5e7eb;font-size:10px;font-weight:800;color:#9ca3af;text-transform:uppercase;letter-spacing:0.15em;">
-              TAREFAS / ATIVIDADES
+              ${t.raci.colTasks}
             </th>
       `;
 
@@ -352,7 +354,7 @@ export default function RACIMatrix() {
                 ${p.name.split(' ')[0]}
               </span>
               <span style="font-size:7px;font-weight:900;letter-spacing:0.05em;padding:2px 6px;border-radius:9999px;text-transform:uppercase;${p.isUser ? 'background:#ffedd5;color:#ff7f00;' : 'background:#fee2e2;color:#f94200;'}">
-                ${p.isUser ? 'Membro' : 'Externo'}
+                ${p.isUser ? t.raci.member : t.raci.external}
               </span>
             </div>
           </th>
@@ -393,33 +395,33 @@ export default function RACIMatrix() {
       legend.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="width:24px;height:24px;border-radius:6px;background:#ffffff;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.05);">R</span>
-          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Responsável</span>
+          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${t.raci.responsible}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="width:24px;height:24px;border-radius:6px;background:#ffffff;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.05);">A</span>
-          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Autoridade</span>
+          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${t.raci.accountable}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="width:24px;height:24px;border-radius:6px;background:#ffffff;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.05);">C</span>
-          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Consultado</span>
+          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${t.raci.consulted}</span>
         </div>
         <div style="display:flex;align-items:center;gap:8px;">
           <span style="width:24px;height:24px;border-radius:6px;background:#ffffff;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:10px;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.05);">I</span>
-          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Informado</span>
+          <span style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${t.raci.informed}</span>
         </div>
       `;
       container.appendChild(legend);
 
       if (options.chrome) {
         const footer = document.createElement('div');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Matriz RACI exportada da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, t.raci.pdfFooter(new Date().toLocaleDateString(locale)));
         container.appendChild(footer);
       }
 
       await new Promise(r => setTimeout(r, 500));
 
-      const matrixFileName = (currentMatrix?.name || 'matriz').replace(/\s+/g, '-');
-      const projectNameStr = (project?.name || 'projeto').replace(/\s+/g, '-');
+      const matrixFileName = (currentMatrix?.name || t.raci.fileMatrix).replace(/\s+/g, '-');
+      const projectNameStr = (project?.name || t.raci.fileProject).replace(/\s+/g, '-');
       await captureContainerAsPdf(container, {
         filename: `raci-${projectNameStr}-${matrixFileName}-${new Date().toISOString().substring(0, 10)}.pdf`,
         widthPx: options.widthPx,
@@ -431,18 +433,18 @@ export default function RACIMatrix() {
       document.body.removeChild(container);
     } catch (err) {
       console.error('[RACI PDF Export] Error:', err);
-      alert('Erro ao exportar PDF. Tente novamente.');
+      alert(t.raci.pdfError);
     } finally {
       setIsExporting(false);
     }
   };
 
   const handleExportExcel = async () => {
-    const matrixFileName = (currentMatrix?.name || 'matriz').replace(/\s+/g, '-');
-    const projectNameStr = (project?.name || 'projeto').replace(/\s+/g, '-');
+    const matrixFileName = (currentMatrix?.name || t.raci.fileMatrix).replace(/\s+/g, '-');
+    const projectNameStr = (project?.name || t.raci.fileProject).replace(/\s+/g, '-');
     await exportRaciFromTemplate({
       filename: `raci-${projectNameStr}-${matrixFileName}-${new Date().toISOString().substring(0, 10)}.xlsx`,
-      matrixTitle: currentMatrix?.name || 'Matriz RACI',
+      matrixTitle: currentMatrix?.name || t.raci.excelTitleFallback,
       participants: participants.map((p) => ({ name: p.name })),
       tasks: tasks.map((task) => ({
         title: task.title,
@@ -493,7 +495,7 @@ export default function RACIMatrix() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -512,7 +514,7 @@ export default function RACIMatrix() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {t.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -523,7 +525,7 @@ export default function RACIMatrix() {
             <div className="hidden sm:flex items-center gap-2">
               <Grid3X3 className="w-5 h-5 text-[#ff7f00]" />
               <h2 className="text-lg font-bold text-gray-900 uppercase tracking-widest">
-                MATRIZ RACI
+                {t.raci.title}
               </h2>
             </div>
             
@@ -532,7 +534,7 @@ export default function RACIMatrix() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
                   type="text"
-                  placeholder="Procurar matriz..."
+                  placeholder={t.raci.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -546,7 +548,7 @@ export default function RACIMatrix() {
               <>
                 <ExportButton
                   formats={['pdf', 'excel']}
-                  title="Exportar Matriz RACI"
+                  title={t.raci.exportTitle}
                   onExportPdf={handleExportPDF}
                   onExportExcel={handleExportExcel}
                   disabledFormats={{ pdf: tasks.length === 0, excel: tasks.length === 0 }}
@@ -558,14 +560,14 @@ export default function RACIMatrix() {
                   className="bg-white text-gray-700 border border-gray-300 px-3 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-[9px] sm:text-[10px] rounded-lg hover:bg-gray-50 active:scale-95 flex-1 sm:flex-none"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  TAREFA
+                  {t.raci.task}
                 </button>
                 <button 
                   onClick={() => { setEditingStakeholder(null); setIsStakeholderModalOpen(true); }}
                   className="bg-[#ff7f00] hover:bg-orange-600 text-white px-3 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-[9px] sm:text-[10px] rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
-                  STAKEHOLDER
+                  {t.raci.stakeholder}
                 </button>
               </>
             ) : (
@@ -574,7 +576,7 @@ export default function RACIMatrix() {
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-[9px] sm:text-[10px] rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4" />
-                CRIAR MATRIZ
+                {t.raci.createMatrix}
               </button>
             )}
           </div>
@@ -602,7 +604,7 @@ export default function RACIMatrix() {
           {loading ? (
             <div className="h-full flex flex-col items-center justify-center opacity-50">
               <Loader2 className="w-10 h-10 text-[#ff7f00] animate-spin mb-4" />
-              <p className="font-bold uppercase tracking-widest text-xs">Carregando matrizes...</p>
+              <p className="font-bold uppercase tracking-widest text-xs">{t.raci.loading}</p>
             </div>
           ) : !currentMatrixId ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
@@ -641,7 +643,7 @@ export default function RACIMatrix() {
               {filteredMatrices.length === 0 && (
                 <div className="col-span-full h-64 flex flex-col items-center justify-center text-gray-400 opacity-50">
                   <Grid3X3 className="w-12 h-12 mb-4 border-2 border-dashed border-gray-200 p-2 rounded-xl" />
-                  <p className="font-bold uppercase tracking-widest text-[10px]">Nenhuma matriz encontrada</p>
+                  <p className="font-bold uppercase tracking-widest text-[10px]">{t.raci.empty}</p>
                 </div>
               )}
             </div>
@@ -653,8 +655,8 @@ export default function RACIMatrix() {
                     <tr>
                       <th className="sticky left-0 z-10 bg-gray-50 border-b border-r border-gray-100 p-4 min-w-[300px] text-left">
                         <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">TAREFAS / ATIVIDADES</span>
-                          <span className="text-[9px] text-gray-300 font-medium italic">MATRIZ: {currentMatrix?.name.toUpperCase()}</span>
+                          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.raci.colTasks}</span>
+                          <span className="text-[9px] text-gray-300 font-medium italic">{t.raci.matrixLabel} {currentMatrix?.name.toUpperCase()}</span>
                         </div>
                       </th>
                       {participants.map(p => (
@@ -692,7 +694,7 @@ export default function RACIMatrix() {
                               "text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded-full uppercase",
                               p.isUser ? "bg-orange-100 text-[#ff7f00]" : "bg-red-100 text-[#f94200]"
                             )}>
-                              {p.isUser ? 'Membro' : 'Externo'}
+                              {p.isUser ? t.raci.member : t.raci.external}
                             </span>
                           </div>
                         </th>
@@ -744,7 +746,7 @@ export default function RACIMatrix() {
                     {tasks.length === 0 && (
                       <tr>
                         <td colSpan={participants.length + 1} className="p-12 text-center text-gray-400 italic">
-                          Nenhuma tarefa adicionada a esta matriz ainda.
+                          {t.raci.noTasks}
                         </td>
                       </tr>
                     )}
@@ -760,19 +762,19 @@ export default function RACIMatrix() {
           <div className="border-t border-gray-100 bg-white p-3 sm:p-4 shrink-0 flex items-center justify-center gap-4 sm:gap-8 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded bg-white text-gray-900 flex items-center justify-center font-black text-[10px] border border-gray-200">R</span>
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Responsável</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.raci.responsible}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded bg-white text-gray-900 flex items-center justify-center font-black text-[10px] border border-gray-200">A</span>
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Autoridade (Accountable)</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.raci.accountableLegend}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded bg-white text-gray-900 flex items-center justify-center font-black text-[10px] border border-gray-200">C</span>
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Consultado</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.raci.consulted}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="w-6 h-6 rounded bg-white text-gray-900 flex items-center justify-center font-black text-[10px] border border-gray-200">I</span>
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Informado</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.raci.informed}</span>
             </div>
           </div>
         )}
@@ -818,8 +820,8 @@ export default function RACIMatrix() {
         )}
         {itemToDelete && (
           <DeleteConfirmModal 
-            title={`EXCLUIR ${itemToDelete.type.toUpperCase()}`}
-            message={`Tem certeza que deseja excluir "${itemToDelete.name}"? ${itemToDelete.type === 'matrix' ? 'Todas as tarefas, stakeholders e atribuições desta matriz serão removidos permanentemente.' : ''}`}
+            title={t.raci.deleteTitle(itemToDelete.type)}
+            message={t.raci.deleteMessage(itemToDelete.name, itemToDelete.type === 'matrix')}
             onConfirm={handleDelete}
             onCancel={() => setItemToDelete(null)}
             destructive
@@ -853,8 +855,8 @@ export default function RACIMatrix() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando matriz de responsabilidades completa...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.raci.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{t.raci.exportingText}</p>
             </div>
           </motion.div>
         )}
@@ -867,6 +869,7 @@ export default function RACIMatrix() {
 
 function MatrixModal({ projectId, matrix, onClose }: { projectId: string, matrix: IRACIMatrix | null, onClose: () => void }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [name, setName] = useState(matrix?.name || '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -899,23 +902,23 @@ function MatrixModal({ projectId, matrix, onClose }: { projectId: string, matrix
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{matrix ? 'EDITAR MATRIZ' : 'NOVA MATRIZ'}</h3>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{matrix ? t.raci.editMatrix : t.raci.newMatrix}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">NOME DA MATRIZ</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.raci.matrixName}</label>
             <input 
               type="text" autoFocus required value={name} onChange={(e) => setName(e.target.value)} 
               className="w-full bg-white border border-gray-200 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-xl transition-all" 
-              placeholder="Ex: Matriz de Responsabilidades - Projeto X" 
+              placeholder={t.raci.matrixPlaceholder} 
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">CANCELAR</button>
+            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">{t.common.cancel}</button>
             <button type="submit" disabled={isSaving || !name.trim()} className="flex-1 px-6 py-3 bg-[#ff7f00] text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-orange-600 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-100 transition-all">
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSaving ? 'SALVANDO...' : 'SALVAR'}
+              {isSaving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>
@@ -926,6 +929,7 @@ function MatrixModal({ projectId, matrix, onClose }: { projectId: string, matrix
 
 function TaskModal({ projectId, matrixId, task, onClose, nextOrder }: { projectId: string, matrixId: string, task: RACITask | null, onClose: () => void, nextOrder: number }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [title, setTitle] = useState(task?.title || '');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -959,23 +963,23 @@ function TaskModal({ projectId, matrixId, task, onClose, nextOrder }: { projectI
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{task ? 'EDITAR TAREFA' : 'NOVA TAREFA'}</h3>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{task ? t.raci.editTask : t.raci.newTask}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">TÍTULO DA TAREFA / ATIVIDADE</label>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.raci.taskTitle}</label>
             <input 
               type="text" autoFocus required value={title} onChange={(e) => setTitle(e.target.value)} 
               className="w-full bg-white border border-gray-200 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-xl transition-all" 
-              placeholder="Ex: Definir Escopo do Projeto" 
+              placeholder={t.raci.taskPlaceholder} 
             />
           </div>
           <div className="flex gap-3 pt-2">
-            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">CANCELAR</button>
+            <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">{t.common.cancel}</button>
             <button type="submit" disabled={isSaving || !title.trim()} className="flex-1 px-6 py-3 bg-[#ff7f00] text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-orange-600 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-100 transition-all">
               {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isSaving ? 'SALVANDO...' : 'SALVAR'}
+              {isSaving ? t.common.saving : t.common.save}
             </button>
           </div>
         </form>
@@ -986,6 +990,7 @@ function TaskModal({ projectId, matrixId, task, onClose, nextOrder }: { projectI
 
 function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder, projectMembers, currentStakeholders }: { projectId: string, matrixId: string, stakeholder: RACIStakeholder | null, onClose: () => void, nextOrder: number, projectMembers: UserProfile[], currentStakeholders: RACIStakeholder[] }) {
   const { user } = useAuth();
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'members' | 'external'>('members');
   const [name, setName] = useState(stakeholder?.name || '');
   const [role, setRole] = useState(stakeholder?.role || '');
@@ -1046,7 +1051,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl">
         <div className="flex justify-between items-center p-6 border-b border-gray-100">
-          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{stakeholder ? 'EDITAR STAKEHOLDER' : 'GERENCIAR STAKEHOLDERS'}</h3>
+          <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest">{stakeholder ? t.raci.editStakeholder : t.raci.manageStakeholders}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors pointer-events-auto"><X className="w-6 h-6" /></button>
         </div>
 
@@ -1059,7 +1064,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
                 activeTab === 'members' ? "border-[#ff7f00] text-[#ff7f00] bg-orange-50/30" : "border-transparent text-gray-400 hover:text-gray-600"
               )}
             >
-              MEMBROS DA EQUIPE
+              {t.raci.teamMembers}
             </button>
             <button 
               onClick={() => setActiveTab('external')}
@@ -1068,7 +1073,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
                 activeTab === 'external' ? "border-[#ff7f00] text-[#ff7f00] bg-orange-50/30" : "border-transparent text-gray-400 hover:text-gray-600"
               )}
             >
-              STAKEHOLDER EXTERNO
+              {t.raci.externalStakeholder}
             </button>
           </div>
         )}
@@ -1078,27 +1083,27 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
             <form onSubmit={handleSubmitExternal} className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">NOME / CARGO</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.raci.nameRole}</label>
                   <input 
                     type="text" autoFocus required value={name} onChange={(e) => setName(e.target.value)} 
                     className="w-full bg-gray-50 border border-gray-200 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-xl text-sm transition-all" 
-                    placeholder="Ex: Diretor Financeiro" 
+                    placeholder={t.raci.namePlaceholder} 
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">PAPEL (OPCIONAL)</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">{t.raci.roleOptional}</label>
                   <input 
                     type="text" value={role} onChange={(e) => setRole(e.target.value)} 
                     className="w-full bg-gray-50 border border-gray-200 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-medium rounded-xl text-sm transition-all" 
-                    placeholder="Ex: Patrocinador, Mentor..." 
+                    placeholder={t.raci.rolePlaceholder} 
                   />
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
-                <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">CANCELAR</button>
+                <button onClick={onClose} type="button" className="flex-1 px-6 py-3 bg-white border border-gray-200 text-gray-500 font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-gray-50 transition-colors">{t.common.cancel}</button>
                 <button type="submit" disabled={isSaving || !name.trim()} className="flex-1 px-6 py-3 bg-[#ff7f00] text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-orange-600 active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-orange-100 transition-all">
                   {isSaving && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {isSaving ? 'SALVANDO...' : 'SALVAR PARTICIPANTE'}
+                  {isSaving ? t.common.saving : t.raci.saveParticipant}
                 </button>
               </div>
             </form>
@@ -1125,7 +1130,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
                 ))}
                 {membersToAdd.length === 0 && (
                   <div className="py-12 text-center text-gray-400 italic text-xs uppercase tracking-[0.2em]">
-                    Todos os membros já foram adicionados.
+                    {t.raci.allAdded}
                   </div>
                 )}
               </div>
@@ -1133,7 +1138,7 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
                 onClick={onClose} 
                 className="w-full py-3 bg-[#ff7f00] text-white font-black uppercase tracking-widest text-[10px] rounded-xl hover:bg-orange-600 transition-all active:scale-95 shadow-lg shadow-orange-100"
               >
-                CONCLUÍDO
+                {t.raci.done}
               </button>
             </div>
           )}
@@ -1144,12 +1149,13 @@ function StakeholderModal({ projectId, matrixId, stakeholder, onClose, nextOrder
 }
 
 function AssignmentModal({ currentRole, onSelect, onClose }: { currentRole: RACIRole, onSelect: (role: RACIRole) => void, onClose: () => void }) {
+  const { t } = useI18n();
   const roles: { id: RACIRole, label: string, desc: string, color: string }[] = [
-    { id: 'R', label: 'RESPONSÁVEL', desc: 'Quem executa a tarefa.', color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
-    { id: 'A', label: 'AUTORIDADE', desc: 'Quem aprova e responde pela tarefa.', color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
-    { id: 'C', label: 'CONSULTADO', desc: 'Quem fornece informações e conselhos.', color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
-    { id: 'I', label: 'INFORMADO', desc: 'Quem deve ser avisado sobre o progresso.', color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
-    { id: null, label: 'LIMPAR', desc: 'Remover atribuição.', color: 'bg-white text-gray-400 border-gray-100 hover:border-red-200' },
+    { id: 'R', label: t.raci.roleR, desc: t.raci.roleRDesc, color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
+    { id: 'A', label: t.raci.roleA, desc: t.raci.roleADesc, color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
+    { id: 'C', label: t.raci.roleC, desc: t.raci.roleCDesc, color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
+    { id: 'I', label: t.raci.roleI, desc: t.raci.roleIDesc, color: 'bg-white text-gray-900 border-gray-100 hover:border-[#ff7f00]' },
+    { id: null, label: t.raci.clear, desc: t.raci.clearDesc, color: 'bg-white text-gray-400 border-gray-100 hover:border-red-200' },
   ];
 
   return (
@@ -1157,8 +1163,8 @@ function AssignmentModal({ currentRole, onSelect, onClose }: { currentRole: RACI
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl relative">
         <div className="p-8 border-b border-gray-100 flex justify-between items-center group">
             <div className="flex flex-col gap-1 text-left">
-              <h3 className="text-2xl font-black text-[#ff7f00] uppercase tracking-tighter">ATRIBUIR PAPEL</h3>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Selecione a responsabilidade</p>
+              <h3 className="text-2xl font-black text-[#ff7f00] uppercase tracking-tighter">{t.raci.assignRole}</h3>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.raci.selectResponsibility}</p>
             </div>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-all hover:rotate-90">
               <X className="w-6 h-6 text-gray-300 hover:text-gray-900" />
@@ -1189,6 +1195,7 @@ function AssignmentModal({ currentRole, onSelect, onClose }: { currentRole: RACI
 }
 
 function DeleteConfirmModal({ title, message, onConfirm, onCancel, destructive }: { title: string, message: string, onConfirm: () => void, onCancel: () => void, destructive?: boolean }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-2xl shadow-2xl">
@@ -1202,12 +1209,12 @@ function DeleteConfirmModal({ title, message, onConfirm, onCancel, destructive }
         <div className="p-8 pt-2 space-y-8">
           <p className="text-sm text-gray-500 font-bold leading-relaxed">{message}</p>
           <div className="flex gap-3">
-            <button onClick={onCancel} className="flex-1 bg-gray-50 text-gray-400 px-4 py-4 font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition-all text-[10px]">CANCELAR</button>
+            <button onClick={onCancel} className="flex-1 bg-gray-50 text-gray-400 px-4 py-4 font-black uppercase tracking-widest rounded-xl hover:bg-gray-100 transition-all text-[10px]">{t.common.cancel}</button>
             <button onClick={onConfirm} className={clsx(
               "flex-1 px-4 py-4 font-black uppercase tracking-widest rounded-xl shadow-xl transition-all text-[10px] active:scale-95",
               destructive ? "bg-red-600 hover:bg-red-700 text-white shadow-red-200" : "bg-[#ff7f00] hover:bg-orange-600 text-white shadow-orange-100"
             )}>
-              {destructive ? 'EXCLUIR PERMANENTE' : 'CONFIRMAR'}
+              {destructive ? t.raci.deletePermanent : t.common.confirm}
             </button>
           </div>
         </div>

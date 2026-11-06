@@ -5,6 +5,7 @@ import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Project } from '../types';
 import { commitWrite } from '../utils/firestoreWrite';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface CountdownModalProps {
   project: Project;
@@ -17,10 +18,11 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
     project.targetDate ? new Date(project.targetDate.seconds * 1000).toISOString().split('T')[0] : ''
   );
   const [isSaving, setIsSaving] = useState(false);
+  const { t } = useI18n();
 
   const handleSave = async () => {
     if (!eventName.trim() || !eventDate) {
-      alert('Por favor, preencha o nome do evento e a data.');
+      alert(t.audit.fillEvent);
       return;
     }
 
@@ -33,7 +35,7 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
       onClose();
     } catch (error) {
       console.error('Erro ao salvar evento:', error);
-      alert('Erro ao salvar evento. Tente novamente.');
+      alert(t.audit.saveEventError);
     } finally {
       setIsSaving(false);
     }
@@ -54,11 +56,12 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
               <Calendar className="w-5 h-5 text-[#ff7f00]" />
             </div>
             <h2 className="text-lg font-bold uppercase tracking-wider text-gray-900">
-              Configurar Evento
+              {t.audit.configureEvent}
             </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t.common.close}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-gray-400" />
@@ -69,20 +72,20 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-              Nome do Evento
+              {t.audit.eventName}
             </label>
             <input
               type="text"
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              placeholder="Ex: Torneio Nacional"
+              placeholder={t.audit.eventNamePlaceholder}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff7f00] focus:border-transparent"
             />
           </div>
 
           <div>
             <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-              Data do Evento
+              {t.audit.eventDate}
             </label>
             <input
               type="date"
@@ -99,14 +102,14 @@ export default function CountdownModal({ project, onClose }: CountdownModalProps
             onClick={onClose}
             className="flex-1 px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-bold uppercase tracking-wider text-xs rounded-none hover:bg-gray-200 transition-colors"
           >
-            Cancelar
+            {t.common.cancel}
           </button>
           <button
             onClick={handleSave}
             disabled={isSaving}
             className="flex-1 px-4 py-2 bg-[#ff7f00] text-white font-bold uppercase tracking-wider text-xs rounded-none hover:bg-orange-600 transition-colors disabled:opacity-50"
           >
-            {isSaving ? 'Salvando...' : 'Salvar'}
+            {isSaving ? t.common.saving : t.common.save}
           </button>
         </div>
       </motion.div>

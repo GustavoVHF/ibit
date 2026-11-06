@@ -1,0 +1,22 @@
+export const audit = {
+  generateError: 'Erro ao gerar link. Tente novamente.',
+  revokeConfirm: 'Tem certeza? O link atual será invalidado e não poderá mais ser acessado.',
+  revokeError: 'Erro ao revogar link. Tente novamente.',
+  title: 'Acesso de Auditoria',
+  publicLink: '⚠️ Link Público',
+  publicLinkText: 'Qualquer pessoa com este link poderá visualizar o dashboard do projeto em modo somente leitura.',
+  generating: 'Gerando link...',
+  linkLabel: 'Link de Auditoria',
+  copied: 'Copiado!',
+  copy: 'Copiar',
+  revoke: 'Revogar Link',
+  noLink: 'Nenhum link de auditoria ativo.',
+  generate: 'Gerar Link',
+  // Countdown (event) modal
+  fillEvent: 'Por favor, preencha o nome do evento e a data.',
+  saveEventError: 'Erro ao salvar evento. Tente novamente.',
+  configureEvent: 'Configurar Evento',
+  eventName: 'Nome do Evento',
+  eventNamePlaceholder: 'Ex: Torneio Nacional',
+  eventDate: 'Data do Evento',
+};

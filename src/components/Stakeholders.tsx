@@ -37,6 +37,7 @@ import {
   Loader2
 } from 'lucide-react';
 import clsx from 'clsx';
+import { useI18n } from '../i18n/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { handleFirestoreError, logFirestoreError, OperationType } from '../utils/errorHandlers';
@@ -63,6 +64,7 @@ export default function Stakeholders() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useI18n();
   
   const [project, setProject] = useState<Project | null>(null);
   const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
@@ -178,8 +180,8 @@ export default function Stakeholders() {
     const config = ENGAGEMENT_LEVELS.find(l => l.id === level);
     if (!config) return null;
     return (
-      <span className={clsx("relative z-10 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border", config.color)} title={`${type === 'A' ? 'Atual' : 'Desejado'}: ${level}`}>
-        {type}
+      <span className={clsx("relative z-10 inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold border", config.color)} title={t.stakeholders.badgeTitle(type === 'A', t.enums.engagement[level as keyof typeof t.enums.engagement] ?? level)}>
+        {type === 'A' ? t.stakeholders.currentLetter : t.stakeholders.desiredLetter}
       </span>
     );
   };
@@ -521,16 +523,16 @@ export default function Stakeholders() {
         }
       });
       await exportToExcel({
-        filename: `stakeholders-${projectNameStr}-plano-comunicacao-${new Date().toISOString().substring(0, 10)}.xlsx`,
-        sheetName: 'Plano de Comunicação',
-        title: `Plano de Comunicação — ${project?.name || 'Projeto'}`,
+        filename: `stakeholders-${projectNameStr}-${t.stakeholders.filePlan}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+        sheetName: t.stakeholders.sheetPlan,
+        title: t.stakeholders.titlePlan(project?.name || t.common.project),
         columns: [
-          { header: 'Quem Contatar', key: 'stakeholder', type: 'string', width: 26, value: (r) => r.stakeholder.name },
-          { header: 'O que Comunicar', key: 'what', type: 'string', width: 30, value: (r) => r.comm.what },
-          { header: 'Método', key: 'method', type: 'string', width: 18, value: (r) => r.comm.method },
-          { header: 'Quando', key: 'when', type: 'string', width: 16, value: (r) => r.comm.when },
+          { header: t.stakeholders.xlsWho, key: 'stakeholder', type: 'string', width: 26, value: (r) => r.stakeholder.name },
+          { header: t.stakeholders.xlsWhat, key: 'what', type: 'string', width: 30, value: (r) => r.comm.what },
+          { header: t.stakeholders.xlsMethod, key: 'method', type: 'string', width: 18, value: (r) => r.comm.method },
+          { header: t.stakeholders.xlsWhen, key: 'when', type: 'string', width: 16, value: (r) => r.comm.when },
           {
-            header: 'Responsável',
+            header: t.stakeholders.xlsResponsible,
             key: 'responsible',
             type: 'string',
             width: 22,
@@ -544,15 +546,15 @@ export default function Stakeholders() {
 
     if (activeTab === 'Matriz') {
       await exportToExcel({
-        filename: `stakeholders-${projectNameStr}-matriz-engajamento-${new Date().toISOString().substring(0, 10)}.xlsx`,
-        sheetName: 'Matriz de Engajamento',
-        title: `Matriz de Engajamento — ${project?.name || 'Projeto'}`,
+        filename: `stakeholders-${projectNameStr}-${t.stakeholders.fileMatrix}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+        sheetName: t.stakeholders.sheetMatrix,
+        title: t.stakeholders.titleMatrix(project?.name || t.common.project),
         columns: [
-          { header: 'Stakeholder', key: 'name', type: 'string', width: 26 },
-          { header: 'Organização/Papel', key: 'org', type: 'string', width: 22, value: (r) => r.organization || r.role || '-' },
-          { header: 'Engajamento Atual', key: 'engagementCurrent', type: 'string', width: 18 },
-          { header: 'Engajamento Desejado', key: 'engagementDesired', type: 'string', width: 20 },
-          { header: 'Ação e Estratégia', key: 'actionStrategy', type: 'string', width: 36 },
+          { header: t.stakeholders.xlsStakeholder, key: 'name', type: 'string', width: 26 },
+          { header: t.stakeholders.xlsOrgRole, key: 'org', type: 'string', width: 22, value: (r) => r.organization || r.role || '-' },
+          { header: t.stakeholders.xlsEngagementCurrent, key: 'engagementCurrent', type: 'string', width: 18, value: (r) => (r.engagementCurrent ? t.enums.engagement[r.engagementCurrent] : r.engagementCurrent) },
+          { header: t.stakeholders.xlsEngagementDesired, key: 'engagementDesired', type: 'string', width: 20, value: (r) => (r.engagementDesired ? t.enums.engagement[r.engagementDesired] : r.engagementDesired) },
+          { header: t.stakeholders.xlsStrategy, key: 'actionStrategy', type: 'string', width: 36 },
         ],
         rows: stakeholders,
       });
@@ -561,20 +563,20 @@ export default function Stakeholders() {
 
     // 'Lista' tab (default): full stakeholder directory.
     await exportToExcel({
-      filename: `stakeholders-${projectNameStr}-lista-${new Date().toISOString().substring(0, 10)}.xlsx`,
-      sheetName: 'Stakeholders',
-      title: `Stakeholders — ${project?.name || 'Projeto'}`,
+      filename: `stakeholders-${projectNameStr}-${t.stakeholders.fileList}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: t.stakeholders.sheetList,
+      title: t.stakeholders.titleList(project?.name || t.common.project),
       columns: [
-        { header: 'Nome', key: 'name', type: 'string', width: 26 },
-        { header: 'Papel', key: 'role', type: 'string', width: 20 },
-        { header: 'Organização', key: 'organization', type: 'string', width: 22 },
-        { header: 'Contato', key: 'contactInfo', type: 'string', width: 22 },
-        { header: 'Influência', key: 'influenceLevel', type: 'string', width: 14 },
-        { header: 'Interesse', key: 'interestLevel', type: 'string', width: 14 },
-        { header: 'Engajamento Atual', key: 'engagementCurrent', type: 'string', width: 18 },
-        { header: 'Engajamento Desejado', key: 'engagementDesired', type: 'string', width: 20 },
+        { header: t.stakeholders.xlsName, key: 'name', type: 'string', width: 26 },
+        { header: t.stakeholders.xlsRole, key: 'role', type: 'string', width: 20 },
+        { header: t.stakeholders.xlsOrganization, key: 'organization', type: 'string', width: 22 },
+        { header: t.stakeholders.xlsContact, key: 'contactInfo', type: 'string', width: 22 },
+        { header: t.stakeholders.xlsInfluence, key: 'influenceLevel', type: 'string', width: 14, value: (r) => (r.influenceLevel ? t.enums.level[r.influenceLevel] : r.influenceLevel) },
+        { header: t.stakeholders.xlsInterest, key: 'interestLevel', type: 'string', width: 14, value: (r) => (r.interestLevel ? t.enums.level[r.interestLevel] : r.interestLevel) },
+        { header: t.stakeholders.xlsEngagementCurrent, key: 'engagementCurrent', type: 'string', width: 18, value: (r) => (r.engagementCurrent ? t.enums.engagement[r.engagementCurrent] : r.engagementCurrent) },
+        { header: t.stakeholders.xlsEngagementDesired, key: 'engagementDesired', type: 'string', width: 20, value: (r) => (r.engagementDesired ? t.enums.engagement[r.engagementDesired] : r.engagementDesired) },
         {
-          header: 'Tags',
+          header: t.stakeholders.xlsTags,
           key: 'tags',
           type: 'string',
           width: 24,
@@ -627,7 +629,7 @@ export default function Stakeholders() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -646,7 +648,7 @@ export default function Stakeholders() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {t.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -664,7 +666,7 @@ export default function Stakeholders() {
                 )}
               >
                 <List className="w-4 h-4" />
-                <span className="hidden sm:inline">LISTA</span>
+                <span className="hidden sm:inline">{t.stakeholders.tabList}</span>
               </button>
               <button
                 onClick={() => setActiveTab('Matriz')}
@@ -674,8 +676,8 @@ export default function Stakeholders() {
                 )}
               >
                 <Grid3X3 className="w-4 h-4" />
-                <span className="hidden sm:inline">MATRIZ DE ENGAJAMENTO</span>
-                <span className="sm:hidden">MATRIZ</span>
+                <span className="hidden sm:inline">{t.stakeholders.tabMatrix}</span>
+                <span className="sm:hidden">{t.stakeholders.tabMatrixShort}</span>
               </button>
               <button
                 onClick={() => setActiveTab('Plano')}
@@ -685,8 +687,8 @@ export default function Stakeholders() {
                 )}
               >
                 <Briefcase className="w-4 h-4" />
-                <span className="hidden sm:inline">PLANO DE COMUNICAÇÃO</span>
-                <span className="sm:hidden">PLANO</span>
+                <span className="hidden sm:inline">{t.stakeholders.tabPlan}</span>
+                <span className="sm:hidden">{t.stakeholders.tabPlanShort}</span>
               </button>
             </div>
 
@@ -695,7 +697,7 @@ export default function Stakeholders() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input 
                   type="text"
-                  placeholder="Procurar stakeholder..."
+                  placeholder={t.stakeholders.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -707,7 +709,7 @@ export default function Stakeholders() {
           <div className="flex gap-2 w-full sm:w-auto shrink-0 justify-center">
             <ExportButton
               formats={['pdf', 'excel']}
-              title="Exportar Stakeholders"
+              title={t.stakeholders.exportTitle}
               onExportPdf={handleExportPDF}
               onExportExcel={handleExportExcel}
               disabledFormats={{ pdf: stakeholders.length === 0, excel: stakeholders.length === 0 }}
@@ -720,7 +722,7 @@ export default function Stakeholders() {
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4" />
-                <span>NOVO PLANO</span>
+                <span>{t.stakeholders.newPlan}</span>
               </button>
             ) : (
               <button 
@@ -728,7 +730,7 @@ export default function Stakeholders() {
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100 flex-1 sm:flex-none"
               >
                 <Plus className="w-4 h-4" />
-                <span>NOVO STAKEHOLDER</span>
+                <span>{t.stakeholders.newStakeholder}</span>
               </button>
             )}
           </div>
@@ -741,14 +743,14 @@ export default function Stakeholders() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">NOME / PAPEL</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">ORGANIZAÇÃO</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">CONTATO</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">TAGS</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">INFLUÊNCIA</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">INTERESSE</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">ENGAJAMENTO (A/D)</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">AÇÕES</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">{t.stakeholders.colNameRole}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.stakeholders.colOrganization}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.stakeholders.colContact}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.stakeholders.colTags}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">{t.stakeholders.colInfluence}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">{t.stakeholders.colInterest}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">{t.stakeholders.colEngagement}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{t.common.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -804,7 +806,7 @@ export default function Stakeholders() {
                           item.influenceLevel === 'Médio' ? 'bg-yellow-50 text-yellow-600' :
                           item.influenceLevel === 'Baixo' ? 'bg-blue-50 text-blue-600' : 'text-gray-400'
                         )}>
-                          {item.influenceLevel || '-'}
+                          {item.influenceLevel ? t.enums.level[item.influenceLevel] : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -813,7 +815,7 @@ export default function Stakeholders() {
                           item.interestLevel === 'Médio' ? 'bg-yellow-50 text-yellow-600' :
                           item.interestLevel === 'Baixo' ? 'bg-blue-50 text-blue-600' : 'text-gray-400'
                         )}>
-                          {item.interestLevel || '-'}
+                          {item.interestLevel ? t.enums.level[item.interestLevel] : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -855,7 +857,7 @@ export default function Stakeholders() {
                   {filteredItems.length === 0 && (
                     <tr>
                       <td colSpan={8} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">
-                        Nenhum stakeholder encontrado.
+                        {t.stakeholders.empty}
                       </td>
                     </tr>
                   )}
@@ -869,12 +871,12 @@ export default function Stakeholders() {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">QUEM CONTACTAR?</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[250px]">O QUE COMUNICAR?</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">MÉTODO DE COMUNICAÇÃO</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">QUANDO COMUNICAR?</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">RESPONSÁVEL</th>
-                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">AÇÕES</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">{t.stakeholders.colWho}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[250px]">{t.stakeholders.colWhat}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">{t.stakeholders.colMethod}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">{t.stakeholders.colWhen}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px] text-center">{t.stakeholders.colResponsible}</th>
+                    <th className="px-4 py-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">{t.common.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -930,7 +932,7 @@ export default function Stakeholders() {
                             </button>
                             <button 
                               onClick={async () => {
-                                if (confirm('Tem certeza que deseja remover este plano de comunicação?')) {
+                                if (confirm(t.stakeholders.removePlanConfirm)) {
                                   try {
                                     const newComms = sh.communications!.filter(c => c.id !== comm.id);
                                     await updateDoc(doc(db, 'projectStakeholders', sh.id), { communications: newComms, updatedAt: serverTimestamp() });
@@ -951,7 +953,7 @@ export default function Stakeholders() {
                   {(!stakeholders.some(sh => sh.communications && sh.communications.length > 0)) && (
                     <tr>
                       <td colSpan={6} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">
-                        Nenhum plano de comunicação cadastrado.
+                        {t.stakeholders.emptyPlans}
                       </td>
                     </tr>
                   )}
@@ -965,13 +967,13 @@ export default function Stakeholders() {
               <table className="w-full text-left border-collapse min-w-[800px] table-fixed">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100">
-                    <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-[25%] border-r border-gray-100">STAKEHOLDER</th>
+                    <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-[25%] border-r border-gray-100">{t.stakeholders.colStakeholder}</th>
                     {ENGAGEMENT_LEVELS.map(level => (
                       <th key={level.id} className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center w-[11%] border-r border-gray-100">
-                        {level.label}
+                        {t.enums.engagement[level.id as keyof typeof t.enums.engagement]}
                       </th>
                     ))}
-                    <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-[20%]">AÇÃO E ESTRATÉGIA</th>
+                    <th className="p-4 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-[20%]">{t.stakeholders.colStrategy}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1017,14 +1019,14 @@ export default function Stakeholders() {
                         </td>
                       ))}
                       <td className="p-4 text-xs text-gray-600 font-medium whitespace-pre-wrap max-w-xs">
-                        {item.actionStrategy || <span className="text-gray-300 italic">Nenhuma estratégia definida</span>}
+                        {item.actionStrategy || <span className="text-gray-300 italic">{t.stakeholders.noStrategy}</span>}
                       </td>
                     </tr>
                   )})}
                   {stakeholders.length === 0 && (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-gray-500 text-sm font-medium">
-                        Nenhum stakeholder cadastrado para a matriz.
+                        {t.stakeholders.emptyMatrix}
                       </td>
                     </tr>
                   )}
@@ -1032,12 +1034,12 @@ export default function Stakeholders() {
               </table>
               <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex justify-center gap-6 text-xs text-gray-500 font-bold uppercase tracking-wider">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-700">A</span>
-                  NÍVEL ATUAL
+                  <span className="w-5 h-5 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-700">{t.stakeholders.currentLetter}</span>
+                  {t.stakeholders.currentLevel}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-white border border-gray-300 flex items-center justify-center text-gray-700">D</span>
-                  NÍVEL DESEJADO
+                  {t.stakeholders.desiredLevel}
                 </div>
               </div>
             </div>
@@ -1057,8 +1059,8 @@ export default function Stakeholders() {
         )}
         {itemToDelete && (
           <DeleteConfirmModal 
-            title="EXCLUIR STAKEHOLDER"
-            message={`Tem certeza que deseja excluir o stakeholder "${itemToDelete.name}"? Esta ação não pode ser desfeita.`}
+            title={t.stakeholders.deleteTitle}
+            message={t.stakeholders.deleteMessage(itemToDelete.name)}
             onConfirm={handleDeleteItem}
             onCancel={() => setItemToDelete(null)}
           />
@@ -1091,7 +1093,7 @@ export default function Stakeholders() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.stakeholders.exporting}</h2>
               <p className="text-sm text-gray-500 font-medium">Generating stakeholders document...</p>
             </div>
           </motion.div>
@@ -1118,6 +1120,7 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
   editingPlan: { stakeholderId: string, planId?: string } | null;
   projectMembers: UserProfile[];
 }) {
+  const { t } = useI18n();
   const [stakeholderId, setStakeholderId] = useState('');
   const [what, setWhat] = useState('');
   const [method, setMethod] = useState('');
@@ -1147,7 +1150,7 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stakeholderId) {
-      alert("Selecione um Stakeholder.");
+      alert(t.stakeholders.selectStakeholderAlert);
       return;
     }
 
@@ -1187,7 +1190,7 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
       >
         <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
           <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">
-            {editingPlan?.planId ? 'EDITAR PLANO DE COMUNICAÇÃO' : 'NOVO PLANO DE COMUNICAÇÃO'}
+            {editingPlan?.planId ? t.stakeholders.editPlan : t.stakeholders.newPlanTitle}
           </h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-6 h-6" />
@@ -1196,7 +1199,7 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
 
         <form id="comm-plan-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide text-gray-900">
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Stakeholder *</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.stakeholderRequired}</label>
             <select
               value={stakeholderId}
               onChange={(e) => setStakeholderId(e.target.value)}
@@ -1204,7 +1207,7 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
               className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg disabled:opacity-50 cursor-pointer"
               required
             >
-              <option value="">Selecione um stakeholder</option>
+              <option value="">{t.stakeholders.selectStakeholder}</option>
               {stakeholders.map(sh => (
                 <option key={sh.id} value={sh.id}>{sh.name} {sh.role ? `(${sh.role})` : ''}</option>
               ))}
@@ -1212,49 +1215,49 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">O que comunicar? *</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.whatLabel}</label>
             <input
               type="text"
               value={what}
               onChange={(e) => setWhat(e.target.value)}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400 uppercase"
-              placeholder="Ex: Resultados da Regional"
+              placeholder={t.stakeholders.whatPlaceholder}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Método de Comunicação *</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.methodLabel}</label>
             <input
               type="text"
               value={method}
               onChange={(e) => setMethod(e.target.value)}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400 uppercase"
-              placeholder="Ex: Video Chamada"
+              placeholder={t.stakeholders.methodPlaceholder}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Quando comunicar? *</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.whenLabel}</label>
             <input
               type="text"
               value={when}
               onChange={(e) => setWhen(e.target.value)}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400 uppercase"
-              placeholder="Ex: Toda vez que o resultado sair"
+              placeholder={t.stakeholders.whenPlaceholder}
               required
             />
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Responsável</label>
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.responsibleLabel}</label>
             <select
               value={responsible}
               onChange={(e) => setResponsible(e.target.value)}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg cursor-pointer"
             >
-              <option value="">Selecione um responsável</option>
+              <option value="">{t.stakeholders.selectResponsible}</option>
               {projectMembers.map(member => (
                 <option key={member.uid} value={member.uid}>{member.name}</option>
               ))}
@@ -1268,14 +1271,14 @@ function CommunicationPlanModal({ isOpen, onClose, stakeholders, editingPlan, pr
             onClick={onClose}
             className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors"
           >
-            CANCELAR
+            {t.common.cancel}
           </button>
           <button
             type="submit"
             form="comm-plan-form"
             className="px-8 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 transition-all active:scale-95 shadow-md shadow-orange-200"
           >
-            SALVAR
+            {t.common.save}
           </button>
         </div>
       </motion.div>
@@ -1294,6 +1297,7 @@ interface DeleteConfirmModalProps {
 }
 
 function DeleteConfirmModal({ title, message, onConfirm, onCancel }: DeleteConfirmModalProps) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div 
@@ -1317,13 +1321,13 @@ function DeleteConfirmModal({ title, message, onConfirm, onCancel }: DeleteConfi
               onClick={onCancel}
               className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-widest transition-colors rounded-lg hover:bg-gray-50 text-xs"
             >
-              CANCELAR
+              {t.common.cancel}
             </button>
             <button 
               onClick={onConfirm}
               className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-3 font-bold uppercase tracking-widest transition-colors rounded-lg shadow-lg shadow-red-100 text-xs"
             >
-              EXCLUIR
+              {t.common.delete}
             </button>
           </div>
         </div>
@@ -1343,6 +1347,7 @@ interface ItemModalProps {
 }
 
 function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
+  const { t } = useI18n();
   const [name, setName] = useState(item?.name || '');
   const [description, setDescription] = useState(item?.description || '');
   const [role, setRole] = useState(item?.role || '');
@@ -1448,7 +1453,7 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl flex flex-col">
         <div className="flex justify-between items-center p-6 border-b border-gray-100 shrink-0">
-          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{item ? 'EDITAR STAKEHOLDER' : 'NOVO STAKEHOLDER'}</h3>
+          <h3 className="text-xl font-bold text-gray-900 uppercase tracking-widest">{item ? t.stakeholders.editStakeholder : t.stakeholders.newStakeholder}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors"><X className="w-6 h-6" /></button>
         </div>
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-hide text-gray-900">
@@ -1456,43 +1461,43 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Esquerda: Informações Gerais */}
             <div className="space-y-6">
-              <h4 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] border-b border-gray-200 pb-2">Informações Gerais</h4>
+              <h4 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] border-b border-gray-200 pb-2">{t.stakeholders.generalInfo}</h4>
               
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NOME *</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.nameLabel}</label>
                 <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-400" />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">PAPEL / CARGO</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.roleLabel}</label>
                   <input type="text" value={role} onChange={(e) => setRole(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">ORGANIZAÇÃO</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.organizationLabel}</label>
                   <input type="text" value={organization} onChange={(e) => setOrganization(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">INFORMAÇÕES DE CONTATO</label>
-                <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder="Email, Telefone, LinkedIn..." className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400" />
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.contactLabel}</label>
+                <input type="text" value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} placeholder={t.stakeholders.contactPlaceholder} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg placeholder-gray-400" />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">DESCRIÇÃO</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.descriptionLabel}</label>
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none h-24 rounded-lg" />
               </div>
               
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">ATIVIDADES NO PROJETO</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.activitiesLabel}</label>
                 <textarea value={activities} onChange={(e) => setActivities(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none h-20 rounded-lg" />
               </div>
               
               {/* Tags Section */}
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                   <TagIcon className="w-4 h-4" /> TAGS
+                   <TagIcon className="w-4 h-4" /> {t.inventory.tags}
                 </label>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {projectTags.map(tag => (
@@ -1516,7 +1521,7 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
                   <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-3">
                     <input
                       type="text" autoFocus value={newTagLabel} onChange={(e) => setNewTagLabel(e.target.value)}
-                      placeholder="Nome da tag..."
+                      placeholder={t.task.tagNamePlaceholder}
                       className="w-full bg-white border border-gray-300 px-3 py-2 text-xs text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg"
                     />
                     <div className="flex flex-wrap gap-1.5 justify-center">
@@ -1535,7 +1540,7 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
                       ))}
                     </div>
                     <div className="flex gap-2">
-                       <button onClick={handleAddCustomTag} type="button" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all active:scale-95">CRIAR</button>
+                       <button onClick={handleAddCustomTag} type="button" className="flex-1 bg-[#ff7f00] text-white py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg hover:bg-orange-600 transition-all active:scale-95">{t.task.create}</button>
                        <button onClick={() => setIsAddingCustomTag(false)} type="button" className="px-3 py-2 bg-white border border-gray-200 text-gray-400 rounded-lg hover:bg-gray-50 transition-all"><X className="w-3 h-3" /></button>
                     </div>
                   </div>
@@ -1545,7 +1550,7 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
                     onClick={() => setIsAddingCustomTag(true)}
                     className="w-full py-2 border-2 border-dashed border-gray-200 text-gray-400 hover:border-[#ff7f00] hover:text-[#ff7f00] rounded-lg transition-all text-[10px] font-bold uppercase tracking-widest"
                   >
-                    + NOVA TAG
+                    {t.inventory.newTag}
                   </button>
                 )}
               </div>
@@ -1553,55 +1558,55 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
             
             {/* Direita: Avaliação e Matriz */}
             <div className="space-y-6">
-              <h4 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] border-b border-gray-200 pb-2">Avaliação e Engajamento</h4>
+              <h4 className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] border-b border-gray-200 pb-2">{t.stakeholders.assessment}</h4>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">GRAU DE INFLUÊNCIA</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.influenceLabel}</label>
                   <select value={influenceLevel} onChange={(e) => setInfluenceLevel(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-500 rounded-lg">
-                    <option value="">Não definido</option>
-                    <option value="Alto">Alto</option>
-                    <option value="Médio">Médio</option>
-                    <option value="Baixo">Baixo</option>
+                    <option value="">{t.stakeholders.notDefined}</option>
+                    <option value="Alto">{t.enums.level.Alto}</option>
+                    <option value="Médio">{t.enums.level['Médio']}</option>
+                    <option value="Baixo">{t.enums.level.Baixo}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">GRAU DE INTERESSE</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.interestLabel}</label>
                   <select value={interestLevel} onChange={(e) => setInterestLevel(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-500 rounded-lg">
-                    <option value="">Não definido</option>
-                    <option value="Alto">Alto</option>
-                    <option value="Médio">Médio</option>
-                    <option value="Baixo">Baixo</option>
+                    <option value="">{t.stakeholders.notDefined}</option>
+                    <option value="Alto">{t.enums.level.Alto}</option>
+                    <option value="Médio">{t.enums.level['Médio']}</option>
+                    <option value="Baixo">{t.enums.level.Baixo}</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">EXPECTATIVAS</label>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.expectationsLabel}</label>
                 <textarea value={expectations} onChange={(e) => setExpectations(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-indigo-500 resize-none h-20 rounded-lg" />
               </div>
 
               <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 space-y-4">
                 <h5 className="text-xs font-bold text-gray-700 uppercase tracking-widest flex items-center gap-2">
-                  <Grid3X3 className="w-4 h-4" /> Matriz de Engajamento
+                  <Grid3X3 className="w-4 h-4" /> {t.stakeholders.engagementMatrix}
                 </h5>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NÍVEL ATUAL (A)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.currentLevelA}</label>
                   <select value={engagementCurrent} onChange={(e) => setEngagementCurrent(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-500 rounded-lg">
-                    <option value="">Não definido</option>
-                    {ENGAGEMENT_LEVELS.map(l => <option key={`A_${l.id}`} value={l.id}>{l.label}</option>)}
+                    <option value="">{t.stakeholders.notDefined}</option>
+                    {ENGAGEMENT_LEVELS.map(l => <option key={`A_${l.id}`} value={l.id}>{t.enums.engagement[l.id as keyof typeof t.enums.engagement]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NÍVEL DESEJADO (D)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.desiredLevelD}</label>
                   <select value={engagementDesired} onChange={(e) => setEngagementDesired(e.target.value)} className="w-full bg-white border border-gray-300 px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:border-indigo-500 rounded-lg">
-                    <option value="">Não definido</option>
-                    {ENGAGEMENT_LEVELS.map(l => <option key={`D_${l.id}`} value={l.id}>{l.label}</option>)}
+                    <option value="">{t.stakeholders.notDefined}</option>
+                    {ENGAGEMENT_LEVELS.map(l => <option key={`D_${l.id}`} value={l.id}>{t.enums.engagement[l.id as keyof typeof t.enums.engagement]}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">AÇÃO E ESTRATÉGIA</label>
-                  <textarea value={actionStrategy} onChange={(e) => setActionStrategy(e.target.value)} placeholder="Como mover este stakeholder do nível atual para o desejado?" className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-indigo-500 resize-none h-24 rounded-lg" />
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{t.stakeholders.colStrategy}</label>
+                  <textarea value={actionStrategy} onChange={(e) => setActionStrategy(e.target.value)} placeholder={t.stakeholders.strategyPlaceholder} className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-indigo-500 resize-none h-24 rounded-lg" />
                 </div>
               </div>
 
@@ -1610,8 +1615,8 @@ function ItemModal({ projectId, item, projectTags, onClose }: ItemModalProps) {
 
         </form>
         <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex justify-end gap-3 shrink-0 rounded-b-2xl">
-          <button onClick={onClose} type="button" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">CANCELAR</button>
-          <button onClick={handleSubmit} disabled={isSaving || !name.trim()} className="px-8 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95">{isSaving ? 'SALVANDO...' : 'SALVAR'}</button>
+          <button onClick={onClose} type="button" className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">{t.common.cancel}</button>
+          <button onClick={handleSubmit} disabled={isSaving || !name.trim()} className="px-8 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all active:scale-95">{isSaving ? t.common.saving : t.common.save}</button>
         </div>
       </motion.div>
     </div>

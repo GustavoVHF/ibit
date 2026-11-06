@@ -7,12 +7,14 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import logoIbit from '../media/ibitlogo.svg';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function Login() {
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     if (user) {
@@ -48,7 +50,7 @@ export default function Login() {
       navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
-      setError('Falha ao autenticar com o Google. Tente novamente.');
+      setError(t.auth.googleError);
       setIsLoggingIn(false);
     }
   };
@@ -63,7 +65,7 @@ export default function Login() {
       >
         <div className="flex flex-col items-center mb-8">
           <div className="w-48 mb-4">
-            <img src={logoIbit} alt="Logo Ibit" className="w-full h-full object-contain" />
+            <img src={logoIbit} alt={t.common.logoAlt} className="w-full h-full object-contain" />
           </div>
           <h1 className="text-[10px] font-black tracking-[0.2em] font-sans text-gray-400 text-center leading-tight whitespace-nowrap">
             <span className="text-[#ff7f00]">BY CARNELIAN ESCUDERIA</span>
@@ -85,7 +87,7 @@ export default function Login() {
             {isLoggingIn ? (
               <>
                 <div className="w-4 h-4 border-2 border-[#ff7f00] border-t-transparent rounded-full animate-spin" />
-                Entrando...
+                {t.auth.signingIn}
               </>
             ) : (
               <>
@@ -95,14 +97,14 @@ export default function Login() {
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
                 </svg>
-                Entrar com Google
+                {t.auth.signInWithGoogle}
               </>
             )}
           </button>
 
           <div className="pt-6 border-t border-gray-100 text-center">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.1em] leading-relaxed">
-              Faça login com sua conta Google <br /> para acessar a plataforma.
+              {t.auth.helpLine1} <br /> {t.auth.helpLine2}
             </p>
           </div>
         </div>

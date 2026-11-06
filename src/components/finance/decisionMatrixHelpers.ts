@@ -1,4 +1,5 @@
 import { DecisionCriterion, DecisionCriterionKey, DecisionOption } from '../../types';
+import { getLocale, getMessages } from '../../i18n';
 
 // Matriz de Decisão Ponderada — Weighted Sum Model (WSM).
 // Pesos normalizados (Σ = 100%), notas em escala comum 0–10 por normalização linear:
@@ -19,54 +20,57 @@ export interface CriterionMeta {
   description: string;
 }
 
-export const CRITERIA_CATALOG: CriterionMeta[] = [
+// Display texts are resolved on read so they follow the current language; key is the stored value.
+const text = (key: DecisionCriterionKey) => getMessages().finance.criteria[key];
+
+export const CRITERIA_CATALOG: (CriterionMeta & ThisType<CriterionMeta>)[] = [
   {
     key: 'preco',
-    label: 'Preço',
+    get label() { return text(this.key).label; },
     type: 'cost',
     kind: 'quantitative',
-    unit: 'R$',
-    description: 'Menor preço é melhor',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
   {
     key: 'pesoPorValor',
-    label: 'Peso por valor',
+    get label() { return text(this.key).label; },
     type: 'cost',
     kind: 'quantitative',
-    unit: 'R$/kg',
-    description: 'Preço ÷ peso (R$/kg); menor é melhor',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
   {
     key: 'ratePreco',
-    label: 'Rate de preço',
+    get label() { return text(this.key).label; },
     type: 'benefit',
     kind: 'qualitative',
-    unit: '/10',
-    description: 'Sua nota de custo-benefício (1–10)',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
   {
     key: 'rateQualidade',
-    label: 'Rate de qualidade',
+    get label() { return text(this.key).label; },
     type: 'benefit',
     kind: 'quantitative',
-    unit: '★',
-    description: 'Estrelas (0–5); maior é melhor',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
   {
     key: 'sustentabilidade',
-    label: 'Sustentabilidade',
+    get label() { return text(this.key).label; },
     type: 'benefit',
     kind: 'qualitative',
-    unit: '/10',
-    description: 'Sua nota de sustentabilidade (1–10)',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
   {
     key: 'tempoEntrega',
-    label: 'Tempo de entrega',
+    get label() { return text(this.key).label; },
     type: 'cost',
     kind: 'quantitative',
-    unit: 'dias',
-    description: 'Prazo em dias; menor é melhor',
+    get unit() { return text(this.key).unit; },
+    get description() { return text(this.key).description; },
   },
 ];
 
@@ -177,25 +181,26 @@ const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFin
 
 function fieldIssue(option: DecisionOption, field: OptionField): string | null {
   const v = option[field];
+  const m = getMessages().finance;
   switch (field) {
     case 'price':
-      if (!isNum(v)) return 'informe o preço';
-      return v > 0 ? null : 'o preço deve ser maior que zero';
+      if (!isNum(v)) return m.issuePrice;
+      return v > 0 ? null : m.issuePricePositive;
     case 'weightKg':
-      if (!isNum(v)) return 'informe o peso';
-      return v > 0 ? null : 'o peso deve ser maior que zero';
+      if (!isNum(v)) return m.issueWeight;
+      return v > 0 ? null : m.issueWeightPositive;
     case 'deliveryDays':
-      if (!isNum(v)) return 'informe o prazo de entrega';
-      return Number.isInteger(v) && v >= 1 ? null : 'o prazo de entrega deve ser um número inteiro de dias (≥ 1)';
+      if (!isNum(v)) return m.issueDelivery;
+      return Number.isInteger(v) && v >= 1 ? null : m.issueDeliveryInt;
     case 'priceRating':
-      if (!isNum(v)) return 'informe o rate de preço';
-      return v >= 1 && v <= 10 ? null : 'o rate de preço deve estar entre 1 e 10';
+      if (!isNum(v)) return m.issuePriceRating;
+      return v >= 1 && v <= 10 ? null : m.issuePriceRatingRange;
     case 'qualityRating':
-      if (!isNum(v)) return 'informe a nota de qualidade';
-      return v >= 0 && v <= 5 ? null : 'a nota de qualidade deve estar entre 0 e 5';
+      if (!isNum(v)) return m.issueQuality;
+      return v >= 0 && v <= 5 ? null : m.issueQualityRange;
     case 'sustainability':
-      if (!isNum(v)) return 'informe a sustentabilidade';
-      return v >= 1 && v <= 10 ? null : 'a sustentabilidade deve estar entre 1 e 10';
+      if (!isNum(v)) return m.issueSustainability;
+      return v >= 1 && v <= 10 ? null : m.issueSustainabilityRange;
     default:
       return null;
   }
@@ -248,7 +253,7 @@ export interface MatrixComputation {
 export function computeMatrix(options: DecisionOption[], criteria: DecisionCriterion[]): MatrixComputation {
   const issues: MatrixIssue[] = [];
   if (criteria.length === 0 || sumWeights(criteria) <= 0) {
-    issues.push({ optionIndex: null, key: null, message: 'Selecione ao menos um critério com peso maior que zero' });
+    issues.push({ optionIndex: null, key: null, message: getMessages().finance.issueNoCriteria });
   }
   issues.push(...validateOptions(options, criteria));
 
@@ -340,21 +345,21 @@ export function validateProductIdentity(options: DecisionOption[]): MatrixIssue[
   const issues: MatrixIssue[] = [];
   options.forEach((o, optionIndex) => {
     if (o.source === 'shopee' && !o.itemId) {
-      issues.push({ optionIndex, key: null, message: 'selecione um produto da Shopee' });
+      issues.push({ optionIndex, key: null, message: getMessages().finance.issueShopeeProduct });
       return;
     }
     if (o.source === 'manual') {
-      if (!isHttpUrl(o.link)) issues.push({ optionIndex, key: null, message: 'informe o link do produto (http/https)' });
-      if (!o.storeName.trim()) issues.push({ optionIndex, key: null, message: 'informe o nome da loja' });
+      if (!isHttpUrl(o.link)) issues.push({ optionIndex, key: null, message: getMessages().finance.issueLink });
+      if (!o.storeName.trim()) issues.push({ optionIndex, key: null, message: getMessages().finance.issueStore });
     }
-    if (!o.name.trim()) issues.push({ optionIndex, key: null, message: 'informe o nome do produto' });
+    if (!o.name.trim()) issues.push({ optionIndex, key: null, message: getMessages().finance.issueName });
   });
   return issues;
 }
 
-const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+const brl = (v: number) => new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'BRL' }).format(v);
 const num = (v: number, digits = 2) =>
-  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: digits }).format(v);
+  new Intl.NumberFormat(getLocale(), { minimumFractionDigits: 0, maximumFractionDigits: digits }).format(v);
 
 export function formatCriterionValue(key: DecisionCriterionKey, value: number | null): string {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -364,7 +369,7 @@ export function formatCriterionValue(key: DecisionCriterionKey, value: number | 
     case 'pesoPorValor':
       return `${brl(value)}/kg`;
     case 'tempoEntrega':
-      return `${num(value, 0)} ${value === 1 ? 'dia' : 'dias'}`;
+      return getMessages().finance.daysValue(num(value, 0), value === 1);
     case 'rateQualidade':
       return `${num(value, 2)} ★`;
     default:
@@ -373,5 +378,5 @@ export function formatCriterionValue(key: DecisionCriterionKey, value: number | 
 }
 
 export function optionLabel(index: number): string {
-  return `Produto ${String.fromCharCode(65 + index)}`;
+  return getMessages().finance.optionLabel(String.fromCharCode(65 + index));
 }

@@ -5,6 +5,7 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { Project } from '../types';
 import { commitWrite } from '../utils/firestoreWrite';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface AuditModalProps {
   project: Project;
@@ -14,6 +15,7 @@ interface AuditModalProps {
 export default function AuditModal({ project, onClose }: AuditModalProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   const generateToken = async () => {
     setIsGenerating(true);
@@ -22,20 +24,20 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
       await commitWrite(updateDoc(doc(db, 'projects', project.id), { auditToken: token }), { label: 'o link de auditoria' });
     } catch (error) {
       console.error('Erro ao gerar token:', error);
-      alert('Erro ao gerar link. Tente novamente.');
+      alert(t.audit.generateError);
     } finally {
       setIsGenerating(false);
     }
   };
 
   const revokeToken = async () => {
-    if (!confirm('Tem certeza? O link atual será invalidado e não poderá mais ser acessado.')) return;
+    if (!confirm(t.audit.revokeConfirm)) return;
 
     try {
       await commitWrite(updateDoc(doc(db, 'projects', project.id), { auditToken: null }), { label: 'a revogação do link' });
     } catch (error) {
       console.error('Erro ao revogar token:', error);
-      alert('Erro ao revogar link. Tente novamente.');
+      alert(t.audit.revokeError);
     }
   };
 
@@ -61,11 +63,12 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
               <Link className="w-5 h-5 text-[#ff7f00]" />
             </div>
             <h2 className="text-lg font-bold uppercase tracking-wider text-gray-900">
-              Acesso de Auditoria
+              {t.audit.title}
             </h2>
           </div>
           <button
             onClick={onClose}
+            aria-label={t.common.close}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-gray-400" />
@@ -78,8 +81,8 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
           <div className="flex gap-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
             <AlertTriangle className="w-5 h-5 text-[#ff7f00] shrink-0 mt-0.5" />
             <div className="text-sm text-gray-700">
-              <p className="font-bold mb-1">⚠️ Link Público</p>
-              <p>Qualquer pessoa com este link poderá visualizar o dashboard do projeto em modo somente leitura.</p>
+              <p className="font-bold mb-1">{t.audit.publicLink}</p>
+              <p>{t.audit.publicLinkText}</p>
             </div>
           </div>
 
@@ -87,13 +90,13 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
           {isGenerating ? (
             <div className="flex flex-col items-center justify-center py-8">
               <div className="w-8 h-8 border-4 border-[#ff7f00] border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">Gerando link...</p>
+              <p className="text-sm font-bold text-gray-400 uppercase tracking-wider">{t.audit.generating}</p>
             </div>
           ) : project.auditToken ? (
             <div className="space-y-4">
               <div>
                 <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                  Link de Auditoria
+                  {t.audit.linkLabel}
                 </label>
                 <div className="flex gap-2">
                   <input
@@ -107,7 +110,7 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
                     className="px-4 py-2 bg-[#ff7f00] text-white font-bold uppercase tracking-wider text-xs rounded-none hover:bg-orange-600 transition-colors flex items-center gap-2"
                   >
                     <Copy className="w-4 h-4" />
-                    {copied ? 'Copiado!' : 'Copiar'}
+                    {copied ? t.audit.copied : t.audit.copy}
                   </button>
                 </div>
               </div>
@@ -117,17 +120,17 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
                 className="w-full px-4 py-2 bg-red-50 border border-red-200 text-red-600 font-bold uppercase tracking-wider text-xs rounded-none hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Revogar Link
+                {t.audit.revoke}
               </button>
             </div>
           ) : (
             <div className="text-center py-8">
-              <p className="text-sm text-gray-500 mb-4">Nenhum link de auditoria ativo.</p>
+              <p className="text-sm text-gray-500 mb-4">{t.audit.noLink}</p>
               <button
                 onClick={generateToken}
                 className="px-6 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-wider text-xs rounded-none hover:bg-orange-600 transition-colors"
               >
-                Gerar Link
+                {t.audit.generate}
               </button>
             </div>
           )}
@@ -139,7 +142,7 @@ export default function AuditModal({ project, onClose }: AuditModalProps) {
             onClick={onClose}
             className="px-4 py-2 bg-gray-100 border border-gray-300 text-gray-700 font-bold uppercase tracking-wider text-xs rounded-none hover:bg-gray-200 transition-colors"
           >
-            Fechar
+            {t.common.close}
           </button>
         </div>
       </motion.div>

@@ -4,6 +4,8 @@ import clsx from 'clsx';
 import { DecisionOption, ShopeeProduct } from '../../types';
 import { emptyOption, isHttpUrl, storeNameFromUrl } from './decisionMatrixHelpers';
 import { shopeeProductToOption, shopeeRequest } from './shopeeClient';
+import { getLocale, getMessages } from '../../i18n';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface ProductSourcePickerProps {
   label: string; // 'Produto A' | 'Produto B'
@@ -12,16 +14,17 @@ interface ProductSourcePickerProps {
 }
 
 const formatCurrency = (val: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  new Intl.NumberFormat(getLocale(), { style: 'currency', currency: 'BRL' }).format(val);
 
-const compactNumber = new Intl.NumberFormat('pt-BR', { notation: 'compact', maximumFractionDigits: 1 });
-const ratingNumber = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// Built per call so the number format follows the current language.
+const compactNumber = () => new Intl.NumberFormat(getLocale(), { notation: 'compact', maximumFractionDigits: 1 });
+const ratingNumber = () => new Intl.NumberFormat(getLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 // '★ 4,8 · 1,2 mil vendidos' (cada parte some quando o valor é 0 ou ausente)
 const resultMeta = (p: ShopeeProduct) => {
   const parts: string[] = [];
-  if (p.ratingStar) parts.push(`★ ${ratingNumber.format(p.ratingStar)}`);
-  if (p.sales) parts.push(`${compactNumber.format(p.sales)} vendidos`);
+  if (p.ratingStar) parts.push(`★ ${ratingNumber().format(p.ratingStar)}`);
+  if (p.sales) parts.push(getMessages().finance.sold(compactNumber().format(p.sales)));
   return parts.join(' · ');
 };
 
@@ -50,6 +53,7 @@ function Thumb({ src, alt }: { src: string | null | undefined; alt: string }) {
 }
 
 export default function ProductSourcePicker({ label, value, onChange }: ProductSourcePickerProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ShopeeProduct[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,7 +81,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
     if (!q) return;
     const byLink = /^https?:\/\//i.test(q);
     if (!byLink && (q.length < 2 || q.length > 100)) {
-      setError('A pesquisa deve ter entre 2 e 100 caracteres');
+      setError(t.finance.searchLength);
       return;
     }
     setLoading(true);
@@ -85,16 +89,16 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
     try {
       if (byLink) {
         const products = await shopeeRequest({ mode: 'url', url: q });
-        if (products.length === 0) throw new Error('Produto não encontrado');
+        if (products.length === 0) throw new Error(t.finance.productNotFound);
         pickProduct(products[0]);
       } else {
         const products = await shopeeRequest({ mode: 'search', keyword: q });
         setResults(products);
-        if (products.length === 0) setError('Nenhum produto encontrado');
+        if (products.length === 0) setError(t.finance.noProductFound);
       }
     } catch (e) {
       setResults([]);
-      setError(e instanceof Error ? e.message : 'Erro ao consultar a Shopee');
+      setError(e instanceof Error ? e.message : t.finance.shopeeError);
     } finally {
       setLoading(false);
     }
@@ -117,7 +121,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
         <div className="flex bg-gray-100 p-0.5 rounded-lg">
           {([
             { id: 'shopee', label: 'Shopee' },
-            { id: 'manual', label: 'Outra loja' },
+            { id: 'manual', label: t.finance.otherStore },
           ] as const).map((opt) => (
             <button
               key={opt.id}
@@ -152,7 +156,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
               href={value.link}
               target="_blank"
               rel="noreferrer"
-              title="Abrir link"
+              title={t.finance.openLink}
               className="text-gray-400 hover:text-[#ff7f00] transition-colors shrink-0"
             >
               <ExternalLink className="w-4 h-4" />
@@ -160,7 +164,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
           )}
           <button
             type="button"
-            title="Trocar produto"
+            title={t.finance.changeProduct}
             onClick={() => onChange({ ...emptyOption('shopee'), ...keepEvaluation(value) })}
             className="text-gray-400 hover:text-gray-900 transition-colors shrink-0"
           >
@@ -184,13 +188,13 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
                 }
               }}
               className={inputCls}
-              placeholder="Pesquise ou cole o link da Shopee"
+              placeholder={t.finance.searchShopee}
             />
             <button
               type="button"
               onClick={submit}
               disabled={loading || !query.trim()}
-              title="Buscar"
+              title={t.finance.search}
               className="shrink-0 px-3 py-2.5 bg-[#ff7f00] text-white rounded-lg hover:bg-orange-600 active:scale-95 flex items-center transition-all disabled:opacity-50 disabled:pointer-events-none"
             >
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -226,7 +230,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
       {value.source === 'manual' && (
         <>
           <div>
-            <label className={labelCls}>Link</label>
+            <label className={labelCls}>{t.finance.link}</label>
             <input
               type="url"
               value={value.link}
@@ -237,7 +241,7 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Loja</label>
+              <label className={labelCls}>{t.finance.store}</label>
               <input
                 type="text"
                 value={value.storeName}
@@ -247,13 +251,13 @@ export default function ProductSourcePicker({ label, value, onChange }: ProductS
               />
             </div>
             <div>
-              <label className={labelCls}>Produto</label>
+              <label className={labelCls}>{t.finance.product}</label>
               <input
                 type="text"
                 value={value.name}
                 onChange={(e) => set({ name: e.target.value })}
                 className={inputCls}
-                placeholder="Nome do produto"
+                placeholder={t.finance.productNamePlaceholder}
               />
             </div>
           </div>

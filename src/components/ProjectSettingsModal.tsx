@@ -9,6 +9,7 @@ import { commitWrite, friendlyWriteError, withTimeout } from '../utils/firestore
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { getUserRole, isProjectOwner } from '../utils/roleHelpers';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface ProjectSettingsModalProps {
   project: Project;
@@ -16,6 +17,7 @@ interface ProjectSettingsModalProps {
 }
 
 export default function ProjectSettingsModal({ project, onClose }: ProjectSettingsModalProps) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || '');
@@ -53,12 +55,12 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      setError('Por favor, selecione apenas arquivos de imagem.');
+      setError(t.profile.imageOnly);
       return;
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      setError('A imagem deve ter no máximo 2MB.');
+      setError(t.projectSettings.imageTooBig);
       return;
     }
 
@@ -83,11 +85,11 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
       if (response.ok) {
         setPhotoURL(data.secure_url);
       } else {
-        throw new Error(data.error?.message || 'Erro ao fazer upload da imagem.');
+        throw new Error(data.error?.message || t.profile.uploadError);
       }
     } catch (err: any) {
       console.error('Cloudinary Error:', err);
-      setError('Falha na comunicação com o servidor de imagens. Verifique as configurações.');
+      setError(t.projectSettings.uploadServerError);
     } finally {
       setIsUploading(false);
     }
@@ -161,8 +163,8 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
         className="bg-white border border-gray-200 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl rounded-xl"
       >
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">Personalizar Projeto</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">{t.projectSettings.title}</h2>
+          <button onClick={onClose} aria-label={t.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -178,7 +180,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
           <div className="flex flex-col md:flex-row gap-8 items-start">
             <div className="flex-shrink-0 flex flex-col items-center gap-4">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-full">
-                Capa do Projeto
+                {t.projectSettings.cover}
               </label>
               
               <div 
@@ -187,17 +189,17 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
               >
                 {photoURL ? (
                   <>
-                    <img src={photoURL} alt="Capa" className="w-full h-full object-cover" />
+                    <img src={photoURL} alt={t.projectSettings.coverAlt} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
                       <Upload className="w-6 h-6 mb-1" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Trocar Capa</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">{t.projectSettings.changeCover}</span>
                     </div>
                   </>
                 ) : (
                   <div className="text-gray-400 flex flex-col items-center group-hover:text-[#ff7f00] transition-colors">
                     <ImageIcon className="w-8 h-8 mb-2" />
                     <span className="text-[10px] font-bold uppercase tracking-wider text-center px-4">
-                      Clique para fazer upload
+                      {t.projectSettings.clickToUpload}
                     </span>
                   </div>
                 )}
@@ -223,7 +225,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                   onClick={() => setPhotoURL('')}
                   className="text-xs text-red-500 font-bold uppercase tracking-wider hover:underline"
                 >
-                  Remover Foto
+                  {t.projectSettings.removePhoto}
                 </button>
               )}
             </div>
@@ -232,7 +234,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
             <div className="flex-1 space-y-6 w-full">
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Nome do Projeto *
+                  {t.projectSettings.nameLabel}
                 </label>
                 <input
                   type="text"
@@ -245,14 +247,14 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
 
               <div>
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Descrição
+                  {t.dashboard.descriptionLabel}
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={4}
                   className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] resize-none rounded-md transition-colors"
-                  placeholder="Objetivos, metadados da escuderia..."
+                  placeholder={t.projectSettings.descriptionPlaceholder}
                 />
               </div>
             </div>
@@ -264,14 +266,14 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                 type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 transition-colors rounded-none flex items-center gap-2 w-full sm:w-auto justify-center"
-                title="Apagar Projeto"
+                title={t.dashboard.deleteProjectButton}
               >
                 <Trash2 className="w-4 h-4" />
-                Apagar Projeto
+                {t.dashboard.deleteProjectButton}
               </button>
             ) : (
               <div className="text-xs text-gray-500 italic">
-                Apenas o dono pode excluir o projeto
+                {t.projectSettings.onlyOwnerDeletes}
               </div>
             )}
             <div className="flex justify-end gap-3 w-full sm:w-auto">
@@ -280,7 +282,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                 onClick={onClose}
                 className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-none"
               >
-                Cancelar
+                {t.common.cancel}
               </button>
               <button
                 type="submit"
@@ -288,7 +290,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                 className="px-6 py-2.5 text-xs font-bold uppercase tracking-wider text-white bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 transition-colors rounded-none flex items-center gap-2"
               >
                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+                {isSaving ? t.common.saving : t.projectSettings.saveChanges}
               </button>
             </div>
           </div>
@@ -307,7 +309,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
           >
             <div className="flex justify-between items-center p-6 border-b border-red-100 bg-red-50">
               <h3 className="text-xl font-bold uppercase text-red-700 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5" /> Excluir Permanentemente
+                <AlertTriangle className="w-5 h-5" /> {t.dashboard.deleteTitle}
               </h3>
               <button onClick={() => { setIsDeleteModalOpen(false); setDeleteConfirmId(''); }} className="text-red-400 hover:text-red-600 transition-colors">
                 <X className="w-6 h-6" />
@@ -316,12 +318,12 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
             
             <div className="p-6 space-y-4">
               <p className="text-gray-700">
-                Atenção! Todas as colunas e tarefas de <strong className="text-gray-900 uppercase">{project.name}</strong> serão apagadas do banco de dados para sempre.
+                {t.dashboard.deleteWarningBefore}<strong className="text-gray-900 uppercase">{project.name}</strong>{t.dashboard.deleteWarningAfter}
               </p>
               
               <div className="bg-gray-50 p-4 border border-gray-200 rounded-md">
                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">
-                  Digite o ID <span className="text-red-600 tracking-[0.2em]">{project.shortId}</span> para confirmar:
+                  {t.dashboard.typeIdBefore}<span className="text-red-600 tracking-[0.2em]">{project.shortId}</span>{t.dashboard.typeIdAfter}
                 </label>
                 <input 
                   type="text" 
@@ -329,13 +331,13 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                   onChange={(e) => setDeleteConfirmId(e.target.value.toUpperCase())}
                   maxLength={8}
                   className="w-full bg-white border border-red-300 px-4 py-3 text-red-700 focus:outline-none focus:border-red-500 font-bold tracking-[0.2em] uppercase transition-all rounded-md placeholder:text-red-200"
-                  placeholder="DIGITE AQUI"
+                  placeholder={t.dashboard.typeHere}
                 />
               </div>
 
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => { setIsDeleteModalOpen(false); setDeleteConfirmId(''); }} className="flex-1 bg-white border border-gray-300 text-gray-700 px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none">
-                  Cancelar
+                  {t.common.cancel}
                 </button>
                 <button 
                   type="button" 
@@ -343,7 +345,7 @@ export default function ProjectSettingsModal({ project, onClose }: ProjectSettin
                   disabled={isDeleting || deleteConfirmId !== project.shortId} 
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 text-white px-4 py-3 font-bold uppercase tracking-wider transition-colors rounded-none"
                 >
-                  {isDeleting ? 'Excluindo...' : 'Apagar Projeto'}
+                  {isDeleting ? t.dashboard.deleting : t.dashboard.deleteProjectButton}
                 </button>
               </div>
             </div>

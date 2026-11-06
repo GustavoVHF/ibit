@@ -1,5 +1,6 @@
 import { auth } from '../../firebase';
 import { DecisionOption, ShopeeProduct } from '../../types';
+import { getMessages } from '../../i18n';
 
 export type ShopeeRequestBody =
   | { mode: 'url'; url: string }
@@ -9,7 +10,7 @@ export type ShopeeRequestBody =
 /** Chama o proxy autenticado POST /api/shopee-product e retorna os produtos normalizados. */
 export async function shopeeRequest(body: ShopeeRequestBody): Promise<ShopeeProduct[]> {
   const token = await auth.currentUser?.getIdToken();
-  if (!token) throw new Error('Faça login novamente');
+  if (!token) throw new Error(getMessages().finance.loginAgain);
 
   let res: Response;
   try {
@@ -19,11 +20,11 @@ export async function shopeeRequest(body: ShopeeRequestBody): Promise<ShopeeProd
       body: JSON.stringify(body),
     });
   } catch {
-    throw new Error('Erro ao consultar a Shopee');
+    throw new Error(getMessages().finance.shopeeError);
   }
 
   const json = await res.json().catch(() => ({} as { error?: string; products?: ShopeeProduct[] }));
-  if (!res.ok) throw new Error(json.error || 'Erro ao consultar a Shopee');
+  if (!res.ok) throw new Error(json.error || getMessages().finance.shopeeError);
   return Array.isArray(json.products) ? json.products : [];
 }
 

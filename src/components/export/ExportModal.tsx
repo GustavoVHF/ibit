@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useI18n } from '../../i18n/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -47,13 +48,14 @@ export default function ExportModal({
   isOpen,
   onClose,
   formats,
-  title = 'Exportar',
+  title,
   onExportPdf,
   onExportExcel,
   onExportWord,
   disabledFormats,
   defaultPdfOptions,
 }: ExportModalProps) {
+  const { t } = useI18n();
   const [activeFormat, setActiveFormat] = useState<ExportFormat>(formats[0] ?? 'pdf');
   const [pdfOptions, setPdfOptions] = useState<PdfExportOptions>({ ...DEFAULT_PDF_OPTIONS, ...defaultPdfOptions });
   const [isExporting, setIsExporting] = useState(false);
@@ -79,7 +81,7 @@ export default function ExportModal({
       onClose();
     } catch (err) {
       console.error('[ExportModal] Export failed:', err);
-      setError('Erro ao exportar. Tente novamente.');
+      setError(t.export.exportError);
     } finally {
       setIsExporting(false);
     }
@@ -116,12 +118,12 @@ export default function ExportModal({
           <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
             <h3 className="text-xl font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
               <Download className="w-5 h-5 text-[#ff7f00]" />
-              {title}
+              {title ?? t.export.exportTitle}
             </h3>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-900 transition-colors"
-              aria-label="Fechar"
+              aria-label={t.common.close}
             >
               <X className="w-6 h-6" />
             </button>
@@ -130,7 +132,7 @@ export default function ExportModal({
           <div className="p-6 space-y-5">
             {/* Format tabs */}
             <div>
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Formato</label>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.export.format}</label>
               <div className={clsx('grid gap-2 mt-2', formats.length === 1 ? 'grid-cols-1' : formats.length === 2 ? 'grid-cols-2' : 'grid-cols-3')}>
                 {formats.map((fmt) => {
                   const meta = FORMAT_META[fmt];
@@ -159,10 +161,10 @@ export default function ExportModal({
             {activeFormat === 'pdf' && (
               <div className="space-y-4">
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Resolução (Pixels)</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.export.resolution}</label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">Largura</span>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase">{t.export.width}</span>
                       <input
                         type="number"
                         min={100}
@@ -172,7 +174,7 @@ export default function ExportModal({
                       />
                     </div>
                     <div>
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">Altura</span>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase">{t.export.height}</span>
                       <input
                         type="number"
                         min={100}
@@ -196,7 +198,7 @@ export default function ExportModal({
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Orientação</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.export.orientation}</label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <button
                       onClick={() => toggleOrientation(false)}
@@ -206,7 +208,7 @@ export default function ExportModal({
                       )}
                     >
                       <RectangleVertical className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Retrato</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{t.export.portrait}</span>
                     </button>
                     <button
                       onClick={() => toggleOrientation(true)}
@@ -216,13 +218,13 @@ export default function ExportModal({
                       )}
                     >
                       <RectangleHorizontal className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">Paisagem</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{t.export.landscape}</span>
                     </button>
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Modelos Prontos</label>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.export.templates}</label>
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     {PDF_SIZE_TEMPLATES.map((tpl) => (
                       <button
@@ -230,7 +232,7 @@ export default function ExportModal({
                         onClick={() => applyTemplate(tpl.widthPx, tpl.heightPx, tpl.dpi)}
                         className="px-2 py-2 rounded-lg border border-gray-200 bg-white text-gray-600 hover:border-[#ff7f00] hover:text-[#ff7f00] hover:bg-orange-50 transition-all text-left"
                       >
-                        <div className="text-[10px] font-bold uppercase tracking-widest">{tpl.label}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest">{t.export.templateLabels[tpl.id] ?? tpl.label}</div>
                         <div className="text-[9px] text-gray-400 font-semibold mt-0.5">{tpl.widthPx}×{tpl.heightPx} · {tpl.dpi} DPI</div>
                       </button>
                     ))}
@@ -239,7 +241,7 @@ export default function ExportModal({
 
                 <ToggleRow
                   icon={ImageIcon}
-                  label="Cabeçalho, rodapé e logo IBIT"
+                  label={t.export.chrome}
                   checked={pdfOptions.chrome}
                   onChange={(v) => setPdfOptions((o) => ({ ...o, chrome: v }))}
                 />
@@ -259,7 +261,7 @@ export default function ExportModal({
               type="button"
               className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              Cancelar
+              {t.common.cancel}
             </button>
             <button
               onClick={handleConfirm}
@@ -268,7 +270,7 @@ export default function ExportModal({
               className="px-8 py-2.5 bg-[#ff7f00] hover:bg-orange-600 text-white flex items-center gap-2 font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 transition-all disabled:opacity-50 shadow-md shadow-orange-100"
             >
               {isExporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-              {isExporting ? 'Exportando...' : 'Exportar'}
+              {isExporting ? t.export.exporting : t.export.exportTitle}
             </button>
           </div>
         </motion.div>

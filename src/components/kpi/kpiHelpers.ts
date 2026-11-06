@@ -1,4 +1,5 @@
 import { KpiSector, KpiStatus, KpiComparator, ProjectKPI } from '../../types';
+import { getLocale } from '../../i18n';
 
 export const KPI_SECTORS: KpiSector[] = [
   'Engenharia',
@@ -95,7 +96,7 @@ export function formatDate(timestamp: any): string {
   if (!timestamp) return '-';
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
   if (isNaN(date.getTime())) return '-';
-  return date.toLocaleDateString('pt-BR');
+  return date.toLocaleDateString(getLocale());
 }
 
 export function toJsDate(timestamp: any): Date | null {

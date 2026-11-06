@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import clsx from 'clsx';
 import ExportModal, { ExportFormat, ExportModalProps } from './ExportModal';
+import { useI18n } from '../../i18n/LanguageContext';
 
 export interface ExportButtonProps extends Omit<ExportModalProps, 'isOpen' | 'onClose'> {
   // (all ExportModalProps except isOpen/onClose are forwarded, including defaultPdfOptions)
@@ -21,10 +22,12 @@ export interface ExportButtonProps extends Omit<ExportModalProps, 'isOpen' | 'on
 export default function ExportButton({
   className,
   compact = false,
-  label = 'EXPORTAR',
+  label,
   icon: Icon = Download,
   ...modalProps
 }: ExportButtonProps) {
+  const { t } = useI18n();
+  const shownLabel = label ?? t.export.exportUpper;
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -35,10 +38,10 @@ export default function ExportButton({
           'bg-white text-gray-700 border border-gray-300 px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 active:scale-95 disabled:opacity-50',
           className
         )}
-        title="Exportar"
+        title={t.export.exportTitle}
       >
         <Icon className="w-4 h-4" />
-        {label && (compact ? <span className="hidden sm:inline">{label}</span> : <span>{label}</span>)}
+        {shownLabel && (compact ? <span className="hidden sm:inline">{shownLabel}</span> : <span>{shownLabel}</span>)}
       </button>
       <ExportModal isOpen={isOpen} onClose={() => setIsOpen(false)} {...modalProps} />
     </>

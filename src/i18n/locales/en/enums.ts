@@ -1,0 +1,96 @@
+import type { Messages } from '../pt-BR';
+
+export const enums: Messages['enums'] = {
+  projectRole: {
+    owner: 'OWNER',
+    admin: 'ADMIN',
+    editor: 'EDITOR',
+    viewer: 'VIEWER',
+  },
+  kpiSector: {
+    Engenharia: 'Engineering',
+    Marketing: 'Marketing',
+    Financeiro: 'Finance',
+    'Gestão de Projetos': 'Project Management',
+    Design: 'Design',
+    'Projeto Social': 'Social Project',
+  },
+  kpiStatus: {
+    Concluído: 'Completed',
+    'Em Andamento': 'In Progress',
+    'Em Risco': 'At Risk',
+    Atrasado: 'Delayed',
+  },
+  statusReportSector: {
+    Geral: 'General',
+    Marketing: 'Marketing',
+    Engenharia: 'Engineering',
+    Financeiro: 'Finance',
+    Design: 'Design',
+    'Projeto Social': 'Social Project',
+  },
+  impactStatus: {
+    'Alto Impacto': 'High Impact',
+    'Impacto Moderado': 'Moderate Impact',
+    'Sem Impacto': 'No Impact',
+    'Pendente de Avaliação': 'Pending Evaluation',
+  },
+  riskType: {
+    Interno: 'Internal',
+    Externo: 'External',
+  },
+  riskStatus: {
+    Aberto: 'Open',
+    Andamento: 'In Progress',
+    Mitigado: 'Mitigated',
+    Encerrado: 'Closed',
+  },
+  externalType: {
+    Ameaça: 'Threat',
+    Oportunidade: 'Opportunity',
+  },
+  changeSource: {
+    Gantt: 'Gantt',
+    Kanban: 'Kanban',
+    'Status Reports': 'Status Reports',
+    Orçamento: 'Budget',
+    KPIs: 'KPIs',
+    RACI: 'RACI',
+    Riscos: 'Risks',
+    Inventário: 'Inventory',
+    Plataforma: 'Platform',
+  },
+  changeSector: {
+    Engenharia: 'Engineering',
+    Marketing: 'Marketing',
+    Financeiro: 'Finance',
+    Design: 'Design',
+    Gestão: 'Management',
+  },
+  changeStatus: {
+    Registrado: 'Logged',
+    Pendente: 'Pending',
+    Aprovado: 'Approved',
+    Recusado: 'Rejected',
+    Postergado: 'Postponed',
+    Prolongado: 'Extended',
+  },
+  qualityRisk: {
+    Neutro: 'Neutral',
+    Baixo: 'Low',
+    Médio: 'Medium',
+    Alto: 'High',
+  },
+  level: {
+    Alto: 'High',
+    Médio: 'Medium',
+    Baixo: 'Low',
+  },
+  engagement: {
+    Desinformado: 'Unaware',
+    Resistente: 'Resistant',
+    Neutro: 'Neutral',
+    Apoiador: 'Supportive',
+    Engajado: 'Engaged',
+  },
+};

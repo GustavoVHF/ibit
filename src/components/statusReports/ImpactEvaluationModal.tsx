@@ -9,6 +9,7 @@ import { StatusReport, ImpactStatus, StatusReportImpactEvaluation } from '../../
 import { logFirestoreError, OperationType } from '../../utils/errorHandlers';
 import { commitWrite, friendlyWriteError } from '../../utils/firestoreWrite';
 import { IMPACT_STATUSES, IMPACT_STATUS_STYLES, formatDate, generateEvaluationId } from './statusReportHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface ImpactEvaluationModalProps {
   report: StatusReport;
@@ -23,6 +24,7 @@ interface ImpactEvaluationModalProps {
  * evaluations for this report.
  */
 export default function ImpactEvaluationModal({ report, currentUserUid, currentUserName, onClose }: ImpactEvaluationModalProps) {
+  const { t } = useI18n();
   const [isNewFormOpen, setIsNewFormOpen] = useState(false);
   const [impactStatus, setImpactStatus] = useState<ImpactStatus>(report.impactStatus || 'Pendente de Avaliação');
   const [whatChanged, setWhatChanged] = useState('');
@@ -99,7 +101,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
             <div>
               <h2 className="text-lg font-bold uppercase tracking-wider text-gray-900 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-[#ff7f00]" />
-                Avaliação de Impacto
+                {t.statusReports.impactEvaluation}
               </h2>
               <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-0.5 line-clamp-1">
                 {report.agenda}
@@ -114,7 +116,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
             {/* Status de Impacto atual */}
             <div className="flex items-center justify-between">
               <span className={clsx('px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border', IMPACT_STATUS_STYLES[report.impactStatus || 'Pendente de Avaliação'])}>
-                {report.impactStatus || 'Pendente de Avaliação'}
+                {t.enums.impactStatus[report.impactStatus || 'Pendente de Avaliação']}
               </span>
               {!isNewFormOpen && (
                 <button
@@ -123,7 +125,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                   className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-[#ff7f00] hover:text-orange-600 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  Nova Avaliação
+                  {t.statusReports.newEvaluation}
                 </button>
               )}
             </div>
@@ -133,7 +135,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                    Status de Impacto
+                    {t.statusReports.impactStatus}
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     {IMPACT_STATUSES.map((status) => (
@@ -148,7 +150,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                             : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300'
                         )}
                       >
-                        {status}
+                        {t.enums.impactStatus[status]}
                       </button>
                     ))}
                   </div>
@@ -156,7 +158,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
 
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                    O que mudou?
+                    {t.statusReports.whatChanged}
                   </label>
                   <textarea
                     value={whatChanged}
@@ -164,7 +166,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                     rows={3}
                     autoFocus
                     className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-900 resize-none focus:outline-none focus:border-[#ff7f00] focus:ring-2 focus:ring-orange-100 bg-white"
-                    placeholder="Descreva o resultado prático das decisões tomadas nesta reunião até o momento..."
+                    placeholder={t.statusReports.whatChangedPlaceholder}
                   />
                 </div>
 
@@ -175,7 +177,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                     disabled={saving}
                     className="flex-1 px-4 py-2 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-[11px] rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     type="button"
@@ -184,7 +186,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                     className="flex-1 px-4 py-2 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-[11px] rounded-lg transition-colors flex items-center justify-center gap-2"
                   >
                     {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Salvar Avaliação
+                    {t.statusReports.saveEvaluation}
                   </button>
                 </div>
               </div>
@@ -193,10 +195,10 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
             {/* Linha do Tempo de Avaliações */}
             <div>
               <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-2">
-                Histórico de Avaliações
+                {t.statusReports.evaluationHistory}
               </label>
               {history.length === 0 ? (
-                <p className="text-xs text-gray-400 font-medium">Nenhuma avaliação registrada ainda.</p>
+                <p className="text-xs text-gray-400 font-medium">{t.statusReports.noEvaluations}</p>
               ) : (
                 <div className="relative pl-4 border-l-2 border-gray-100 space-y-3 max-h-72 overflow-y-auto pr-1">
                   {history.map((ev) => (
@@ -209,14 +211,14 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
                           {ev.authorName}
                         </span>
                         <span className={clsx('px-1.5 py-0.5 rounded text-[9px] font-bold border', IMPACT_STATUS_STYLES[ev.impactStatus])}>
-                          {ev.impactStatus}
+                          {t.enums.impactStatus[ev.impactStatus]}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleDeleteEvaluation(ev.id)}
                           disabled={deletingId === ev.id}
                           className="ml-auto p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0 disabled:opacity-50"
-                          title="Apagar avaliação"
+                          title={t.statusReports.deleteEvaluation}
                         >
                           {deletingId === ev.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
                         </button>
@@ -234,7 +236,7 @@ export default function ImpactEvaluationModal({ report, currentUserUid, currentU
               onClick={onClose}
               className="flex-1 px-4 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors"
             >
-              Fechar
+              {t.common.close}
             </button>
           </div>
         </motion.div>

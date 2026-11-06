@@ -1,4 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { getMessages } from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -25,15 +26,17 @@ export default class ErrorBoundary extends Component<Props, State> {
 
   public render() {
     if (this.state.hasError) {
-      let errorMessage = 'Ocorreu um erro inesperado.';
+      // Rendered outside the LanguageProvider, so read the current language directly.
+      const t = getMessages();
+      let errorMessage = t.errors.boundaryUnexpected;
       let details = '';
 
       try {
         if (this.state.error?.message) {
           const parsed = JSON.parse(this.state.error.message);
           if (parsed.error && parsed.operationType) {
-            errorMessage = `Erro de permissão no Firestore (${parsed.operationType})`;
-            details = `Caminho: ${parsed.path}\nErro: ${parsed.error}`;
+            errorMessage = t.errors.boundaryPermission(parsed.operationType);
+            details = t.errors.boundaryDetails(parsed.path, parsed.error);
           }
         }
       } catch (e) {
@@ -47,7 +50,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              <h2 className="text-xl font-bold uppercase tracking-wider">Erro no Aplicativo</h2>
+              <h2 className="text-xl font-bold uppercase tracking-wider">{t.errors.boundaryTitle}</h2>
             </div>
             <p className="text-gray-700 mb-4 font-medium">{errorMessage}</p>
             {details && (
@@ -59,7 +62,7 @@ export default class ErrorBoundary extends Component<Props, State> {
               onClick={() => window.location.reload()}
               className="w-full bg-[#ff7f00] hover:bg-orange-600 text-white font-bold py-3 px-4 transition-colors uppercase tracking-wider rounded-none"
             >
-              Recarregar Página
+              {t.errors.boundaryReload}
             </button>
           </div>
         </div>

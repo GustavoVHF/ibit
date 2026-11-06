@@ -31,6 +31,7 @@ import { Project } from '../types';
 import { canManageMembers } from '../utils/roleHelpers';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
+import { useI18n } from '../i18n/LanguageContext';
 
 interface MobileToolsDrawerProps {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useI18n();
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -71,18 +73,18 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
   };
 
   const tools = [
-    { id: 'kanban', label: 'KANBAN', icon: Kanban, path: `/project/${projectId}/kanban` },
-    { id: 'quadro', label: 'QUADRO', icon: Image, path: `/project/${projectId}/quadro` },
-    { id: 'calendar', label: 'CALENDÁRIO', icon: Calendar, path: `/project/${projectId}/calendar` },
-    { id: 'inventory', label: 'INVENTÁRIO', icon: Archive, path: `/project/${projectId}/inventory` },
-    { id: 'assets', label: 'ATIVOS', icon: Folder, path: `/project/${projectId}/assets` },
-    { id: 'raci', label: 'MATRIZ RACI', icon: Grid3X3, path: `/project/${projectId}/raci` },
-    { id: 'risks', label: 'GESTÃO DE RISCOS', icon: AlertTriangle, path: `/project/${projectId}/risks` },
-    { id: 'kpis', label: 'KPIS', icon: Target, path: `/project/${projectId}/kpis` },
-    { id: 'status-reports', label: 'STATUS REPORTS', icon: ClipboardList, path: `/project/${projectId}/status-reports` },
-    { id: 'gestao-de-mudancas', label: 'GESTÃO DE MUDANÇAS', icon: History, path: `/project/${projectId}/gestao-de-mudancas` },
-    { id: 'gantt', label: 'GANTT', icon: BarChart, path: `/project/${projectId}/gantt` },
-    { id: 'finance', label: 'FINANCEIRO', icon: DollarSign, path: `/project/${projectId}/finance` },
+    { id: 'kanban', label: t.nav.kanban, icon: Kanban, path: `/project/${projectId}/kanban` },
+    { id: 'quadro', label: t.nav.quadro, icon: Image, path: `/project/${projectId}/quadro` },
+    { id: 'calendar', label: t.nav.calendar, icon: Calendar, path: `/project/${projectId}/calendar` },
+    { id: 'inventory', label: t.nav.inventory, icon: Archive, path: `/project/${projectId}/inventory` },
+    { id: 'assets', label: t.nav.assets, icon: Folder, path: `/project/${projectId}/assets` },
+    { id: 'raci', label: t.nav.raci, icon: Grid3X3, path: `/project/${projectId}/raci` },
+    { id: 'risks', label: t.nav.risks, icon: AlertTriangle, path: `/project/${projectId}/risks` },
+    { id: 'kpis', label: t.nav.kpis, icon: Target, path: `/project/${projectId}/kpis` },
+    { id: 'status-reports', label: t.nav.statusReports, icon: ClipboardList, path: `/project/${projectId}/status-reports` },
+    { id: 'gestao-de-mudancas', label: t.nav.changes, icon: History, path: `/project/${projectId}/gestao-de-mudancas` },
+    { id: 'gantt', label: t.nav.gantt, icon: BarChart, path: `/project/${projectId}/gantt` },
+    { id: 'finance', label: t.nav.finance, icon: DollarSign, path: `/project/${projectId}/finance` },
   ];
 
   return (
@@ -110,13 +112,14 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
             {/* Logo header */}
             <div className="p-5 border-b border-gray-200 flex items-center justify-between">
               <div className="flex flex-col items-start gap-1">
-                <img src={logoIbit} alt="Logo IBIT" className="h-8 object-contain" referrerPolicy="no-referrer" />
+                <img src={logoIbit} alt={t.common.logoAlt} className="h-8 object-contain" referrerPolicy="no-referrer" />
                 <span className="text-[9px] font-black tracking-[0.1em] text-[#ff7f00]">
                   BY CARNELIAN ESCUDERIA
                 </span>
               </div>
               <button
                 onClick={onClose}
+                aria-label={t.nav.closeMenu}
                 className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <X className="w-5 h-5 text-gray-500" />
@@ -132,7 +135,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                   className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-900 hover:bg-gray-50 font-bold tracking-wider text-sm rounded-lg transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5 shrink-0" />
-                  <span>VOLTAR</span>
+                  <span>{t.nav.back}</span>
                 </button>
 
                 {/* Dashboard do projeto */}
@@ -146,7 +149,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                   )}
                 >
                   <LayoutDashboard className="w-5 h-5 shrink-0" />
-                  <span>DASHBOARD</span>
+                  <span>{t.nav.dashboard}</span>
                 </button>
 
                 {/* Divider */}
@@ -154,7 +157,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
 
                 {/* Section header */}
                 <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                  FERRAMENTAS
+                  {t.nav.tools}
                 </div>
 
                 {/* Tools */}
@@ -183,7 +186,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                   <>
                     <div className="h-px bg-gray-200 mx-4 my-3" />
                     <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">
-                      CONFIGURAÇÕES
+                      {t.nav.settings}
                     </div>
                     
                     {onOpenSettings && (
@@ -192,7 +195,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                         className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-[#ff7f00] hover:bg-orange-50 font-bold tracking-wider text-sm rounded-lg transition-colors"
                       >
                         <Settings className="w-5 h-5 shrink-0" />
-                        <span>PERSONALIZAR</span>
+                        <span>{t.nav.customize}</span>
                       </button>
                     )}
 
@@ -208,7 +211,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                           )}
                         >
                           <Users className="w-5 h-5 shrink-0" />
-                          <span>MEMBROS</span>
+                          <span>{t.nav.members}</span>
                         </button>
 
                         <button
@@ -221,7 +224,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                           )}
                         >
                           <Tag className="w-5 h-5 shrink-0" />
-                          <span>TAGS</span>
+                          <span>{t.nav.tags}</span>
                         </button>
                       </>
                     )}
@@ -234,7 +237,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
             <div className="p-3 border-t border-gray-200">
               <div className="flex items-center gap-3 px-3 py-2 mb-2">
                 {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-9 h-9 rounded-full border border-gray-200 object-cover shrink-0" referrerPolicy="no-referrer" />
+                  <img src={user.photoURL} alt={t.common.avatarAlt} className="w-9 h-9 rounded-full border border-gray-200 object-cover shrink-0" referrerPolicy="no-referrer" />
                 ) : (
                   <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center border border-gray-200 text-gray-600 font-bold shrink-0 text-sm">
                     {user?.displayName?.charAt(0) || 'U'}
@@ -250,7 +253,7 @@ export default function MobileToolsDrawer({ isOpen, onClose, projectId, projectN
                 className="w-full flex items-center justify-center gap-2 p-3 text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg font-bold tracking-wider text-sm"
               >
                 <LogOut className="w-4 h-4 shrink-0" />
-                <span>SAIR</span>
+                <span>{t.nav.logout}</span>
               </button>
             </div>
           </motion.aside>

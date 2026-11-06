@@ -1,0 +1,76 @@
+export const kanban = {
+  newBadge: 'NOVO',
+  dropHere: 'SOLTAR AQUI',
+  taskPlaceholder: 'O que precisa ser feito?',
+  newTask: 'NOVA TAREFA',
+  columnNamePlaceholder: 'Nome da coluna',
+  createColumn: 'CRIAR COLUNA',
+  addColumn: 'ADICIONAR COLUNA',
+};
+
+export const task = {
+  title: 'Detalhes da Tarefa',
+  titleLabel: 'Título',
+  namePlaceholder: 'Nome da tarefa...',
+  description: 'DESCRIÇÃO',
+  descriptionPlaceholder: 'Adicione uma descrição...',
+  assignees: 'RESPONSÁVEIS',
+  startDate: 'DATA DE INÍCIO',
+  dueDate: 'DATA DE ENTREGA',
+  highlightColor: 'COR DE DESTAQUE',
+  projectTags: 'TAGS DO PROJETO',
+  tagNamePlaceholder: 'Nome da tag...',
+  create: 'CRIAR',
+  newTag: '+ Nova Tag',
+  deleteConfirm: 'Tem certeza que deseja excluir esta tarefa?',
+};
+
+export const quadro = {
+  select: 'Selecionar',
+  rectangle: 'Retângulo',
+  deleteSelected: 'Deletar Selecionado',
+  newText: 'TEXTO',
+  newTopic: 'NOVO TÓPICO',
+};
+
+export const tags = {
+  saveError: 'Erro ao salvar tag.',
+  deleteError: 'Erro ao excluir tag.',
+  deleteConfirm: 'Tem certeza que deseja excluir esta tag?',
+  title: 'Gestão de Tags',
+  subtitle: 'Crie e gerencie as tags de identificação do projeto',
+  newTag: 'NOVA TAG',
+  colTag: 'Tag',
+  colPreview: 'Visualização',
+  empty: 'Nenhuma tag cadastrada.',
+  editTag: 'Editar tag',
+  deleteTag: 'Excluir tag',
+  editTitle: 'Editar Tag',
+  newTitle: 'Nova Tag',
+  preview: 'Prévia',
+  previewPlaceholder: 'NOME DA TAG',
+  nameLabel: 'Nome da Tag',
+  namePlaceholder: 'Ex: PRIORIDADE ALTA',
+  colorLabel: 'Cor da Tag',
+  saveTag: 'Salvar Tag',
+};
+
+export const members = {
+  changeRoleError: 'Erro ao alterar cargo. Verifique as permissões.',
+  removeConfirm: 'Tem certeza que deseja remover este membro?',
+  removeError: 'Erro ao remover membro. Verifique as permissões.',
+  transferError: 'Erro ao transferir posse. Verifique as permissões.',
+  title: 'Gestão de Membros',
+  subtitle: 'Gerencie cargos e permissões dos membros do projeto',
+  transferTitle: 'Transferir Posse',
+  transferText: 'Você pode transferir a posse do projeto para um administrador. Você se tornará administrador após a transferência.',
+  transfer: 'Transferir',
+  colMember: 'Membro',
+  colRole: 'Cargo',
+  removeMember: 'Remover membro',
+  cannotRemove: 'Não é possível remover',
+  transferModalText: 'Selecione um administrador para se tornar o novo dono do projeto. Você será rebaixado para administrador.',
+  newOwner: 'Novo Dono',
+  noAdmins: 'Não há administradores disponíveis para transferência.',
+  transferring: 'Transferindo...',
+};

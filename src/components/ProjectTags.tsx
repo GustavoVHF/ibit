@@ -11,6 +11,7 @@ import ProjectSettingsModal from './ProjectSettingsModal';
 import { Trash2, Tag, Plus, X, Check, Edit2, Palette } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import clsx from 'clsx';
+import { useI18n } from '../i18n/LanguageContext';
 
 const PRESET_COLORS = [
   '#ff7f00', '#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#6b7280',
@@ -20,6 +21,7 @@ const PRESET_COLORS = [
 export default function ProjectTags() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -142,20 +144,20 @@ export default function ProjectTags() {
       handleCloseModal();
     } catch (error) {
       console.error('Error saving tag:', error);
-      alert('Erro ao salvar tag.');
+      alert(t.tags.saveError);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteTag = async (tagId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta tag?')) return;
+    if (!confirm(t.tags.deleteConfirm)) return;
 
     try {
       await commitWrite(deleteDoc(doc(db, 'projectTags', tagId)), { label: 'a exclusão da tag' });
     } catch (error) {
       console.error('Error deleting tag:', error);
-      alert('Erro ao excluir tag.');
+      alert(t.tags.deleteError);
     }
   };
 
@@ -210,7 +212,7 @@ export default function ProjectTags() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project.members.length} {project.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project.members.length} {t.common.membersCount(project.members.length)}
               </span>
             </div>
           </div>
@@ -222,15 +224,15 @@ export default function ProjectTags() {
             {/* Title */}
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold tracking-wider uppercase text-gray-900">Gestão de Tags</h1>
-                <p className="text-sm text-gray-500 mt-1">Crie e gerencie as tags de identificação do projeto</p>
+                <h1 className="text-2xl font-bold tracking-wider uppercase text-gray-900">{t.tags.title}</h1>
+                <p className="text-sm text-gray-500 mt-1">{t.tags.subtitle}</p>
               </div>
               <button
                 onClick={() => handleOpenModal()}
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg active:scale-95 shadow-md shadow-orange-100 shrink-0"
               >
                 <Plus className="w-4 h-4" />
-                NOVA TAG
+                {t.tags.newTag}
               </button>
             </div>
 
@@ -240,16 +242,16 @@ export default function ProjectTags() {
                 <table className="w-full">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Tag</th>
-                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Visualização</th>
-                      <th className="px-6 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Ações</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.tags.colTag}</th>
+                      <th className="px-6 py-3 text-left text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.tags.colPreview}</th>
+                      <th className="px-6 py-3 text-right text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">{t.common.actions}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {projectTags.length === 0 ? (
                       <tr>
                         <td colSpan={3} className="px-6 py-12 text-center text-gray-500 italic text-sm">
-                          Nenhuma tag cadastrada.
+                          {t.tags.empty}
                         </td>
                       </tr>
                     ) : (
@@ -274,14 +276,14 @@ export default function ProjectTags() {
                               <button
                                 onClick={() => handleOpenModal(tag)}
                                 className="p-2 text-gray-400 hover:text-[#ff7f00] hover:bg-orange-50 transition-colors rounded-lg"
-                                title="Editar tag"
+                                title={t.tags.editTag}
                               >
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => handleDeleteTag(tag.id)}
                                 className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors rounded-lg"
-                                title="Excluir tag"
+                                title={t.tags.deleteTag}
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -310,7 +312,7 @@ export default function ProjectTags() {
             >
               <div className="flex justify-between items-center p-6 border-b border-orange-100 bg-orange-50">
                 <h3 className="text-xl font-bold uppercase text-gray-900 flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-[#ff7f00]" /> {editingTag ? 'Editar Tag' : 'Nova Tag'}
+                  <Tag className="w-5 h-5 text-[#ff7f00]" /> {editingTag ? t.tags.editTitle : t.tags.newTitle}
                 </h3>
                 <button onClick={handleCloseModal} className="text-gray-400 hover:text-gray-600 transition-colors">
                   <X className="w-6 h-6" />
@@ -320,7 +322,7 @@ export default function ProjectTags() {
               <form onSubmit={handleSaveTag} className="p-6 space-y-6">
                 {/* Preview */}
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-center gap-3">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Prévia</span>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.tags.preview}</span>
                   <span 
                     className={clsx(
                       "px-4 py-2 text-xs font-bold uppercase tracking-widest rounded-lg shadow-md transition-all duration-300",
@@ -328,20 +330,20 @@ export default function ProjectTags() {
                     )}
                     style={tagColor?.startsWith('#') ? { backgroundColor: tagColor } : {}}
                   >
-                    {tagLabel || 'NOME DA TAG'}
+                    {tagLabel || t.tags.previewPlaceholder}
                   </span>
                 </div>
 
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-2">
-                      Nome da Tag
+                      {t.tags.nameLabel}
                     </label>
                     <input
                       type="text"
                       value={tagLabel}
                       onChange={(e) => setTagLabel(e.target.value)}
-                      placeholder="Ex: PRIORIDADE ALTA"
+                      placeholder={t.tags.namePlaceholder}
                       required
                       autoFocus
                       className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#ff7f00] focus:ring-1 focus:ring-[#ff7f00] font-bold text-sm"
@@ -350,7 +352,7 @@ export default function ProjectTags() {
 
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-                      <Palette className="w-3 h-3" /> Cor da Tag
+                      <Palette className="w-3 h-3" /> {t.tags.colorLabel}
                     </label>
                     <div className="grid grid-cols-8 gap-2">
                       {PRESET_COLORS.map((color) => (
@@ -387,14 +389,14 @@ export default function ProjectTags() {
                     onClick={handleCloseModal}
                     className="flex-1 bg-white border border-gray-200 text-gray-500 px-4 py-3 font-bold uppercase tracking-widest text-[10px] transition-all rounded-lg hover:bg-gray-50 active:scale-95"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     type="submit"
                     disabled={isSaving || !tagLabel.trim()}
                     className="flex-1 bg-[#ff7f00] hover:bg-orange-600 disabled:opacity-50 text-white px-4 py-3 font-bold uppercase tracking-widest text-[10px] transition-all rounded-lg active:scale-95 shadow-md shadow-orange-100"
                   >
-                    {isSaving ? 'Salvando...' : 'Salvar Tag'}
+                    {isSaving ? t.common.saving : t.tags.saveTag}
                   </button>
                 </div>
               </form>

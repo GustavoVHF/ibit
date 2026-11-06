@@ -1,4 +1,5 @@
 import { ImpactStatus, StatusReport, StatusReportSector } from '../../types';
+import { getLocale, getMessages } from '../../i18n';
 
 export const STATUS_REPORT_SECTORS: StatusReportSector[] = [
   'Geral',
@@ -47,18 +48,18 @@ export function toJsDate(timestamp: any): Date | null {
 
 export function formatDate(timestamp: any): string {
   const date = toJsDate(timestamp);
-  return date ? date.toLocaleDateString('pt-BR') : '-';
+  return date ? date.toLocaleDateString(getLocale()) : '-';
 }
 
 export function formatTime(timestamp: any): string {
   const date = toJsDate(timestamp);
-  return date ? date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '-';
+  return date ? date.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit' }) : '-';
 }
 
 export function formatWeekday(timestamp: any): string {
   const date = toJsDate(timestamp);
   if (!date) return '';
-  return date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '').toUpperCase();
+  return date.toLocaleDateString(getLocale(), { weekday: 'short' }).replace('.', '').toUpperCase();
 }
 
 /** Groups reports (already sorted desc by date) into month buckets for the timeline view. */
@@ -69,8 +70,8 @@ export function groupReportsByMonth(reports: StatusReport[]): { key: string; lab
     const date = toJsDate(report.date);
     const key = date ? `${date.getFullYear()}-${String(date.getMonth()).padStart(2, '0')}` : 'sem-data';
     const label = date
-      ? date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase()
-      : 'SEM DATA';
+      ? date.toLocaleDateString(getLocale(), { month: 'long', year: 'numeric' }).toUpperCase()
+      : getMessages().statusReports.noDate;
 
     if (!groups[key]) groups[key] = { label, reports: [] };
     groups[key].reports.push(report);
@@ -104,10 +105,10 @@ export function daysUntil(timestamp: any): number | null {
 export function formatNextMeetingTag(timestamp: any): string {
   const date = toJsDate(timestamp);
   if (!date) return '';
-  const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+  const dateStr = date.toLocaleDateString(getLocale(), { day: '2-digit', month: '2-digit' });
   const days = daysUntil(timestamp);
   if (days === null) return dateStr;
-  if (days === 0) return `${dateStr} - Hoje`;
-  if (days < 0) return `${dateStr} - Atrasada`;
-  return `${dateStr} - Em ${days} ${days === 1 ? 'dia' : 'dias'}`;
+  if (days === 0) return getMessages().statusReports.nextToday(dateStr);
+  if (days < 0) return getMessages().statusReports.nextLate(dateStr);
+  return getMessages().statusReports.nextIn(dateStr, days);
 }

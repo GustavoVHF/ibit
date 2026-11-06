@@ -37,11 +37,13 @@ import StatusReportTimeline from './statusReports/StatusReportTimeline';
 import NewStatusReportModal from './statusReports/NewStatusReportModal';
 import ImpactEvaluationModal from './statusReports/ImpactEvaluationModal';
 import { STATUS_REPORT_SECTORS, formatDate, formatTime } from './statusReports/statusReportHelpers';
+import { useI18n } from '../i18n/LanguageContext';
 
 export default function StatusReports() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, locale } = useI18n();
 
   const [project, setProject] = useState<Project | null>(null);
   const [reports, setReports] = useState<StatusReport[]>([]);
@@ -186,8 +188,8 @@ export default function StatusReports() {
 
       container.innerHTML = options.chrome
         ? buildOfficialHeaderHTML({
-            title: project?.name || 'Projeto',
-            subtitle: 'Portfólio de Status Reports / Relatórios de Reunião',
+            title: project?.name || t.common.project,
+            subtitle: t.statusReports.pdfSubtitle,
             responsibleName: user?.displayName || undefined,
           })
         : '';
@@ -209,16 +211,16 @@ export default function StatusReports() {
             <div>
               <div style="font-size:13px;font-weight:800;color:#111827;">${report.agenda}</div>
               <div style="font-size:10px;color:#9ca3af;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">
-                ${formatDate(report.date)} · ${formatTime(report.date)} · ${report.location} · ${report.sector}
+                ${formatDate(report.date)} · ${formatTime(report.date)} · ${report.location} · ${t.enums.statusReportSector[report.sector] ?? report.sector}
               </div>
             </div>
             <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;padding:3px 8px;border-radius:999px;background:${report.approved ? '#dcfce7' : '#fef9c3'};color:${report.approved ? '#16a34a' : '#a16207'};white-space:nowrap;">
-              ${report.approved ? 'Concluída' : 'Pendente'}
+              ${report.approved ? t.statusReports.done : t.statusReports.pending}
             </span>
           </div>
-          <div style="font-size:10px;color:#6b7280;font-weight:700;margin-bottom:6px;">Participantes: ${participantNames}</div>
+          <div style="font-size:10px;color:#6b7280;font-weight:700;margin-bottom:6px;">${t.statusReports.participants(participantNames)}</div>
           ${report.minutes ? `<div style="font-size:11px;color:#374151;margin-bottom:6px;">${report.minutes}</div>` : ''}
-          ${report.outcome ? `<div style="font-size:11px;color:#374151;font-weight:700;margin-bottom:6px;">Resultado: ${report.outcome}</div>` : ''}
+          ${report.outcome ? `<div style="font-size:11px;color:#374151;font-weight:700;margin-bottom:6px;">${t.statusReports.outcome(report.outcome)}</div>` : ''}
           ${actionItemsHTML ? `<ul style="font-size:10px;color:#374151;margin:0;padding-left:16px;">${actionItemsHTML}</ul>` : ''}
         `;
         listWrapper.appendChild(card);
@@ -228,14 +230,14 @@ export default function StatusReports() {
 
       if (options.chrome) {
         const footer = document.createElement('div');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Portfólio de reports exportado da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, t.statusReports.pdfFooter(new Date().toLocaleDateString(locale)));
         container.appendChild(footer);
       }
 
       await new Promise((r) => setTimeout(r, 400));
 
       await captureContainerAsPdf(container, {
-        filename: `status-reports-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        filename: `status-reports-${(project?.name || t.statusReports.fileProject).replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.pdf`,
         widthPx: options.widthPx,
         heightPx: options.heightPx,
         dpi: options.dpi,
@@ -245,7 +247,7 @@ export default function StatusReports() {
       document.body.removeChild(container);
     } catch (err) {
       console.error('[Status Reports PDF Export] Error:', err);
-      alert('Erro ao exportar PDF. Tente novamente.');
+      alert(t.statusReports.pdfError);
     } finally {
       setIsExporting(false);
     }
@@ -288,7 +290,7 @@ export default function StatusReports() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -307,7 +309,7 @@ export default function StatusReports() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {t.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -321,7 +323,7 @@ export default function StatusReports() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Procurar por pauta ou registros..."
+                  placeholder={t.statusReports.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -333,9 +335,9 @@ export default function StatusReports() {
                 onChange={(e) => setSectorFilter(e.target.value as StatusReportSector | 'Todos')}
                 className="bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-xs font-bold uppercase tracking-wider rounded-lg px-3 py-2 text-gray-700"
               >
-                <option value="Todos">Todos os Setores</option>
+                <option value="Todos">{t.statusReports.allSectors}</option>
                 {STATUS_REPORT_SECTORS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{t.enums.statusReportSector[s]}</option>
                 ))}
               </select>
             </div>
@@ -343,8 +345,8 @@ export default function StatusReports() {
             <div className="flex gap-2 shrink-0">
               <ExportButton
                 formats={['pdf']}
-                title="Exportar Status Reports"
-                label="EXPORTAR"
+                title={t.statusReports.exportTitle}
+                label={t.statusReports.exportLabel}
                 onExportPdf={handleExportPDF}
                 disabledFormats={{ pdf: filteredReports.length === 0 }}
                 compact
@@ -355,7 +357,7 @@ export default function StatusReports() {
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Novo Report</span>
+                <span className="hidden sm:inline">{t.statusReports.newReport}</span>
               </button>
             </div>
           </div>
@@ -389,22 +391,22 @@ export default function StatusReports() {
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">Excluir Report</h3>
+                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{t.statusReports.deleteTitle}</h3>
                 <p className="text-gray-500 text-center text-sm mb-6">
-                  Tem certeza que deseja excluir o report <strong>{itemToDelete.agenda}</strong>? Esta ação não pode ser desfeita.
+                  {t.statusReports.deleteBefore}<strong>{itemToDelete.agenda}</strong>{t.statusReports.deleteAfter}
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setItemToDelete(null)}
                     className="flex-1 py-2.5 bg-gray-50 text-gray-700 font-bold text-sm uppercase tracking-wider rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     onClick={handleDeleteItem}
                     className="flex-1 py-2.5 bg-red-600 text-white font-bold text-sm uppercase tracking-wider rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    Excluir
+                    {t.common.delete}
                   </button>
                 </div>
               </div>
@@ -451,8 +453,8 @@ export default function StatusReports() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando portfólio de reports...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.statusReports.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{t.statusReports.exportingText}</p>
             </div>
           </motion.div>
         )}

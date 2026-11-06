@@ -14,6 +14,7 @@ import {
   WidthType,
   ShadingType,
 } from 'docx';
+import { getMessages } from '../../i18n';
 import { saveAs } from 'file-saver';
 
 const BRAND_ORANGE = 'FF7F00';
@@ -184,9 +185,9 @@ export async function exportToWord(opts: WordExportOptions): Promise<void> {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: 'IBIT · Página ', size: 16, color: '9CA3AF', font: FONT_FAMILY }),
+                  new TextRun({ text: getMessages().export.wordPage, size: 16, color: '9CA3AF', font: FONT_FAMILY }),
                   new TextRun({ children: [PageNumber.CURRENT], size: 16, color: '9CA3AF', font: FONT_FAMILY }),
-                  new TextRun({ text: ' de ', size: 16, color: '9CA3AF', font: FONT_FAMILY }),
+                  new TextRun({ text: getMessages().export.wordOf, size: 16, color: '9CA3AF', font: FONT_FAMILY }),
                   new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, color: '9CA3AF', font: FONT_FAMILY }),
                 ],
               }),

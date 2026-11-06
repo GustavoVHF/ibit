@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
+import { getLocale, getMessages } from '../../i18n';
 
 /**
  * Shared PDF export engine.
@@ -62,8 +63,10 @@ export function buildOfficialHeaderHTML(opts: {
   accessLevel?: string;
 }): string {
   const now = new Date();
-  const dateStr = now.toLocaleDateString('pt-BR');
-  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  const locale = getLocale();
+  const m = getMessages().export;
+  const dateStr = now.toLocaleDateString(locale);
+  const timeStr = now.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' });
   return `
     <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid #ff7f00;">
       <div>
@@ -71,9 +74,9 @@ export function buildOfficialHeaderHTML(opts: {
         <div style="font-size: 11px; color: #9ca3af; font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 2px; font-family: 'lufga', 'Inter', sans-serif;">${opts.subtitle}</div>
       </div>
       <div style="text-align: right; font-family: 'lufga', 'Inter', sans-serif;">
-        <div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">Gerado em ${dateStr} · ${timeStr}</div>
-        ${opts.responsibleName ? `<div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">Responsável: ${opts.responsibleName}</div>` : ''}
-        <div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">Nível de acesso: ${opts.accessLevel || 'Membros do Projeto'}</div>
+        <div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;">${m.generatedAt(dateStr, timeStr)}</div>
+        ${opts.responsibleName ? `<div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">${m.responsible(opts.responsibleName)}</div>` : ''}
+        <div style="font-size: 8px; color: #9ca3af; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 2px;">${m.accessLevel(opts.accessLevel || m.projectMembers)}</div>
       </div>
     </div>
   `;

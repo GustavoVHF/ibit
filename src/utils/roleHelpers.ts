@@ -1,4 +1,5 @@
 import { Project, ProjectRole } from '../types';
+import { getMessages } from '../i18n';
 
 /**
  * Get the role of a user in a project.
@@ -116,16 +117,10 @@ export function isProjectOwner(project: Project, uid: string): boolean {
 }
 
 /**
- * Get display label for role in Portuguese.
+ * Get display label for role in the current language.
  */
 export function getRoleLabel(role: ProjectRole): string {
-  const labels: Record<ProjectRole, string> = {
-    owner: 'DONO',
-    admin: 'ADMIN',
-    editor: 'EDITOR',
-    viewer: 'ESPECTADOR'
-  };
-  return labels[role];
+  return getMessages().enums.projectRole[role];
 }
 
 /**

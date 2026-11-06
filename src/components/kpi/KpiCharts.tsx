@@ -13,19 +13,22 @@ import {
 } from 'recharts';
 import { ProjectKPI } from '../../types';
 import { KPI_SECTORS, KPI_SECTOR_COLORS, computeProgress, toJsDate, toNumber } from './kpiHelpers';
+import { KpiSector } from '../../types';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiChartsProps {
   kpis: ProjectKPI[];
 }
 
 const SectorTooltip = ({ active, payload }: any) => {
+  const { t } = useI18n();
   if (active && payload && payload.length) {
     const d = payload[0].payload;
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2">
-        <p className="text-xs font-bold text-gray-900">{d.sector}</p>
-        <p className="text-xs text-gray-500 font-semibold">Atingimento médio: {d.attainment}%</p>
-        <p className="text-[10px] text-gray-400">{d.count} KPI(s)</p>
+        <p className="text-xs font-bold text-gray-900">{t.enums.kpiSector[d.sector as KpiSector] ?? d.sector}</p>
+        <p className="text-xs text-gray-500 font-semibold">{t.kpi.avgAttainment(d.attainment)}</p>
+        <p className="text-[10px] text-gray-400">{t.kpi.kpiCount(d.count)}</p>
       </div>
     );
   }
@@ -33,11 +36,12 @@ const SectorTooltip = ({ active, payload }: any) => {
 };
 
 const EvolutionTooltip = ({ active, payload, label }: any) => {
+  const { t } = useI18n();
   if (active && payload && payload.length) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2">
         <p className="text-xs font-bold text-gray-900">{label}</p>
-        <p className="text-xs text-[#ff7f00] font-semibold">Atingimento médio: {payload[0].value}%</p>
+        <p className="text-xs text-[#ff7f00] font-semibold">{t.kpi.avgAttainment(payload[0].value)}</p>
       </div>
     );
   }
@@ -45,6 +49,7 @@ const EvolutionTooltip = ({ active, payload, label }: any) => {
 };
 
 export default function KpiCharts({ kpis }: KpiChartsProps) {
+  const { t, locale } = useI18n();
   const sectorData = useMemo(() => {
     return KPI_SECTORS.map((sector) => {
       const items = kpis.filter((k) => k.sector === sector);
@@ -65,7 +70,7 @@ export default function KpiCharts({ kpis }: KpiChartsProps) {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       months.push({
-        label: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+        label: d.toLocaleDateString(locale, { month: 'short' }).replace('.', ''),
         monthEnd: new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999),
       });
     }
@@ -113,19 +118,19 @@ export default function KpiCharts({ kpis }: KpiChartsProps) {
       );
       return { name: label.toUpperCase(), attainment };
     });
-  }, [kpis]);
+  }, [kpis, locale]);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
       {/* Atingimento por Setor */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-0.5">
-          Atingimento por Setor
+          {t.kpi.attainmentBySector}
         </h3>
-        <p className="text-[11px] text-gray-400 font-medium mb-3">Comparativo de metas atingidas por departamento</p>
+        <p className="text-[11px] text-gray-400 font-medium mb-3">{t.kpi.attainmentBySectorHint}</p>
         {sectorData.length === 0 ? (
           <div className="h-56 flex items-center justify-center text-sm text-gray-400 font-medium">
-            Nenhum KPI cadastrado ainda.
+            {t.kpi.noKpis}
           </div>
         ) : (
           <div className="w-full h-56">
@@ -134,6 +139,7 @@ export default function KpiCharts({ kpis }: KpiChartsProps) {
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
                 <XAxis
                   dataKey="sector"
+                  tickFormatter={(s: string) => t.enums.kpiSector[s as KpiSector] ?? s}
                   tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }}
                   axisLine={false}
                   tickLine={false}
@@ -164,9 +170,9 @@ export default function KpiCharts({ kpis }: KpiChartsProps) {
       {/* Evolução */}
       <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-0.5">
-          Evolução do Cumprimento
+          {t.kpi.evolution}
         </h3>
-        <p className="text-[11px] text-gray-400 font-medium mb-3">Linha do tempo do avanço médio das metas</p>
+        <p className="text-[11px] text-gray-400 font-medium mb-3">{t.kpi.evolutionHint}</p>
         <div className="w-full h-56">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={evolutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>

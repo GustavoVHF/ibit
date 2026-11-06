@@ -58,6 +58,7 @@ import logoIbit from '../media/ibitlogo.svg';
 import ExportButton from './export/ExportButton';
 import { captureContainerAsPdf, PdfExportOptions } from '../utils/export/pdfEngine';
 import { exportToExcel } from '../utils/export/excelEngine';
+import { useI18n } from '../i18n/LanguageContext';
 
 // --- Components ---
 
@@ -71,6 +72,7 @@ interface GanttTaskModalProps {
 }
 
 function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdToWbs }: GanttTaskModalProps) {
+  const { t: tr, locale } = useI18n();
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [startDate, setStartDate] = useState(task?.startDate ? new Date((task.startDate as any).seconds * 1000).toISOString().split('T')[0] : '');
@@ -118,7 +120,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-2xl overflow-hidden rounded-xl shadow-xl flex flex-col max-h-[90vh]">
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shadow-sm shrink-0">
           <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
-            {task?.id ? 'EDITAR FUNÇÃO' : 'NOVA FUNÇÃO'}
+            {task?.id ? tr.gantt.editTask : tr.gantt.newTask}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-6 h-6" />
@@ -128,19 +130,19 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
         <div className="flex-1 overflow-y-auto p-6 scrollbar-hide space-y-6">
           <form id="gantt-func-form" onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
             <div className="col-span-2 space-y-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">TÍTULO DA FUNÇÃO</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.taskTitle}</label>
               <input
                 autoFocus
                 required
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm"
-                placeholder="Ex: Desenvolvimento Frontend..."
+                placeholder={tr.gantt.taskTitlePlaceholder}
                 value={title}
                 onChange={e => setTitle(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">DATA DE INÍCIO</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.startDate}</label>
               <div className="relative">
                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -154,7 +156,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">DATA FINAL</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.endDate}</label>
               <div className="relative">
                 <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -170,7 +172,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
 
             <div className="space-y-2">
               <div className="flex justify-between items-center mb-1">
-                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">PROGRESSO</label>
+                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.progress}</label>
                  <span className="text-sm font-bold text-[#ff7f00]">{progress}%</span>
               </div>
               <input
@@ -185,17 +187,17 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">SEÇÃO (OPCIONAL)</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.sectionOptional}</label>
               <input
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold text-sm rounded-lg shadow-sm"
-                placeholder="Ex: Engenharia, Projeto..."
+                placeholder={tr.gantt.sectionPlaceholder}
                 value={section}
                 onChange={e => setSection(e.target.value)}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">CATEGORIA</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.category}</label>
               <select
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold text-sm rounded-lg shadow-sm appearance-none"
                 value={category}
@@ -210,7 +212,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
             {/* Dependencies Selector - Checkbox List */}
             <div className="col-span-2 space-y-4 border-t border-gray-100 pt-6">
               <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
-                DEPENDÊNCIAS / PREDECESSORAS
+                {tr.gantt.dependencies}
                 {dependencies.length > 0 && <span className="ml-2 text-[#ff7f00]">({dependencies.length})</span>}
               </label>
               {availableDeps.length > 0 ? (
@@ -242,13 +244,13 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
                   ))}
                 </div>
               ) : (
-                <p className="text-[10px] text-gray-400 font-medium italic">Nenhuma outra função cadastrada para selecionar como predecessora.</p>
+                <p className="text-[10px] text-gray-400 font-medium italic">{tr.gantt.noOtherTasks}</p>
               )}
             </div>
 
             {/* Assign Participants */}
             <div className="col-span-2 space-y-4 border-t border-gray-100 pt-6">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">ATRIBUIR RESPONSÁVEIS</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.assign}</label>
               <div className="grid grid-cols-2 gap-3 bg-gray-50 border border-gray-100 rounded-xl p-4 max-h-48 overflow-y-auto shadow-inner">
                 {participants.map(p => (
                   <div
@@ -288,7 +290,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
           {/* HISTORY LOG SECTION */}
           {task?.id && (
             <div className="space-y-4 border-t border-gray-100 pt-6 mt-6">
-              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">HISTÓRICO DE ALTERAÇÕES</label>
+              <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">{tr.gantt.history}</label>
               {task.changeLog && task.changeLog.length > 0 ? (
               <div className="space-y-4 relative before:absolute before:inset-y-0 before:left-[11px] before:w-[2px] before:bg-gray-200">
                 {task.changeLog.map((log) => (
@@ -300,7 +302,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
                       <div className="flex justify-between items-start mb-2">
                         <span className="text-xs font-bold text-gray-700">{log.changedBy.name}</span>
                         <span className="text-[10px] text-gray-400 font-medium">
-                          {log.changedAt ? new Date(log.changedAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : ''}
+                          {log.changedAt ? new Date(log.changedAt).toLocaleString(locale, { dateStyle: 'short', timeStyle: 'short' }) : ''}
                         </span>
                       </div>
                       <ul className="space-y-1.5">
@@ -317,7 +319,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
                 ))}
               </div>
               ) : (
-                <div className="text-[11px] text-gray-400 italic">Nenhum histórico de alterações disponível para esta função.</div>
+                <div className="text-[11px] text-gray-400 italic">{tr.gantt.noHistory}</div>
               )}
             </div>
           )}
@@ -329,14 +331,14 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
             onClick={onClose}
             className="px-6 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 transition-colors rounded-lg"
           >
-            CANCELAR
+            {tr.common.cancel}
           </button>
           <button
             type="submit"
             form="gantt-func-form"
             className="px-8 py-2.5 text-xs font-bold uppercase tracking-widest text-white bg-[#ff7f00] hover:bg-orange-600 transition-colors rounded-lg shadow-lg shadow-orange-100"
           >
-            {task?.id ? 'SALVAR ALTERAÇÕES' : 'CRIAR FUNÇÃO'}
+            {task?.id ? tr.common.saveChanges : tr.gantt.createTask}
           </button>
         </div>
       </motion.div>
@@ -345,6 +347,7 @@ function GanttTaskModal({ task, onSave, onClose, participants, allTasks, taskIdT
 }
 
 function StakeholderModal({ projectId, stakeholder, projectMembers, currentStakeholders, onSaveMember, onSaveExternal, onClose }: { projectId: string, stakeholder: ProjectStakeholder | null, projectMembers: UserProfile[], currentStakeholders: ProjectStakeholder[], onSaveMember: (uid: string, name: string, photoURL?: string) => void, onSaveExternal: (data: Partial<ProjectStakeholder>) => void, onClose: () => void }) {
+  const { t: tr } = useI18n();
   const [activeTab, setActiveTab] = useState<'members' | 'external'>('members');
   const [name, setName] = useState(stakeholder?.name || '');
   const [role, setRole] = useState(stakeholder?.role || '');
@@ -362,7 +365,7 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-md overflow-hidden rounded-xl shadow-xl flex flex-col">
         <div className="flex justify-between items-center p-6 border-b border-gray-200 shadow-sm shrink-0">
           <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">
-            {stakeholder ? 'EDITAR STAKEHOLDER' : 'GERENCIAR MEMBROS'}
+            {stakeholder ? tr.raci.editStakeholder : tr.gantt.manageMembers}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors pointer-events-auto">
              <X className="w-6 h-6" />
@@ -378,7 +381,7 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
                 activeTab === 'members' ? "border-[#ff7f00] text-[#ff7f00] bg-orange-50/30" : "border-transparent text-gray-400 hover:text-gray-600"
               )}
             >
-              MEMBROS DA EQUIPE
+              {tr.raci.teamMembers}
             </button>
             <button 
               onClick={() => setActiveTab('external')}
@@ -387,7 +390,7 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
                 activeTab === 'external' ? "border-[#ff7f00] text-[#ff7f00] bg-orange-50/30" : "border-transparent text-gray-400 hover:text-gray-600"
               )}
             >
-              STAKEHOLDER EXTERNO
+              {tr.raci.externalStakeholder}
             </button>
           </div>
         )}
@@ -397,26 +400,26 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
             <form id="external-form" onSubmit={handleSubmitExternal} className="space-y-6">
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">NOME / CARGO</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.raci.nameRole}</label>
                   <input 
                     type="text" autoFocus required value={name} onChange={(e) => setName(e.target.value)} 
                     className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg shadow-sm transition-all" 
-                    placeholder="Ex: Diretor Financeiro" 
+                    placeholder={tr.raci.namePlaceholder} 
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">PAPEL (OPCIONAL)</label>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.raci.roleOptional}</label>
                   <input 
                     type="text" value={role} onChange={(e) => setRole(e.target.value)} 
                     className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] rounded-lg shadow-sm transition-all" 
-                    placeholder="Ex: Patrocinador, Mentor..." 
+                    placeholder={tr.raci.rolePlaceholder} 
                   />
                 </div>
               </div>
               <div className="flex gap-3 pt-4 border-t border-gray-100">
-                <button onClick={onClose} type="button" className="flex-1 px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">CANCELAR</button>
+                <button onClick={onClose} type="button" className="flex-1 px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">{tr.common.cancel}</button>
                 <button type="submit" disabled={!name.trim()} className="flex-1 px-6 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 transition-colors shadow-lg shadow-orange-100">
-                  SALVAR
+                  {tr.common.save}
                 </button>
               </div>
             </form>
@@ -441,7 +444,7 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
                 ))}
               </div>
               <div className="pt-4 border-t border-gray-100 flex justify-end">
-                <button onClick={onClose} className="px-6 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-100">FECHAR</button>
+                <button onClick={onClose} className="px-6 py-2.5 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 transition-all shadow-lg shadow-orange-100">{tr.gantt.closeUpper}</button>
               </div>
             </div>
           )}
@@ -455,6 +458,7 @@ function StakeholderModal({ projectId, stakeholder, projectMembers, currentStake
 // --- Main Page ---
 
 export default function GanttChart() {
+  const { t: tr, locale } = useI18n();
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -510,7 +514,7 @@ export default function GanttChart() {
   const handleExportJSON = () => {
     try {
       const exportData = {
-        projectName: project?.name || 'Projeto',
+        projectName: project?.name || tr.common.project,
         projectId,
         exportDate: new Date().toISOString(),
         type: 'ibit-gantt',
@@ -527,7 +531,7 @@ export default function GanttChart() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `gantt-${project?.name.replace(/\s+/g, '-') || 'projeto'}-${new Date().toISOString().substring(0, 10)}.json`;
+      a.download = `gantt-${project?.name.replace(/\s+/g, '-') || tr.gantt.fileProject}-${new Date().toISOString().substring(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -543,7 +547,7 @@ export default function GanttChart() {
     const file = event.target.files?.[0];
     if (!file || !projectId || !user) return;
     
-    const confirmImport = window.confirm('Deseja importar as tarefas deste JSON? Elas serão adicionadas ao projeto atual.');
+    const confirmImport = window.confirm(tr.gantt.importConfirm);
     if (!confirmImport) return;
 
     try {
@@ -571,10 +575,10 @@ export default function GanttChart() {
       if (importInputRef.current) {
         importInputRef.current.value = '';
       }
-      alert('Gantt importado com sucesso!');
+      alert(tr.gantt.importSuccess);
     } catch (error) {
       console.error('Error importing JSON:', error);
-      alert('Erro ao importar arquivo. Verifique se é um arquivo JSON de Gantt válido exportado pelo IBIT.');
+      alert(tr.gantt.importError);
     }
   };
 
@@ -1001,7 +1005,7 @@ export default function GanttChart() {
   const monthGroups = useMemo(() => {
     const groups: { month: string; year: number; days: number }[] = [];
     timelineDates.forEach(date => {
-      const month = date.toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+      const month = date.toLocaleDateString(locale, { month: 'long' }).toUpperCase();
       const year = date.getFullYear();
       const last = groups[groups.length - 1];
       if (last && last.month === month && last.year === year) {
@@ -1011,7 +1015,7 @@ export default function GanttChart() {
       }
     });
     return groups;
-  }, [timelineDates]);
+  }, [timelineDates, locale]);
 
   type GanttRow = { type: 'section'; id: string; name: string } | { type: 'task'; id: string; task: GanttTask };
 
@@ -1447,18 +1451,18 @@ export default function GanttChart() {
     await exportToExcel({
       filename: `gantt-${(project?.name || 'project').replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.xlsx`,
       sheetName: 'Gantt',
-      title: `Cronograma (Gantt) — ${project?.name || 'Projeto'}`,
+      title: tr.gantt.excelTitle(project?.name || tr.common.project),
       columns: [
         { header: 'WBS', key: 'wbs', type: 'string', width: 10, value: (r) => taskIdToWbs[r.task.id] || '-' },
-        { header: 'Tarefa', key: 'title', type: 'string', width: 32, value: (r) => r.task.title },
-        { header: 'Seção', key: 'section', type: 'string', width: 20, value: (r) => r.task.section || '-' },
-        { header: 'Categoria', key: 'category', type: 'string', width: 16, value: (r) => r.task.category || '-' },
-        { header: 'Início', key: 'startDate', type: 'date', width: 14, value: (r) => new Date(r.task.startDate.seconds * 1000) },
-        { header: 'Término', key: 'endDate', type: 'date', width: 14, value: (r) => new Date(r.task.endDate.seconds * 1000) },
-        { header: 'Progresso', key: 'progress', type: 'percent', width: 14, value: (r) => (r.task.progress || 0) / 100 },
-        { header: 'Status', key: 'status', type: 'string', width: 16, value: (r) => r.task.status },
+        { header: tr.gantt.xlsTask, key: 'title', type: 'string', width: 32, value: (r) => r.task.title },
+        { header: tr.gantt.xlsSection, key: 'section', type: 'string', width: 20, value: (r) => r.task.section || '-' },
+        { header: tr.gantt.xlsCategory, key: 'category', type: 'string', width: 16, value: (r) => r.task.category || '-' },
+        { header: tr.gantt.xlsStart, key: 'startDate', type: 'date', width: 14, value: (r) => new Date(r.task.startDate.seconds * 1000) },
+        { header: tr.gantt.xlsEnd, key: 'endDate', type: 'date', width: 14, value: (r) => new Date(r.task.endDate.seconds * 1000) },
+        { header: tr.gantt.xlsProgress, key: 'progress', type: 'percent', width: 14, value: (r) => (r.task.progress || 0) / 100 },
+        { header: tr.gantt.xlsStatus, key: 'status', type: 'string', width: 16, value: (r) => r.task.status },
         {
-          header: 'Dependências',
+          header: tr.gantt.xlsDependencies,
           key: 'dependencies',
           type: 'string',
           width: 20,
@@ -1510,7 +1514,7 @@ export default function GanttChart() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || tr.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -1529,7 +1533,7 @@ export default function GanttChart() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {tr.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -1548,15 +1552,15 @@ export default function GanttChart() {
             <button 
               onClick={() => { setCustomStartDate(project?.ganttStartDate ? new Date(project.ganttStartDate.seconds*1000).toISOString().split('T')[0] : ''); setIsStartDateModalOpen(true); }}
               className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg hover:border-[#ff7f00] hover:text-[#ff7f00] text-gray-500 transition-colors group whitespace-nowrap"
-              title="Editar Início do Projeto"
+              title={tr.gantt.editStart}
             >
                <CalendarIcon className="w-3.5 h-3.5 text-gray-400 group-hover:text-[#ff7f00]" />
-               <span className="text-[9px] font-bold uppercase tracking-widest">Início: {startDateBase.toLocaleDateString('pt-BR')}</span>
+               <span className="text-[9px] font-bold uppercase tracking-widest">{tr.gantt.startLabel} {startDateBase.toLocaleDateString(locale)}</span>
                <Edit2 className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity hidden sm:block" />
             </button>
 
             <div className="hidden sm:flex items-center gap-3 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Zoom</span>
+               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.gantt.zoom}</span>
                <input 
                  type="range" min="20" max="200" step="5" 
                  value={cellWidth} onChange={e => setCellWidth(Number(e.target.value))} 
@@ -1566,7 +1570,7 @@ export default function GanttChart() {
 
             {/* CPM Critical Path Toggle */}
             <div className="hidden sm:flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Caminho Crítico</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.gantt.criticalPath}</span>
               <button
                 onClick={() => setShowCriticalPath(!showCriticalPath)}
                 className={clsx(
@@ -1596,7 +1600,7 @@ export default function GanttChart() {
                 <button 
                   onClick={() => setIsJSONMenuOpen(!isJSONMenuOpen)}
                   className="bg-white text-gray-700 border border-gray-300 px-3 py-1.5 flex items-center justify-center transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg hover:bg-gray-50 active:scale-95"
-                  title="Opções JSON (Importar/Exportar)"
+                  title={tr.gantt.jsonOptions}
                 >
                   <FileJson className="w-3.5 h-3.5" />
                 </button>
@@ -1615,7 +1619,7 @@ export default function GanttChart() {
                           className="w-full px-4 py-3 text-left text-[10px] font-bold text-gray-600 hover:bg-gray-50 flex items-center gap-3 transition-colors border-b border-gray-100 uppercase tracking-widest"
                         >
                           <Upload className="w-3.5 h-3.5 text-gray-400" />
-                          Importar JSON
+                          {tr.gantt.importJson}
                         </button>
                         <button 
                           onClick={() => { handleExportJSON(); setIsJSONMenuOpen(false); }}
@@ -1623,7 +1627,7 @@ export default function GanttChart() {
                           className="w-full px-4 py-3 text-left text-[10px] font-bold text-gray-600 hover:bg-gray-50 flex items-center gap-3 transition-colors disabled:opacity-50 uppercase tracking-widest"
                         >
                           <FileJson className="w-3.5 h-3.5 text-gray-400" />
-                          Exportar JSON
+                          {tr.gantt.exportJson}
                         </button>
                       </motion.div>
                     </>
@@ -1632,7 +1636,7 @@ export default function GanttChart() {
               </div>
              <ExportButton
                formats={['pdf', 'excel']}
-               title="Exportar Gantt"
+               title={tr.gantt.exportTitle}
                onExportPdf={handleExportPDF}
                onExportExcel={handleExportExcel}
                disabledFormats={{ pdf: tasks.length === 0, excel: tasks.length === 0 }}
@@ -1644,14 +1648,14 @@ export default function GanttChart() {
                className="bg-white text-gray-700 border border-gray-300 px-3 py-1.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg hover:bg-gray-50 active:scale-95"
              >
                <Users className="w-3.5 h-3.5" />
-               MEMBROS / STAKEHOLDERS
+               {tr.gantt.membersStakeholders}
              </button>
              <button 
                onClick={() => { setEditingTask(null); setIsTaskModalOpen(true); }}
                className="bg-[#ff7f00] hover:bg-orange-600 text-white px-3 py-1.5 flex items-center gap-2 transition-all font-bold uppercase tracking-widest text-[10px] rounded-lg active:scale-95 shadow-md shadow-orange-100"
              >
                <Plus className="w-3.5 h-3.5" />
-               NOVA FUNÇÃO
+               {tr.gantt.newTask}
              </button>
           </div>
 
@@ -1677,14 +1681,14 @@ export default function GanttChart() {
               <div className="flex flex-col h-auto min-w-[900px]">
                 <div className="flex bg-white border-b border-gray-200 uppercase text-[10px] font-bold text-gray-400 tracking-widest shrink-0 sticky top-0 z-40 h-[68px]">
                   <div className="w-[40px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Nº</div>
-                  <div className="flex-1 min-w-[200px] p-2 border-r border-gray-100 flex items-center">Função</div>
-                  <div className="w-[90px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Categoria</div>
-                  <div className="w-[130px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Resp.</div>
-                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Início</div>
-                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Fim</div>
-                  <div className="w-[60px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Dur.</div>
-                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">Dep.</div>
-                  <div className="w-[60px] shrink-0 p-2 flex items-center justify-center">Prog.</div>
+                  <div className="flex-1 min-w-[200px] p-2 border-r border-gray-100 flex items-center">{tr.gantt.colTask}</div>
+                  <div className="w-[90px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colCategory}</div>
+                  <div className="w-[130px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colResp}</div>
+                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colStart}</div>
+                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colEnd}</div>
+                  <div className="w-[60px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colDuration}</div>
+                  <div className="w-[70px] shrink-0 p-2 border-r border-gray-100 flex items-center justify-center">{tr.gantt.colDeps}</div>
+                  <div className="w-[60px] shrink-0 p-2 flex items-center justify-center">{tr.gantt.colProgress}</div>
                 </div>
                 
                 <div className="bg-white flex flex-col w-full">
@@ -1755,7 +1759,7 @@ export default function GanttChart() {
                             <span className="text-[10px] font-semibold text-gray-600 whitespace-nowrap">
                               {(() => {
                                 const d = new Date(startMs);
-                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
                               })()}
                             </span>
                           </div>
@@ -1764,7 +1768,7 @@ export default function GanttChart() {
                             <span className="text-[10px] font-semibold text-gray-600 whitespace-nowrap">
                               {(() => {
                                 const d = new Date(endMs);
-                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                                return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).toLocaleDateString(locale, { day: '2-digit', month: '2-digit' });
                               })()}
                             </span>
                           </div>
@@ -1793,7 +1797,7 @@ export default function GanttChart() {
                         <BarChart className="w-8 h-8 text-gray-200" />
                       </div>
                       <div className="space-y-1 px-8 text-center max-w-sm">
-                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">O cronograma está vazio.</p>
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">{tr.gantt.empty}</p>
                       </div>
                     </div>
                   )}
@@ -1858,7 +1862,7 @@ export default function GanttChart() {
                         style={{ width: `${cellWidth}px` }}
                       >
                         <span className={clsx("font-bold text-gray-400 uppercase", cellWidth < 40 ? "text-[6px]" : "text-[8px]")}>
-                          {date.toLocaleDateString('pt-BR', { weekday: 'short' }).slice(0, 3)}
+                          {date.toLocaleDateString(locale, { weekday: 'short' }).slice(0, 3)}
                         </span>
                         <span className={clsx("font-bold text-gray-900", cellWidth < 40 ? "text-[8px]" : "text-[10px]")}>
                           {date.getDate()}
@@ -2136,18 +2140,18 @@ export default function GanttChart() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-sm overflow-hidden rounded-xl shadow-xl flex flex-col">
               <div className="flex justify-between items-center p-6 border-b border-gray-200 shadow-sm shrink-0">
-                <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">INÍCIO DA TIMELINE</h2>
+                <h2 className="text-xl font-bold uppercase tracking-wider text-gray-900">{tr.gantt.timelineStart}</h2>
                 <button onClick={() => setIsStartDateModalOpen(false)} className="text-gray-400 hover:text-gray-900"><X className="w-6 h-6" /></button>
               </div>
               <div className="p-6">
                 <form id="start-date-form" onSubmit={handleSaveStartDate} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">DATA REFERÊNCIA INICIAL</label>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.gantt.referenceDate}</label>
                     <input type="date" required className="w-full bg-white border border-gray-300 px-4 py-3 text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold text-sm rounded-lg shadow-sm" value={customStartDate} onChange={e => setCustomStartDate(e.target.value)} />
                   </div>
                   <div className="flex gap-3 pt-2">
-                    <button type="button" onClick={() => setIsStartDateModalOpen(false)} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">CANCELAR</button>
-                    <button type="submit" className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-white bg-[#ff7f00] hover:bg-orange-600 rounded-lg">SALVAR</button>
+                    <button type="button" onClick={() => setIsStartDateModalOpen(false)} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">{tr.common.cancel}</button>
+                    <button type="submit" className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-white bg-[#ff7f00] hover:bg-orange-600 rounded-lg">{tr.common.save}</button>
                   </div>
                 </form>
               </div>
@@ -2158,14 +2162,14 @@ export default function GanttChart() {
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-200 w-full max-w-sm overflow-hidden rounded-xl shadow-xl flex flex-col">
                <div className="flex justify-between items-center p-6 border-b border-gray-200 shadow-sm shrink-0">
-                  <h2 className="text-xl font-bold uppercase tracking-wider text-red-600">EXCLUIR FUNÇÃO</h2>
+                  <h2 className="text-xl font-bold uppercase tracking-wider text-red-600">{tr.gantt.deleteTask}</h2>
                   <button onClick={() => setTaskToDelete(null)} className="text-gray-400 hover:text-gray-900"><X className="w-6 h-6" /></button>
                </div>
                <div className="p-6">
-                  <p className="text-sm text-gray-600 font-medium mb-6">Tem certeza que deseja excluir esta função? Esta ação não poderá ser desfeita e todas as informações serão perdidas.</p>
+                  <p className="text-sm text-gray-600 font-medium mb-6">{tr.gantt.deleteMessage}</p>
                   <div className="flex gap-3">
-                     <button onClick={() => setTaskToDelete(null)} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">CANCELAR</button>
-                     <button onClick={confirmDeleteTask} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg">EXCLUIR</button>
+                     <button onClick={() => setTaskToDelete(null)} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg">{tr.common.cancel}</button>
+                     <button onClick={confirmDeleteTask} className="flex-1 px-4 py-2.5 text-xs font-bold uppercase text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-lg">{tr.common.delete}</button>
                   </div>
                </div>
             </motion.div>
@@ -2184,8 +2188,8 @@ export default function GanttChart() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando cronograma completo...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{tr.gantt.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{tr.gantt.exportingText}</p>
             </div>
           </motion.div>
         )}
@@ -2217,7 +2221,7 @@ export default function GanttChart() {
               className="relative w-full bg-white rounded-t-3xl p-6 border-t border-gray-200"
             >
               <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-8" />
-              <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest mb-6 px-2">Ações Rápidas</h3>
+              <h3 className="text-lg font-black text-gray-900 uppercase tracking-widest mb-6 px-2">{tr.gantt.quickActions}</h3>
               
               <div className="grid grid-cols-1 gap-3">
                 <button 
@@ -2227,7 +2231,7 @@ export default function GanttChart() {
                   <div className="w-10 h-10 bg-[#ff7f00] text-white flex items-center justify-center rounded-xl">
                     <Plus className="w-6 h-6" />
                   </div>
-                  Nova Função / Tarefa
+                  {tr.gantt.newTaskMobile}
                 </button>
 
                 <button 
@@ -2237,7 +2241,7 @@ export default function GanttChart() {
                   <div className="w-10 h-10 bg-white text-gray-400 border border-gray-200 flex items-center justify-center rounded-xl">
                     <Users className="w-6 h-6" />
                   </div>
-                  Membros & Stakeholders
+                  {tr.gantt.membersMobile}
                 </button>
 
                 <div className="flex flex-col gap-2">
@@ -2249,7 +2253,7 @@ export default function GanttChart() {
                       <div className="w-10 h-10 bg-white text-gray-400 border border-gray-200 flex items-center justify-center rounded-xl">
                         <FileJson className="w-6 h-6" />
                       </div>
-                      DADOS JSON
+                      {tr.gantt.jsonData}
                     </div>
                     <ChevronDown className={clsx("w-5 h-5 transition-transform", mobileJSONOpen && "rotate-180")} />
                   </button>
@@ -2268,14 +2272,14 @@ export default function GanttChart() {
                           className="w-full flex items-center gap-4 p-3 bg-white text-gray-600 rounded-xl border border-gray-100 font-bold uppercase tracking-widest text-[10px] active:scale-[0.98] transition-all disabled:opacity-50"
                         >
                           <FileJson className="w-4 h-4 text-gray-400" />
-                          Exportar JSON
+                          {tr.gantt.exportJson}
                         </button>
                         <button 
                           onClick={() => { setShowMobileActions(false); importInputRef.current?.click(); }}
                           className="w-full flex items-center gap-4 p-3 bg-white text-gray-600 rounded-xl border border-gray-100 font-bold uppercase tracking-widest text-[10px] active:scale-[0.98] transition-all"
                         >
                           <Upload className="w-4 h-4 text-gray-400" />
-                          Importar JSON
+                          {tr.gantt.importJson}
                         </button>
                       </motion.div>
                     )}
@@ -2287,7 +2291,7 @@ export default function GanttChart() {
                 onClick={() => setShowMobileActions(false)}
                 className="w-full mt-6 p-4 bg-white text-gray-400 font-bold uppercase tracking-widest text-xs rounded-2xl border border-gray-100 active:scale-[0.98] transition-all"
               >
-                Cancelar
+                {tr.common.cancel}
               </button>
             </motion.div>
           </div>

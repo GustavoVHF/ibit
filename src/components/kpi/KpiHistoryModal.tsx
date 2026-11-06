@@ -20,6 +20,7 @@ import {
   toNumber,
   toJsDate,
 } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiHistoryModalProps {
   kpi: ProjectKPI;
@@ -38,6 +39,7 @@ interface SeriesPoint {
  * single synthetic starting point and never crash.
  */
 export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) {
+  const { t, locale } = useI18n();
   const target = toNumber(kpi.targetValue);
   const unit = kpi.targetUnit ? ` ${kpi.targetUnit}` : '';
 
@@ -70,12 +72,12 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
   const chartData = useMemo(
     () =>
       series.map((p) => ({
-        name: p.date.toLocaleDateString('pt-BR'),
+        name: p.date.toLocaleDateString(locale),
         valor: p.value,
         meta: target,
         note: p.note,
       })),
-    [series, target]
+    [series, target, locale]
   );
 
   const last = series[series.length - 1]?.value ?? 0;
@@ -103,11 +105,11 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
         <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2">
           <p className="text-xs font-bold text-gray-900">{label}</p>
           <p className="text-xs text-[#ff7f00] font-semibold">
-            Valor: {d.valor}
+            {t.kpi.value}: {d.valor}
             {unit}
           </p>
           <p className="text-[11px] text-gray-400 font-semibold">
-            Meta: {target}
+            {t.kpi.target}: {target}
             {unit}
           </p>
           {d.note && <p className="text-[10px] text-gray-400 mt-0.5 max-w-[200px]">{d.note}</p>}
@@ -138,7 +140,7 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
               <LineChartIcon className="w-6 h-6 text-[#ff7f00] shrink-0" />
               <div className="min-w-0">
                 <h3 className="text-lg font-bold uppercase tracking-wider text-gray-900 truncate" title={kpi.name}>
-                  Evolução do KPI
+                  {t.kpi.historyTitle}
                 </h3>
                 <p className="text-xs font-bold text-gray-400 tracking-widest uppercase mt-0.5 truncate" title={kpi.name}>
                   {kpi.name}
@@ -155,19 +157,19 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1">
-                  Valor Atual
+                  {t.kpi.currentValue}
                 </span>
                 <div className="text-xl font-bold text-gray-900 truncate">{formatCurrent(kpi)}</div>
               </div>
               <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1">
-                  Meta
+                  {t.kpi.target}
                 </span>
                 <div className="text-xl font-bold text-gray-900 truncate">{formatTarget(kpi)}</div>
               </div>
               <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1">
-                  Atingimento
+                  {t.kpi.attainment}
                 </span>
                 <div
                   className={`text-xl font-bold ${
@@ -179,7 +181,7 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
               </div>
               <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm">
                 <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-[0.15em] mb-1">
-                  Variação
+                  {t.kpi.variation}
                 </span>
                 <div className="flex items-center gap-1.5">
                   {trendIcon}
@@ -198,10 +200,10 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
             {/* Gráfico */}
             <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-0.5">
-                Histórico de Valores
+                {t.kpi.valueHistory}
               </h4>
               <p className="text-[11px] text-gray-400 font-medium mb-3">
-                Evolução do valor atual em relação à meta
+                {t.kpi.valueHistoryHint}
               </p>
               <div className="w-full h-64">
                 <ResponsiveContainer width="100%" height="100%">
@@ -224,12 +226,12 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
                       y={target}
                       stroke="#9ca3af"
                       strokeDasharray="5 4"
-                      label={{ value: 'Meta', position: 'right', fontSize: 10, fill: '#9ca3af', fontWeight: 700 }}
+                      label={{ value: t.kpi.target, position: 'right', fontSize: 10, fill: '#9ca3af', fontWeight: 700 }}
                     />
                     <Line
                       type="monotone"
                       dataKey="valor"
-                      name="Valor"
+                      name={t.kpi.value}
                       stroke="#ff7f00"
                       strokeWidth={3}
                       dot={{ r: 4, fill: '#ff7f00', strokeWidth: 0 }}
@@ -245,7 +247,7 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
             {series.length > 1 && (
               <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-gray-900 mb-3">
-                  Atualizações Registradas
+                  {t.kpi.recordedUpdates}
                 </h4>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-hide">
                   {[...series].reverse().map((p, idx) => (
@@ -263,7 +265,7 @@ export default function KpiHistoryModal({ kpi, onClose }: KpiHistoryModalProps) 
                         )}
                       </div>
                       <span className="text-[11px] text-gray-400 font-semibold shrink-0">
-                        {p.date.toLocaleDateString('pt-BR')}
+                        {p.date.toLocaleDateString(locale)}
                       </span>
                     </div>
                   ))}

@@ -1,0 +1,23 @@
+export const projectSettings = {
+  imageTooBig: 'A imagem deve ter no máximo 2MB.',
+  uploadServerError: 'Falha na comunicação com o servidor de imagens. Verifique as configurações.',
+  title: 'Personalizar Projeto',
+  cover: 'Capa do Projeto',
+  coverAlt: 'Capa',
+  changeCover: 'Trocar Capa',
+  clickToUpload: 'Clique para fazer upload',
+  removePhoto: 'Remover Foto',
+  nameLabel: 'Nome do Projeto *',
+  descriptionPlaceholder: 'Objetivos, metadados da escuderia...',
+  onlyOwnerDeletes: 'Apenas o dono pode excluir o projeto',
+  saveChanges: 'Salvar Alterações',
+  // Public audit page
+  prodOnly: 'Funcionalidade disponível apenas em produção. Faça deploy no Vercel para testar.',
+  invalidLink: 'Link inválido ou expirado',
+  loadError: 'Erro ao carregar dados',
+  loadingDashboard: 'Carregando dashboard...',
+  accessDenied: 'Acesso Negado',
+  publicReadOnly: 'Dashboard Público - Somente Leitura',
+  noEvent: 'Sem evento',
+  poweredBy: 'POWERED BY',
+};

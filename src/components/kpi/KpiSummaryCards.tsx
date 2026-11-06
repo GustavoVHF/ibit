@@ -1,12 +1,14 @@
 import React from 'react';
 import { ProjectKPI } from '../../types';
 import { computeProgress, daysUntil, formatDate } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiSummaryCardsProps {
   kpis: ProjectKPI[];
 }
 
 export default function KpiSummaryCards({ kpis }: KpiSummaryCardsProps) {
+  const { t } = useI18n();
   const total = kpis.length;
 
   const attainmentValues = kpis.map(computeProgress).filter(Number.isFinite);
@@ -24,24 +26,24 @@ export default function KpiSummaryCards({ kpis }: KpiSummaryCardsProps) {
 
   const cards = [
     {
-      label: 'Total de KPIs',
+      label: t.kpi.totalKpis,
       value: total,
       accent: 'text-gray-900',
     },
     {
-      label: 'Taxa de Atingimento',
+      label: t.kpi.attainmentRate,
       value: `${overallAttainment}%`,
       accent: overallAttainment >= 70 ? 'text-green-600' : overallAttainment >= 40 ? 'text-yellow-600' : 'text-red-600',
     },
     {
-      label: 'Em Risco / Atrasados',
+      label: t.kpi.atRiskLate,
       value: atRiskCount,
       accent: atRiskCount > 0 ? 'text-red-600' : 'text-gray-900',
     },
     {
-      label: 'Próximo Vencimento',
+      label: t.kpi.nextDeadline,
       value: upcoming ? formatDate(upcoming.kpi.deadline) : '-',
-      sublabel: upcoming ? upcoming.kpi.name : 'Nenhum prazo pendente',
+      sublabel: upcoming ? upcoming.kpi.name : t.kpi.noPendingDeadline,
       accent: 'text-gray-900',
     },
   ];

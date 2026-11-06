@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
+import { getLocale, getMessages } from '../../i18n';
 
 /**
  * "Sectioned ledger" Excel layout — inspired by the platform's own budget
@@ -64,7 +65,7 @@ export async function exportLedgerToExcel<T>(opts: LedgerExportOptions<T>): Prom
   workbook.creator = 'IBIT Platform';
   workbook.created = new Date();
 
-  const sheet = workbook.addWorksheet(opts.sheetName.slice(0, 31) || 'Dados');
+  const sheet = workbook.addWorksheet(opts.sheetName.slice(0, 31) || getMessages().export.defaultSheet);
   const colCount = opts.columns.length;
 
   // Title row
@@ -73,7 +74,7 @@ export async function exportLedgerToExcel<T>(opts: LedgerExportOptions<T>): Prom
   sheet.mergeCells(1, 1, 1, colCount);
   titleRow.height = 26;
 
-  const generatedRow = sheet.addRow([`Exportado em ${new Date().toLocaleString('pt-BR')}`]);
+  const generatedRow = sheet.addRow([getMessages().export.exportedAt(new Date().toLocaleString(getLocale()))]);
   generatedRow.font = { italic: true, size: 9, color: { argb: 'FF9CA3AF' } };
   sheet.mergeCells(2, 1, 2, colCount);
   sheet.addRow([]); // spacer
@@ -121,7 +122,7 @@ export async function exportLedgerToExcel<T>(opts: LedgerExportOptions<T>): Prom
     });
 
     // Subtotal row for this section
-    const subtotalCells = opts.columns.map((_, i) => (i === opts.totalColumnIndex ? subtotal : i === 0 ? `Subtotal — ${group.name}` : ''));
+    const subtotalCells = opts.columns.map((_, i) => (i === opts.totalColumnIndex ? subtotal : i === 0 ? getMessages().export.subtotal(group.name) : ''));
     const subtotalRow = sheet.addRow(subtotalCells);
     subtotalRow.eachCell((cell, colNumber) => {
       cell.font = { bold: true, size: 9, color: { argb: 'FF7A3B00' } };
@@ -134,7 +135,7 @@ export async function exportLedgerToExcel<T>(opts: LedgerExportOptions<T>): Prom
   });
 
   // Grand total row
-  const grandTotalCells = opts.columns.map((_, i) => (i === opts.totalColumnIndex ? grandTotal : i === 0 ? 'TOTAL GERAL' : ''));
+  const grandTotalCells = opts.columns.map((_, i) => (i === opts.totalColumnIndex ? grandTotal : i === 0 ? getMessages().export.grandTotal : ''));
   const grandTotalRow = sheet.addRow(grandTotalCells);
   grandTotalRow.eachCell((cell, colNumber) => {
     cell.font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };

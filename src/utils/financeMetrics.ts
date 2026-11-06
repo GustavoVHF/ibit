@@ -1,4 +1,5 @@
 import { Transaction } from '../types';
+import { getMessages } from '../i18n';
 
 export type TransactionFlow = 'entrada' | 'saidaInterna' | 'saidaExterna';
 export type CashFlowGranularity = 'dia' | 'semana' | 'mes';
@@ -17,8 +18,6 @@ export interface OutflowTotals {
   diferenca: number; // externa - interna
 }
 
-const MONTH_NAMES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
-
 const pad = (n: number) => n.toString().padStart(2, '0');
 
 const toDate = (t: Transaction): Date => (t.date?.toDate ? t.date.toDate() : new Date());
@@ -33,7 +32,7 @@ function bucketOf(date: Date, granularity: CashFlowGranularity): { key: string; 
   if (granularity === 'mes') {
     const m = date.getMonth();
     const y = date.getFullYear();
-    return { key: `${y}-${pad(m)}`, name: `${MONTH_NAMES[m]}/${y.toString().slice(-2)}` };
+    return { key: `${y}-${pad(m)}`, name: `${getMessages().common.monthsShort[m]}/${y.toString().slice(-2)}` };
   }
   if (granularity === 'dia') {
     return {
@@ -48,7 +47,7 @@ function bucketOf(date: Date, granularity: CashFlowGranularity): { key: string; 
   monday.setHours(0, 0, 0, 0);
   return {
     key: `${monday.getFullYear()}-${pad(monday.getMonth() + 1)}-${pad(monday.getDate())}`,
-    name: `Sem ${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`,
+    name: getMessages().common.weekShort(`${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`),
   };
 }
 

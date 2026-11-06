@@ -1,0 +1,33 @@
+export const exportNs = {
+  exportTitle: 'Exportar',
+  exportUpper: 'EXPORTAR',
+  exporting: 'Exportando...',
+  exportError: 'Erro ao exportar. Tente novamente.',
+  format: 'Formato',
+  resolution: 'Resolução (Pixels)',
+  width: 'Largura',
+  height: 'Altura',
+  orientation: 'Orientação',
+  portrait: 'Retrato',
+  landscape: 'Paisagem',
+  templates: 'Modelos Prontos',
+  chrome: 'Cabeçalho, rodapé e logo IBIT',
+  // Template labels, keyed by template id
+  templateLabels: {
+    '4k-landscape': '4K Paisagem',
+    '4k-portrait': '4K Retrato',
+    'a4-portrait': 'A4 Retrato',
+    'a4-landscape': 'A4 Paisagem',
+  } as Record<string, string>,
+  // Generated documents
+  generatedAt: (date: string, time: string) => `Gerado em ${date} · ${time}`,
+  responsible: (name: string) => `Responsável: ${name}`,
+  accessLevel: (level: string) => `Nível de acesso: ${level}`,
+  projectMembers: 'Membros do Projeto',
+  exportedAt: (date: string) => `Exportado em ${date}`,
+  defaultSheet: 'Dados',
+  subtotal: (group: string) => `Subtotal — ${group}`,
+  grandTotal: 'TOTAL GERAL',
+  wordPage: 'IBIT · Página ',
+  wordOf: ' de ',
+};

@@ -55,23 +55,26 @@ import type { Quadro, Project, UserProfile } from '../types';
 import { nodeTypes } from './QuadroCustomNodes';
 import ProjectSettingsModal from './ProjectSettingsModal';
 import { AnimatePresence } from 'motion/react';
+import { useI18n } from '../i18n/LanguageContext';
+import type { Messages } from '../i18n';
 
 const COLORS = [
-  { name: 'Branco', value: '#ffffff', text: '#1f2937', border: true },
-  { name: 'Laranja', value: '#ff7f00', text: '#ffffff' },
-  { name: 'Azul', value: '#3b82f6', text: '#ffffff' },
-  { name: 'Verde', value: '#10b981', text: '#ffffff' },
-  { name: 'Roxo', value: '#8b5cf6', text: '#ffffff' },
-  { name: 'Vermelho', value: '#ef4444', text: '#ffffff' },
-  { name: 'Amarelo', value: '#f59e0b', text: '#ffffff' },
-  { name: 'Preto', value: '#111827', text: '#ffffff' },
-];
+  { name: 'white', value: '#ffffff', text: '#1f2937', border: true },
+  { name: 'orange', value: '#ff7f00', text: '#ffffff' },
+  { name: 'blue', value: '#3b82f6', text: '#ffffff' },
+  { name: 'green', value: '#10b981', text: '#ffffff' },
+  { name: 'purple', value: '#8b5cf6', text: '#ffffff' },
+  { name: 'red', value: '#ef4444', text: '#ffffff' },
+  { name: 'yellow', value: '#f59e0b', text: '#ffffff' },
+  { name: 'black', value: '#111827', text: '#ffffff' },
+] satisfies { name: keyof Messages['common']['colors']; value: string; text: string; border?: boolean }[];
 
 type Tool = 'pointer' | 'rectangle' | 'text';
 
 function QuadroContent() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { screenToFlowPosition } = useReactFlow();
 
@@ -283,7 +286,7 @@ function QuadroContent() {
       type: activeTool,
       position,
       data: {
-        label: activeTool === 'text' ? 'TEXTO' : 'NOVO TÓPICO',
+        label: activeTool === 'text' ? t.quadro.newText : t.quadro.newTopic,
         color: selectedColor.value
       },
       style: activeTool === 'rectangle' ? { width: 150, height: 100 } : undefined,
@@ -299,7 +302,7 @@ function QuadroContent() {
     setActiveTool('pointer');
 
     // Reset loop tool if desired, or keep it. Let's keep it for multiple adds.
-  }, [activeTool, screenToFlowPosition, selectedColor, setNodes, edges, user, projectId, updateQuadroInFirestore]);
+  }, [activeTool, screenToFlowPosition, selectedColor, setNodes, edges, user, projectId, updateQuadroInFirestore, t]);
 
   const changeSelectedColor = useCallback((color: typeof COLORS[0]) => {
     lastInteractionTime.current = Date.now();
@@ -407,7 +410,7 @@ function QuadroContent() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project.members.length} {project.members.length === 1 ? 'Membro' : 'Membros'}
+                {project.members.length} {t.common.membersTitle(project.members.length)}
               </span>
             </div>
           </div>
@@ -459,7 +462,7 @@ function QuadroContent() {
                         color.border && "border border-gray-200"
                       )}
                       style={{ backgroundColor: color.value }}
-                      title={color.name}
+                      title={t.common.colors[color.name]}
                     />
                   ))}
                 </div>
@@ -473,7 +476,7 @@ function QuadroContent() {
                     "p-3 rounded-xl transition-all",
                     activeTool === 'pointer' ? "bg-orange-50 text-[#ff7f00]" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                   )}
-                  title="Selecionar"
+                  title={t.quadro.select}
                 >
                   <MousePointer2 className="w-5 h-5" />
                 </button>
@@ -483,7 +486,7 @@ function QuadroContent() {
                     "p-3 rounded-xl transition-all",
                     activeTool === 'rectangle' ? "bg-orange-50 text-[#ff7f00]" : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                   )}
-                  title="Retângulo"
+                  title={t.quadro.rectangle}
                 >
                   <Square className="w-5 h-5" />
                 </button>
@@ -493,7 +496,7 @@ function QuadroContent() {
                 <button
                   onClick={deleteSelected}
                   className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                  title="Deletar Selecionado"
+                  title={t.quadro.deleteSelected}
                 >
                   <Trash2 className="w-5 h-5" />
                 </button>

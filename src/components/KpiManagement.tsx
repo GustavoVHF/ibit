@@ -59,6 +59,7 @@ import {
   formatCurrent,
   formatDate,
 } from './kpi/kpiHelpers';
+import { useI18n } from '../i18n/LanguageContext';
 
 type ViewMode = 'visual' | 'table';
 
@@ -66,6 +67,7 @@ export default function KpiManagement() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t, locale } = useI18n();
 
   const [project, setProject] = useState<Project | null>(null);
   const [kpis, setKpis] = useState<ProjectKPI[]>([]);
@@ -188,20 +190,20 @@ export default function KpiManagement() {
 
   const handleExportExcel = async () => {
     await exportToExcel({
-      filename: `kpis-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      filename: `kpis-${(project?.name || t.kpi.fileProject).replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.xlsx`,
       sheetName: 'KPIs',
-      title: `KPIs & Metas — ${project?.name || 'Projeto'}`,
+      title: t.kpi.excelTitle(project?.name || t.common.project),
       columns: [
-        { header: 'Setor', key: 'sector', type: 'string', width: 20 },
-        { header: 'Nome do KPI', key: 'name', type: 'string', width: 34 },
-        { header: 'Meta', key: 'target', type: 'string', width: 16, value: (row) => formatTarget(row) },
-        { header: 'Valor Atual', key: 'current', type: 'string', width: 16, value: (row) => formatCurrent(row) },
-        { header: 'Prazo', key: 'deadline', type: 'date', width: 14, value: (row) => (row.deadline?.toDate ? row.deadline.toDate() : new Date(row.deadline)) },
+        { header: t.kpi.xlsSector, key: 'sector', type: 'string', width: 20, value: (row) => t.enums.kpiSector[row.sector] ?? row.sector },
+        { header: t.kpi.xlsName, key: 'name', type: 'string', width: 34 },
+        { header: t.kpi.xlsTarget, key: 'target', type: 'string', width: 16, value: (row) => formatTarget(row) },
+        { header: t.kpi.xlsCurrent, key: 'current', type: 'string', width: 16, value: (row) => formatCurrent(row) },
+        { header: t.kpi.xlsDeadline, key: 'deadline', type: 'date', width: 14, value: (row) => (row.deadline?.toDate ? row.deadline.toDate() : new Date(row.deadline)) },
         {
-          header: 'Responsável', key: 'responsible', type: 'string', width: 22,
+          header: t.kpi.xlsResponsible, key: 'responsible', type: 'string', width: 22,
           value: (row) => projectMembers.find((m) => m.uid === row.responsible)?.name || '-',
         },
-        { header: 'Status', key: 'status', type: 'string', width: 16 },
+        { header: t.kpi.xlsStatus, key: 'status', type: 'string', width: 16, value: (row) => t.enums.kpiStatus[row.status] ?? row.status },
       ],
       rows: filteredKpis,
     });
@@ -220,8 +222,8 @@ export default function KpiManagement() {
 
       container.innerHTML = options.chrome
         ? buildOfficialHeaderHTML({
-            title: project?.name || 'Projeto',
-            subtitle: 'Relatório de KPIs & Metas',
+            title: project?.name || t.common.project,
+            subtitle: t.kpi.pdfSubtitle,
             responsibleName: user?.displayName || undefined,
           })
         : '';
@@ -236,13 +238,13 @@ export default function KpiManagement() {
       const tdStyle = 'padding:8px;vertical-align:top;font-size:10px;font-weight:600;color:#374151;border-bottom:1px solid #f3f4f6;';
 
       const headerHTML = `<thead><tr>
-        <th style="${thStyle}width:14%;">SETOR</th>
+        <th style="${thStyle}width:14%;">${t.kpi.colSector}</th>
         <th style="${thStyle}width:22%;">KPI</th>
-        <th style="${thStyle}width:12%;">META</th>
-        <th style="${thStyle}width:14%;">VALOR ATUAL</th>
-        <th style="${thStyle}width:10%;">PRAZO</th>
-        <th style="${thStyle}width:16%;">RESPONSÁVEL</th>
-        <th style="${thStyle}width:12%;">STATUS</th>
+        <th style="${thStyle}width:12%;">${t.kpi.colTarget}</th>
+        <th style="${thStyle}width:14%;">${t.kpi.colCurrent}</th>
+        <th style="${thStyle}width:10%;">${t.kpi.colDeadline}</th>
+        <th style="${thStyle}width:16%;">${t.kpi.colResponsible}</th>
+        <th style="${thStyle}width:12%;">${t.kpi.colStatus}</th>
       </tr></thead>`;
 
       let bodyHTML = '<tbody>';
@@ -250,13 +252,13 @@ export default function KpiManagement() {
         const rowBg = idx % 2 === 0 ? '#ffffff' : '#fafafa';
         const member = projectMembers.find((m) => m.uid === kpi.responsible);
         bodyHTML += `<tr style="background:${rowBg};">
-          <td style="${tdStyle}">${kpi.sector}</td>
+          <td style="${tdStyle}">${t.enums.kpiSector[kpi.sector] ?? kpi.sector}</td>
           <td style="${tdStyle}font-weight:800;color:#111827;">${kpi.name}</td>
           <td style="${tdStyle}">${formatTarget(kpi)}</td>
           <td style="${tdStyle}">${formatCurrent(kpi)}</td>
           <td style="${tdStyle}">${formatDate(kpi.deadline)}</td>
           <td style="${tdStyle}">${member?.name || '-'}</td>
-          <td style="${tdStyle}">${kpi.status}</td>
+          <td style="${tdStyle}">${t.enums.kpiStatus[kpi.status] ?? kpi.status}</td>
         </tr>`;
       });
       bodyHTML += '</tbody>';
@@ -267,14 +269,14 @@ export default function KpiManagement() {
 
       if (options.chrome) {
         const footer = document.createElement('div');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Relatório de KPIs exportado da plataforma IBIT em ${new Date().toLocaleDateString('pt-BR')}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, t.kpi.pdfFooter(new Date().toLocaleDateString(locale)));
         container.appendChild(footer);
       }
 
       await new Promise((r) => setTimeout(r, 400));
 
       await captureContainerAsPdf(container, {
-        filename: `kpis-${(project?.name || 'projeto').replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.pdf`,
+        filename: `kpis-${(project?.name || t.kpi.fileProject).replace(/\s+/g, '-')}-${new Date().toISOString().substring(0, 10)}.pdf`,
         widthPx: options.widthPx,
         heightPx: options.heightPx,
         dpi: options.dpi,
@@ -284,7 +286,7 @@ export default function KpiManagement() {
       document.body.removeChild(container);
     } catch (err) {
       console.error('[KPI Management PDF Export] Error:', err);
-      alert('Erro ao exportar PDF. Tente novamente.');
+      alert(t.kpi.pdfError);
     } finally {
       setIsExporting(false);
     }
@@ -327,7 +329,7 @@ export default function KpiManagement() {
             </div>
             <div>
               <h2 className="text-xl font-bold tracking-wider uppercase leading-tight text-gray-900">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || t.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -346,7 +348,7 @@ export default function KpiManagement() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {t.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -360,7 +362,7 @@ export default function KpiManagement() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Procurar KPI..."
+                  placeholder={t.kpi.searchPlaceholder}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-sm font-medium rounded-lg transition-all"
@@ -372,9 +374,9 @@ export default function KpiManagement() {
                 onChange={(e) => setSectorFilter(e.target.value as KpiSector | 'Todos')}
                 className="bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-xs font-bold uppercase tracking-wider rounded-lg px-3 py-2 text-gray-700"
               >
-                <option value="Todos">Todos os Setores</option>
+                <option value="Todos">{t.kpi.allSectors}</option>
                 {KPI_SECTORS.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{t.enums.kpiSector[s]}</option>
                 ))}
               </select>
 
@@ -383,9 +385,9 @@ export default function KpiManagement() {
                 onChange={(e) => setStatusFilter(e.target.value as KpiStatus | 'Todos')}
                 className="bg-gray-50 border border-gray-200 focus:outline-none focus:border-[#ff7f00] text-xs font-bold uppercase tracking-wider rounded-lg px-3 py-2 text-gray-700"
               >
-                <option value="Todos">Todos os Status</option>
+                <option value="Todos">{t.kpi.allStatuses}</option>
                 {KPI_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>{t.enums.kpiStatus[s]}</option>
                 ))}
               </select>
             </div>
@@ -399,7 +401,7 @@ export default function KpiManagement() {
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs uppercase tracking-widest transition-all',
                     viewMode === 'visual' ? 'bg-white text-[#ff7f00] shadow-sm' : 'text-gray-500 hover:text-gray-900'
                   )}
-                  title="Visão Cards / Gráficos"
+                  title={t.kpi.viewCards}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
@@ -409,7 +411,7 @@ export default function KpiManagement() {
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-md font-bold text-xs uppercase tracking-widest transition-all',
                     viewMode === 'table' ? 'bg-white text-[#ff7f00] shadow-sm' : 'text-gray-500 hover:text-gray-900'
                   )}
-                  title="Visão Tabela"
+                  title={t.kpi.viewTable}
                 >
                   <TableIcon className="w-4 h-4" />
                 </button>
@@ -417,7 +419,7 @@ export default function KpiManagement() {
 
               <ExportButton
                 formats={['pdf', 'excel']}
-                title="Exportar KPIs"
+                title={t.kpi.exportTitle}
                 onExportPdf={handleExportPDF}
                 onExportExcel={handleExportExcel}
                 disabledFormats={{ pdf: filteredKpis.length === 0, excel: filteredKpis.length === 0 }}
@@ -429,7 +431,7 @@ export default function KpiManagement() {
                 className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">Novo KPI</span>
+                <span className="hidden sm:inline">{t.kpi.newKpi}</span>
               </button>
             </div>
           </div>
@@ -479,22 +481,22 @@ export default function KpiManagement() {
                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4 mx-auto">
                   <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
-                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">Excluir KPI</h3>
+                <h3 className="text-lg font-bold text-center text-gray-900 mb-2">{t.kpi.deleteTitle}</h3>
                 <p className="text-gray-500 text-center text-sm mb-6">
-                  Tem certeza que deseja excluir o KPI <strong>{itemToDelete.name}</strong>? Esta ação não pode ser desfeita.
+                  {t.kpi.deleteBefore}<strong>{itemToDelete.name}</strong>{t.kpi.deleteAfter}
                 </p>
                 <div className="flex gap-3">
                   <button
                     onClick={() => setItemToDelete(null)}
                     className="flex-1 py-2.5 bg-gray-50 text-gray-700 font-bold text-sm uppercase tracking-wider rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                   >
-                    Cancelar
+                    {t.common.cancel}
                   </button>
                   <button
                     onClick={handleDeleteItem}
                     className="flex-1 py-2.5 bg-red-600 text-white font-bold text-sm uppercase tracking-wider rounded-lg hover:bg-red-700 transition-colors"
                   >
-                    Excluir
+                    {t.common.delete}
                   </button>
                 </div>
               </div>
@@ -550,8 +552,8 @@ export default function KpiManagement() {
           >
             <Loader2 className="w-12 h-12 text-[#ff7f00] animate-spin" />
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Exportando</h2>
-              <p className="text-sm text-gray-500 font-medium">Gerando relatório de KPIs...</p>
+              <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{t.kpi.exporting}</h2>
+              <p className="text-sm text-gray-500 font-medium">{t.kpi.exportingText}</p>
             </div>
           </motion.div>
         )}

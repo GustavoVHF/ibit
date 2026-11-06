@@ -2,8 +2,9 @@ import React from 'react';
 import { MapPin, Clock, CheckCircle2, Circle, Paperclip, Edit2, Trash2, CalendarClock, TrendingUp } from 'lucide-react';
 import clsx from 'clsx';
 import { StatusReport, UserProfile } from '../../types';
-import { IMPACT_STATUS_DOT, SECTOR_TAG_STYLES, formatDate, formatTime, formatWeekday, formatNextMeetingTag } from './statusReportHelpers';
+import { IMPACT_STATUS_DOT, SECTOR_TAG_STYLES, formatTime, formatWeekday, formatNextMeetingTag, toJsDate } from './statusReportHelpers';
 import StarRating from './StarRating';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface StatusReportCardProps {
   report: StatusReport;
@@ -26,6 +27,7 @@ export default function StatusReportCard({
   onOpenImpactEvaluation,
   canApprove,
 }: StatusReportCardProps) {
+  const { t } = useI18n();
   const participants = projectMembers.filter((m) => report.participants?.includes(m.uid));
   const actionItems = report.actionItems || [];
   const impactStatus = report.impactStatus || 'Pendente de Avaliação';
@@ -43,13 +45,13 @@ export default function StatusReportCard({
         >
           <span className={clsx('w-1.5 h-1.5 rounded-full shrink-0', IMPACT_STATUS_DOT[impactStatus])} />
           <TrendingUp className="w-3 h-3" />
-          Avaliação de Progresso
+          {t.statusReports.progressEvaluation}
         </button>
 
         {nextMeetingTag && (
           <span className="flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-gray-50 border border-gray-200 px-2 py-1 rounded-full whitespace-nowrap">
             <CalendarClock className="w-3 h-3" />
-            Próx. Reunião: {nextMeetingTag}
+            {t.statusReports.nextMeeting(nextMeetingTag)}
           </span>
         )}
       </div>
@@ -59,12 +61,12 @@ export default function StatusReportCard({
         <div className="flex items-start gap-3 min-w-0">
           <div className="flex flex-col items-center justify-center w-11 h-11 bg-gray-50 border border-gray-200 rounded-lg shrink-0">
             <span className="text-[9px] font-bold text-gray-400 uppercase leading-none">{formatWeekday(report.date)}</span>
-            <span className="text-sm font-bold text-gray-900 leading-none mt-0.5">{formatDate(report.date).split('/')[0]}</span>
+            <span className="text-sm font-bold text-gray-900 leading-none mt-0.5">{toJsDate(report.date) ? String(toJsDate(report.date)!.getDate()).padStart(2, '0') : '-'}</span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className={clsx('px-2 py-0.5 rounded text-[10px] font-bold border whitespace-nowrap', SECTOR_TAG_STYLES[report.sector])}>
-                {report.sector}
+                {t.enums.statusReportSector[report.sector] ?? report.sector}
               </span>
               <span className="flex items-center gap-1 text-[11px] text-gray-500 font-semibold">
                 <Clock className="w-3 h-3" />
@@ -129,7 +131,7 @@ export default function StatusReportCard({
       {(report.outcome || !!report.outcomeRating) && (
         <div className="bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 mb-3">
           <div className="flex items-center justify-between mb-0.5">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Resultado Alcançado</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{t.statusReports.outcomeReached}</span>
             {!!report.outcomeRating && <StarRating value={report.outcomeRating} readOnly />}
           </div>
           {report.outcome && <p className="text-xs text-gray-700 font-medium line-clamp-2">{report.outcome}</p>}
@@ -139,7 +141,7 @@ export default function StatusReportCard({
       {/* Action Items */}
       {actionItems.length > 0 && (
         <div className="mb-3">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Planos de Ação</span>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">{t.statusReports.actionPlans}</span>
           <div className="space-y-1">
             {actionItems.map((item) => {
               const responsible = projectMembers.find((m) => m.uid === item.responsible);
@@ -210,7 +212,7 @@ export default function StatusReportCard({
           )}
         >
           {report.approved ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Circle className="w-3.5 h-3.5" />}
-          {report.approved ? 'Concluída' : 'Pendente'}
+          {report.approved ? t.statusReports.done : t.statusReports.pending}
         </button>
       </div>
     </div>

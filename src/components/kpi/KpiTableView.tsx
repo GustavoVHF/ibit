@@ -9,6 +9,7 @@ import {
   computeProgress,
   formatDate,
 } from './kpiHelpers';
+import { useI18n } from '../../i18n/LanguageContext';
 
 interface KpiTableViewProps {
   kpis: ProjectKPI[];
@@ -20,6 +21,7 @@ interface KpiTableViewProps {
 }
 
 export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, onQuickUpdate, onEvolution }: KpiTableViewProps) {
+  const { t } = useI18n();
   const grouped: Record<string, ProjectKPI[]> = {};
   KPI_SECTORS.forEach((sector) => {
     const items = kpis.filter((k) => k.sector === sector);
@@ -31,7 +33,7 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
   if (sectors.length === 0) {
     return (
       <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center shadow-sm">
-        <p className="text-gray-500 text-sm font-medium">Nenhum KPI encontrado para os filtros selecionados.</p>
+        <p className="text-gray-500 text-sm font-medium">{t.kpi.emptyFiltered}</p>
       </div>
     );
   }
@@ -41,21 +43,21 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
       {sectors.map((sector) => (
         <div key={sector} className="bg-white rounded-xl border border-gray-200 overflow-x-auto shadow-sm">
           <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">{sector}</h3>
+            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-widest">{t.enums.kpiSector[sector as KpiSector] ?? sector}</h3>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              {grouped[sector].length} KPI(s)
+              {t.kpi.kpiCount(grouped[sector].length)}
             </span>
           </div>
           <table className="w-full text-left border-collapse min-w-[1000px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">Nome do KPI</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">Meta</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-56">Valor Atual</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">Prazo</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-center">Responsável</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">Status</th>
-                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-right">Ações</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest min-w-[200px]">{t.kpi.colName}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">{t.kpi.colTargetTable}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-56">{t.kpi.colCurrentTable}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">{t.kpi.colDeadlineTable}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-center">{t.kpi.colResponsibleTable}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-32 text-center">{t.kpi.colStatusTable}</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest w-24 text-right">{t.common.actions}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -82,7 +84,7 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
                         <button
                           onClick={() => onQuickUpdate(kpi)}
                           className="text-xs font-bold text-gray-900 hover:text-[#ff7f00] transition-colors whitespace-nowrap"
-                          title="Atualizar valor rapidamente"
+                          title={t.kpi.quickUpdateTitle}
                         >
                           {formatCurrent(kpi)}
                         </button>
@@ -114,7 +116,7 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
                     </td>
                     <td className="px-4 py-2.5 text-center">
                       <span className={`px-2.5 py-0.5 rounded text-xs font-bold border whitespace-nowrap ${statusStyle.badge}`}>
-                        {kpi.status}
+                        {t.enums.kpiStatus[kpi.status] ?? kpi.status}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
@@ -123,7 +125,7 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
                           <button
                             onClick={() => onEvolution(kpi)}
                             className="p-1 bg-white border border-gray-200 hover:bg-orange-50 text-gray-400 hover:text-[#ff7f00] rounded transition-all shadow-sm"
-                            title="Ver evolução"
+                            title={t.kpi.viewEvolution}
                           >
                             <LineChart className="w-3.5 h-3.5" />
                           </button>
@@ -131,7 +133,7 @@ export default function KpiTableView({ kpis, projectMembers, onEdit, onDelete, o
                         <button
                           onClick={() => onEdit(kpi)}
                           className="p-1 bg-white border border-gray-200 hover:bg-orange-50 text-gray-400 hover:text-[#ff7f00] rounded transition-all shadow-sm"
-                          title="Editar"
+                          title={t.kpi.edit}
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>

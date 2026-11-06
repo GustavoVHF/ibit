@@ -40,6 +40,11 @@ import { logAutomaticChange } from '../utils/changeHistory';
 import { buildCashFlowSeries } from '../utils/financeMetrics';
 import OutflowComparisonCard from './finance/OutflowComparisonCard';
 import DecisionMatrix from './finance/DecisionMatrix';
+import { useI18n } from '../i18n/LanguageContext';
+import { STORED_DATA_LOCALE } from '../i18n';
+
+// Change-history text is stored in Firestore, so it always uses the Portuguese format.
+const formatCurrencyStored = (val: number) => new Intl.NumberFormat(STORED_DATA_LOCALE, { style: 'currency', currency: 'BRL' }).format(val);
 
 type FinanceTab = 'Dashboard' | 'Transações' | 'Orçamento' | 'Matriz de Decisão';
 const FINANCE_TABS: FinanceTab[] = ['Dashboard', 'Transações', 'Orçamento', 'Matriz de Decisão'];
@@ -84,6 +89,7 @@ const compressImage = (file: File): Promise<Blob> => {
 export default function ProjectFinance() {
   const { projectId } = useParams<{ projectId: string }>();
   const { user } = useAuth();
+  const { t: tr, locale } = useI18n();
   const navigate = useNavigate();
 
   const [project, setProject] = useState<Project | null>(null);
@@ -208,7 +214,7 @@ export default function ProjectFinance() {
           projectId,
           source: 'Orçamento',
           title: `Lançamento "${data.title}" foi ajustado`,
-          description: `${type === 'expense' ? 'Despesa' : 'Entrada'} atualizada para ${formatCurrency(data.amount)}${data.isExternal ? ' (conta externa)' : ''}`,
+          description: `${type === 'expense' ? 'Despesa' : 'Entrada'} atualizada para ${formatCurrencyStored(data.amount)}${data.isExternal ? ' (conta externa)' : ''}`,
           actorUid: user?.uid,
           actorName: user?.displayName || user?.email || undefined,
           impactAmount: data.isExternal ? 0 : currentAmount - previousAmount,
@@ -232,7 +238,7 @@ export default function ProjectFinance() {
           projectId,
           source: 'Orçamento',
           title: `${type === 'expense' ? 'Nova despesa' : 'Nova entrada'}: ${data.title}`,
-          description: `${formatCurrency(data.amount)}${data.category ? ` · ${data.category}` : ''}${data.isExternal ? ' · conta externa (não afeta o saldo)' : ''}`,
+          description: `${formatCurrencyStored(data.amount)}${data.category ? ` · ${data.category}` : ''}${data.isExternal ? ' · conta externa (não afeta o saldo)' : ''}`,
           actorUid: user?.uid,
           actorName: user?.displayName || user?.email || undefined,
           impactAmount: data.isExternal ? 0 : type === 'expense' ? data.amount : -data.amount,
@@ -286,7 +292,7 @@ export default function ProjectFinance() {
           projectId,
           source: 'Orçamento',
           title: `Orçamento "${data.name}" definido`,
-          description: `${formatCurrency(data.amount)} previstos para ${monthStr}`,
+          description: `${formatCurrencyStored(data.amount)} previstos para ${monthStr}`,
           actorUid: user?.uid,
           actorName: user?.displayName || user?.email || undefined,
         });
@@ -328,7 +334,7 @@ export default function ProjectFinance() {
   });
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    return new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(val);
   };
 
   const handleExportPDF = async (options: PdfExportOptions) => {
@@ -339,14 +345,14 @@ export default function ProjectFinance() {
 
     let elementId = '';
     let fileName = '';
-    const projectNameFormatted = project?.name?.replace(/\s+/g, '-') || 'Projeto';
+    const projectNameFormatted = project?.name?.replace(/\s+/g, '-') || tr.finance.fileProject;
 
     if (activeTab === 'Dashboard') {
       elementId = 'pdf-dashboard-container';
       fileName = `${projectNameFormatted}-Dashboard-${new Date().toISOString().substring(0, 7)}.pdf`;
     } else if (activeTab === 'Transações') {
       elementId = 'pdf-transactions-container';
-      fileName = `${projectNameFormatted}-Transacoes-${new Date().toISOString().substring(0, 7)}.pdf`;
+      fileName = `${projectNameFormatted}-${tr.finance.fileTransactions}-${new Date().toISOString().substring(0, 7)}.pdf`;
     } else {
       setIsExporting(false);
       return;
@@ -369,12 +375,12 @@ export default function ProjectFinance() {
     try {
       console.log('[PDF Export] Building footer...');
       // 1. Build footer and append to ORIGINAL element (only when chrome is enabled)
-      const dateStr = new Date().toLocaleDateString('pt-BR');
+      const dateStr = new Date().toLocaleDateString(locale);
       let footer: HTMLDivElement | null = null;
       if (options.chrome) {
         footer = document.createElement('div');
         footer.setAttribute('data-pdf-footer', 'true');
-        footer.innerHTML = buildOfficialFooterHTML(logoIbit, `Relatório de ${activeTab} exportado em ${dateStr}`);
+        footer.innerHTML = buildOfficialFooterHTML(logoIbit, tr.finance.pdfFooter(tr.finance.tabs[activeTab], dateStr));
         original.appendChild(footer);
       }
       console.log('[PDF Export] Footer appended to original');
@@ -385,8 +391,8 @@ export default function ProjectFinance() {
         headerBlock = document.createElement('div');
         headerBlock.setAttribute('data-pdf-header', 'true');
         headerBlock.innerHTML = buildOfficialHeaderHTML({
-          title: project?.name || 'Projeto',
-          subtitle: `Relatório Financeiro — ${activeTab}`,
+          title: project?.name || tr.common.project,
+          subtitle: tr.finance.pdfSubtitle(tr.finance.tabs[activeTab]),
           responsibleName: user?.displayName || undefined,
         });
         original.insertBefore(headerBlock, original.firstChild);
@@ -497,7 +503,7 @@ export default function ProjectFinance() {
   const expenseCategories: Record<string, number> = {};
   transactions.forEach(t => {
     if (t.type === 'expense') {
-      const cat = t.category || 'Sem Categoria';
+      const cat = t.category || tr.finance.noCategory;
       expenseCategories[cat] = (expenseCategories[cat] || 0) + t.amount;
     }
   });
@@ -562,7 +568,7 @@ export default function ProjectFinance() {
             <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center border border-orange-100">
               <Wallet className="w-5 h-5 text-[#ff7f00]" />
             </div>
-            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Saldo Atual</span>
+            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">{tr.finance.balance}</span>
           </div>
           <span className={clsx("text-3xl font-bold tracking-tight", balance >= 0 ? "text-gray-900" : "text-red-600")}>
             {formatCurrency(balance)}
@@ -574,7 +580,7 @@ export default function ProjectFinance() {
             <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center border border-indigo-100">
               <PieChart className="w-5 h-5 text-indigo-500" />
             </div>
-            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Orçamento Total</span>
+            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">{tr.finance.totalBudget}</span>
           </div>
           <span className="text-3xl font-bold text-gray-900 tracking-tight">{formatCurrency(totalBudget)}</span>
         </div>
@@ -584,7 +590,7 @@ export default function ProjectFinance() {
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center border border-red-100">
               <TrendingDown className="w-5 h-5 text-red-500" />
             </div>
-            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Despesas do Mês</span>
+            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">{tr.finance.monthExpenses}</span>
           </div>
           <span className="text-3xl font-bold text-red-600 tracking-tight">{formatCurrency(expenseMonth)}</span>
         </div>
@@ -594,7 +600,7 @@ export default function ProjectFinance() {
             <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center border border-green-100">
               <TrendingUp className="w-5 h-5 text-green-500" />
             </div>
-            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Entradas do Mês</span>
+            <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">{tr.finance.monthIncome}</span>
           </div>
           <span className="text-3xl font-bold text-green-600 tracking-tight">{formatCurrency(incomeMonth)}</span>
         </div>
@@ -606,13 +612,13 @@ export default function ProjectFinance() {
         <div id="pdf-pie-chart-card" className="bg-white border border-gray-200 rounded-xl p-6 min-h-[300px] flex flex-col items-center justify-center text-center">
           <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm mb-6 w-full text-left flex items-center gap-2">
             <PieChart className="w-5 h-5 text-indigo-500" />
-            Despesas por Categoria
+            {tr.finance.expensesByCategory}
           </h3>
           
           {chartData.length === 0 ? (
             <div className="flex flex-col items-center justify-center opacity-50 flex-1">
               <PieChart className="w-12 h-12 text-gray-200 mb-4" />
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">NENHUMA DESPESA REGISTRADA</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{tr.finance.noExpenses}</p>
             </div>
           ) : (
             <div className="w-full h-80 flex items-center justify-center gap-4">
@@ -665,15 +671,15 @@ export default function ProjectFinance() {
           <div className="flex justify-between w-full mb-6 items-center">
             <h3 className="font-bold text-gray-400 uppercase tracking-widest text-sm flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-500 group-hover:scale-110 transition-transform" />
-              Fluxo de Caixa
+              {tr.finance.cashFlow}
             </h3>
-            <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest group-hover:text-[#ff7f00] transition-colors">Ver Detalhes</span>
+            <span className="text-[10px] text-gray-300 font-bold uppercase tracking-widest group-hover:text-[#ff7f00] transition-colors">{tr.finance.viewDetails}</span>
           </div>
           
           {cashFlowData.length === 0 ? (
              <div className="flex flex-col items-center justify-center opacity-50 flex-1">
               <TrendingUp className="w-12 h-12 text-gray-200 mb-4" />
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">NENHUMA TRANSAÇÃO HISTÓRICA</p>
+              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{tr.finance.noTransactionHistory}</p>
             </div>
           ) : (
             <div id="pdf-cashflow-chart-container" className="w-full flex flex-col" style={{ height: '340px' }}>
@@ -719,15 +725,15 @@ export default function ProjectFinance() {
               <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mt-6 pb-2 shrink-0">
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ENTRADA DE CAPITAL</span>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{tr.finance.capitalIn}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SAÍDA DE CAPITAL INTERNO</span>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{tr.finance.capitalOutInternal}</span>
                  </div>
                  <div className="flex items-center gap-2">
                    <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">SAÍDA DE CAPITAL EXTERNO</span>
+                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{tr.finance.capitalOutExternal}</span>
                  </div>
               </div>
             </div>
@@ -742,8 +748,8 @@ export default function ProjectFinance() {
       return (
         <div id="pdf-transactions-container" className="flex-1 flex flex-col items-center justify-center opacity-50 min-h-[400px]">
           <FileText className="w-16 h-16 text-[#ff7f00] mb-4 stroke-1" />
-          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-2">Nenhuma transação registrada</h3>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Adicione entradas ou saídas pelo menu acima</p>
+          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-2">{tr.finance.noTransactions}</h3>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{tr.finance.noTransactionsHint}</p>
         </div>
       );
     }
@@ -752,10 +758,10 @@ export default function ProjectFinance() {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-gray-400 font-bold text-[10px] uppercase tracking-wider">
-              <th className="p-4">Descrição</th>
-              <th className="p-4">Valor</th>
-              <th className="p-4">Data</th>
-              <th className="p-4">Categoria / Orçamento</th>
+              <th className="p-4">{tr.finance.colDescription}</th>
+              <th className="p-4">{tr.finance.colAmount}</th>
+              <th className="p-4">{tr.finance.colDate}</th>
+              <th className="p-4">{tr.finance.colCategoryBudget}</th>
               <th className="p-4 w-16"></th>
             </tr>
           </thead>
@@ -769,7 +775,7 @@ export default function ProjectFinance() {
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       {t.type === 'income' ? <TrendingUp className="w-4 h-4 text-green-500" /> : <TrendingDown className="w-4 h-4 text-red-500" />}
-                      <span className="font-bold text-gray-900 text-sm">{t.title || 'Sem título'}</span>
+                      <span className="font-bold text-gray-900 text-sm">{t.title || tr.finance.untitled}</span>
                     </div>
                   </td>
                   <td className="p-4">
@@ -781,14 +787,14 @@ export default function ProjectFinance() {
                   <td className="p-4">
                     <div className="flex items-center gap-2 text-gray-500 text-xs font-bold font-mono tracking-wider">
                       <Calendar className="w-3.5 h-3.5" />
-                      {d.toLocaleDateString('pt-BR')}
+                      {d.toLocaleDateString(locale)}
                     </div>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col gap-1 items-start">
                       {t.isExternal && (
                         <span className="text-[9px] font-bold uppercase tracking-widest bg-purple-50 text-purple-600 px-2 py-0.5 rounded border border-purple-100">
-                          RECURSO EXTERNO
+                          {tr.finance.externalResource}
                         </span>
                       )}
                       {t.category && (
@@ -810,7 +816,7 @@ export default function ProjectFinance() {
                           className="text-[9px] font-bold uppercase tracking-widest bg-blue-50 text-blue-600 px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1 hover:bg-blue-100 transition-colors"
                         >
                           <Paperclip className="w-3 h-3" />
-                          NOTA FISCAL
+                          {tr.finance.receipt}
                         </a>
                       )}
                     </div>
@@ -846,8 +852,8 @@ export default function ProjectFinance() {
       return (
         <div className="flex-1 flex flex-col items-center justify-center opacity-50 min-h-[400px]">
           <Wallet className="w-16 h-16 text-[#ff7f00] mb-4 stroke-1" />
-          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-2">Orçamento não definido</h3>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Planeje seus gastos futuros</p>
+          <h3 className="text-lg font-bold text-gray-900 uppercase tracking-widest mb-2">{tr.finance.noBudget}</h3>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{tr.finance.noBudgetHint}</p>
         </div>
       );
     }
@@ -876,7 +882,7 @@ export default function ProjectFinance() {
                   <Wallet className="w-5 h-5 text-[#ff7f00]" />
                 </div>
                 <div className="flex flex-col min-w-0 pr-12">
-                  <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">Orçamento</span>
+                  <span className="font-bold text-gray-400 uppercase tracking-[0.2em] text-[10px]">{tr.finance.budget}</span>
                   <span className="text-sm font-bold text-gray-900 truncate">{b.name}</span>
                   <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{b.date}</span>
                 </div>
@@ -890,28 +896,28 @@ export default function ProjectFinance() {
   };
 
   const handleExportTransactionsExcel = async () => {
-    const projectNameFormatted = project?.name?.replace(/\s+/g, '-') || 'Projeto';
+    const projectNameFormatted = project?.name?.replace(/\s+/g, '-') || tr.finance.fileProject;
 
     // Group by category, same "sectioned ledger" layout as the platform's own budget template.
     const groupsMap = new Map<string, Transaction[]>();
     transactions.forEach((t) => {
-      const key = t.category?.trim() || 'Sem Categoria';
+      const key = t.category?.trim() || tr.finance.noCategory;
       if (!groupsMap.has(key)) groupsMap.set(key, []);
       groupsMap.get(key)!.push(t);
     });
 
     await exportLedgerToExcel({
       filename: `${projectNameFormatted}-Transacoes-${new Date().toISOString().substring(0, 10)}.xlsx`,
-      sheetName: 'Transações',
-      title: `Transações Financeiras — ${project?.name || 'Projeto'}`,
+      sheetName: tr.finance.sheetTransactions,
+      title: tr.finance.excelTitle(project?.name || tr.common.project),
       totalColumnIndex: 2,
       columns: [
-        { header: 'Descrição', type: 'string', width: 28, value: (r: Transaction) => r.title },
-        { header: 'Tipo', type: 'string', width: 12, value: (r: Transaction) => (r.type === 'income' ? 'Entrada' : 'Despesa') },
-        { header: 'Valor', type: 'currency', width: 16, value: (r: Transaction) => (r.type === 'expense' ? -Math.abs(r.amount) : r.amount) },
-        { header: 'Data', type: 'string', width: 14, value: (r: Transaction) => (r.date?.toDate ? r.date.toDate().toLocaleDateString('pt-BR') : '-') },
+        { header: tr.finance.xlsDescription, type: 'string', width: 28, value: (r: Transaction) => r.title },
+        { header: tr.finance.xlsType, type: 'string', width: 12, value: (r: Transaction) => (r.type === 'income' ? tr.finance.xlsIncome : tr.finance.xlsExpense) },
+        { header: tr.finance.xlsAmount, type: 'currency', width: 16, value: (r: Transaction) => (r.type === 'expense' ? -Math.abs(r.amount) : r.amount) },
+        { header: tr.finance.xlsDate, type: 'string', width: 14, value: (r: Transaction) => (r.date?.toDate ? r.date.toDate().toLocaleDateString(locale) : '-') },
         {
-          header: 'Orçamento Vinculado',
+          header: tr.finance.xlsBudget,
           type: 'string',
           width: 22,
           value: (r: Transaction) => (r.budgetId ? budgets.find(b => b.id === r.budgetId)?.name || '-' : '-'),
@@ -928,7 +934,7 @@ export default function ProjectFinance() {
           <div className="flex items-center gap-3">
              <ExportButton
                formats={['pdf']}
-               title="Exportar Dashboard Financeiro"
+               title={tr.finance.exportDashboard}
                onExportPdf={handleExportPDF}
                className="px-4 py-2 bg-gray-100 hover:bg-gray-200"
              />
@@ -939,7 +945,7 @@ export default function ProjectFinance() {
           <div className="flex flex-wrap items-center justify-end gap-3">
              <ExportButton
                formats={['pdf', 'excel']}
-               title="Exportar Transações"
+               title={tr.finance.exportTransactions}
                onExportPdf={handleExportPDF}
                onExportExcel={handleExportTransactionsExcel}
                disabledFormats={{ excel: transactions.length === 0 }}
@@ -950,14 +956,14 @@ export default function ProjectFinance() {
               className="bg-white text-gray-700 border border-gray-300 px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-gray-50 active:scale-95 shadow-sm"
             >
               <TrendingDown className="w-4 h-4 text-gray-700" />
-              NOVA DESPESA
+              {tr.finance.newExpense}
             </button>
             <button 
               onClick={() => { setEditingTransaction(null); setIsOpenIncomeModal(true); }}
               className="bg-[#ff7f00] text-white px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-orange-600 active:scale-95 shadow-sm shadow-orange-100"
             >
               <TrendingUp className="w-4 h-4" />
-              NOVA ENTRADA
+              {tr.finance.newIncome}
             </button>
           </div>
         );
@@ -968,7 +974,7 @@ export default function ProjectFinance() {
             className="bg-[#ff7f00] text-white px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-orange-600 active:scale-95 shadow-md shadow-orange-100"
           >
             <Wallet className="w-4 h-4" />
-            DEFINIR ORÇAMENTO
+            {tr.finance.defineBudget}
           </button>
         );
       case 'Matriz de Decisão':
@@ -978,7 +984,7 @@ export default function ProjectFinance() {
             className="bg-[#ff7f00] text-white px-4 py-2 flex items-center gap-2 transition-all font-bold uppercase tracking-wider text-xs rounded-lg hover:bg-orange-600 active:scale-95 shadow-md shadow-orange-100"
           >
             <Scale className="w-4 h-4" />
-            NOVA COMPARAÇÃO
+            {tr.finance.newComparison}
           </button>
         );
       default:
@@ -1020,7 +1026,7 @@ export default function ProjectFinance() {
             </div>
             <div className="min-w-0">
               <h2 className="text-xl font-bold tracking-wider leading-tight text-gray-900 truncate">
-                {project?.name || 'Carregando...'} {project?.shortId && `- #${project.shortId}`}
+                {project?.name || tr.common.loading} {project?.shortId && `- #${project.shortId}`}
               </h2>
             </div>
 
@@ -1039,7 +1045,7 @@ export default function ProjectFinance() {
                 ))}
               </div>
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest bg-gray-50 px-2 py-1 border border-gray-200 rounded-md">
-                {project?.members.length || 0} {project?.members.length === 1 ? 'MEMBRO' : 'MEMBROS'}
+                {project?.members.length || 0} {tr.common.membersCount(project?.members.length || 0)}
               </span>
             </div>
           </div>
@@ -1050,7 +1056,7 @@ export default function ProjectFinance() {
             <div className="flex items-center gap-2 shrink-0">
               <DollarSign className="w-5 h-5 text-[#ff7f00] hidden sm:block" />
               <h2 className="text-lg font-bold text-gray-900 uppercase tracking-widest hidden sm:block">
-                GESTÃO FINANCEIRA
+                {tr.finance.title}
               </h2>
             </div>
             <div className="flex bg-gray-50 border border-gray-200 rounded-lg p-1">
@@ -1065,7 +1071,7 @@ export default function ProjectFinance() {
                         : "text-gray-500 hover:text-gray-900 hover:bg-white/50"
                     )}
                   >
-                    {tab}
+                    {tr.finance.tabs[tab]}
                   </button>
                   {idx < FINANCE_TABS.length - 1 && <div className="w-px bg-gray-200 my-1"></div>}
                 </React.Fragment>
@@ -1093,8 +1099,8 @@ export default function ProjectFinance() {
             className="bg-white p-10 rounded-2xl shadow-xl flex flex-col items-center max-w-sm text-center border border-gray-200"
           >
             <Loader2 className="w-16 h-16 animate-spin text-[#ff7f00] mb-6" />
-            <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">Gerando Relatório</h2>
-            <p className="text-gray-500 text-sm font-medium">Renderizando gráficos de alta resolução para impressão. Isso pode levar alguns segundos.</p>
+            <h2 className="text-xl font-bold text-gray-900 tracking-widest uppercase mb-2">{tr.finance.generatingReport}</h2>
+            <p className="text-gray-500 text-sm font-medium">{tr.finance.generatingReportText}</p>
           </motion.div>
         </div>
       )}
@@ -1102,7 +1108,7 @@ export default function ProjectFinance() {
       <AnimatePresence>
         {isOpenExpenseModal && (
           <FinanceTransactionModal 
-            title={editingTransaction ? "EDITAR DESPESA" : "REGISTRAR DESPESA"} 
+            title={editingTransaction ? tr.finance.editExpense : tr.finance.registerExpense} 
             type="expense"
             initialData={editingTransaction}
             budgets={budgets} // For linking
@@ -1112,7 +1118,7 @@ export default function ProjectFinance() {
         )}
         {isOpenIncomeModal && (
           <FinanceTransactionModal 
-            title={editingTransaction ? "EDITAR ENTRADA" : "REGISTRAR ENTRADA"} 
+            title={editingTransaction ? tr.finance.editIncome : tr.finance.registerIncome} 
             type="income"
             initialData={editingTransaction}
             budgets={budgets}
@@ -1122,7 +1128,7 @@ export default function ProjectFinance() {
         )}
         {isOpenBudgetModal && (
           <FinanceBudgetModal 
-            title={editingBudget ? "EDITAR ORÇAMENTO" : "DEFINIR ORÇAMENTO"} 
+            title={editingBudget ? tr.finance.editBudget : tr.finance.defineBudget} 
             initialData={editingBudget}
             onClose={() => { setIsOpenBudgetModal(false); setEditingBudget(null); }}
             onSubmit={(data) => { handleBudgetSubmit(data); setIsOpenBudgetModal(false); setEditingBudget(null); }}
@@ -1182,6 +1188,7 @@ interface FinanceTransactionModalProps {
 }
 
 function FinanceTransactionModal({ title, type, initialData, budgets, onClose, onSubmit }: FinanceTransactionModalProps) {
+  const { t: tr } = useI18n();
   const defaultDateStr = initialData?.date?.toDate ? initialData.date.toDate().toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   
   const [formData, setFormData] = useState({
@@ -1219,7 +1226,7 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-       alert('Por favor, selecione apenas imagens.');
+       alert(tr.finance.imagesOnly);
        return;
     }
 
@@ -1241,7 +1248,7 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
       }
     } catch(err) {
        console.error("Upload Error", err);
-       alert("Erro ao fazer upload da imagem.");
+       alert(tr.finance.imageUploadError);
     } finally {
        setIsUploading(false);
     }
@@ -1259,27 +1266,27 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
           <h3 className={clsx("text-lg font-bold uppercase tracking-widest text-gray-900")}>
             {title}
           </h3>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <button type="button" onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <form id="transaction-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">TÍTULO DA TRANSAÇÃO</label>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.transactionTitle}</label>
             <input 
               type="text" 
               required
               value={formData.title}
               onChange={e => setFormData({ ...formData, title: e.target.value })}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors" 
-              placeholder="Ex: Compra de Motores..." 
+              placeholder={tr.finance.transactionTitlePlaceholder} 
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">VALOR (R$)</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.amountLabel}</label>
               <input 
                 type="number" 
                 step="0.01"
@@ -1287,11 +1294,11 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
                 value={formData.amount}
                 onChange={e => setFormData({ ...formData, amount: e.target.value })}
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors" 
-                placeholder="0,00" 
+                placeholder={tr.finance.amountPlaceholder} 
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">DATA</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.dateLabel}</label>
               <input 
                 type="date"
                 required
@@ -1304,24 +1311,24 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
 
           <div className="grid grid-cols-2 gap-4">
             <div className={clsx(type === 'income' ? 'col-span-2' : 'col-span-1')}>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">CATEGORIA</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.categoryLabel}</label>
               <input 
                 type="text"
                 value={formData.category}
                 onChange={e => setFormData({ ...formData, category: e.target.value })}
-                placeholder="Ex: Patrocínio..."
+                placeholder={tr.finance.categoryPlaceholder}
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg transition-colors placeholder-gray-300"
               />
             </div>
             {type === 'expense' && (
               <div>
-                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">VINCULAR ORÇAMENTO</label>
+                <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.linkBudget}</label>
                 <select
                   value={formData.budgetId}
                   onChange={e => setFormData({ ...formData, budgetId: e.target.value })}
                   className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg transition-colors"
                 >
-                  <option value="">Nenhum vínculo</option>
+                  <option value="">{tr.finance.noLink}</option>
                   {budgets.map(b => (
                     <option key={b.id} value={b.id}>{b.name}</option>
                   ))}
@@ -1339,8 +1346,8 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
                 className="w-5 h-5 accent-[#ff7f00] cursor-pointer rounded border-gray-300"
               />
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900">Recurso de conta externa</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Verba de parceiros/investimento (ex: SESI) que não sai do nosso caixa — não afeta o saldo e entra no fluxo de caixa como Saída de capital externo</span>
+                <span className="text-sm font-bold text-gray-900">{tr.finance.externalAccount}</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">{tr.finance.externalAccountHint}</span>
               </div>
             </label>
           )}
@@ -1354,21 +1361,21 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
                 className="w-5 h-5 accent-[#ff7f00] cursor-pointer rounded border-gray-300"
               />
               <div className="flex flex-col">
-                <span className="text-sm font-bold text-gray-900">Criar registro no inventário</span>
-                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">Gera um item automaticamente no Inventário do projeto</span>
+                <span className="text-sm font-bold text-gray-900">{tr.finance.createInventory}</span>
+                <span className="text-[10px] uppercase font-bold tracking-wider text-gray-400">{tr.finance.createInventoryHint}</span>
               </div>
             </label>
           )}
 
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">COMPROVANTE / NOTA FISCAL (OPCIONAL)</label>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.receiptLabel}</label>
             
             {formData.receiptUrl ? (
               <div className="flex items-center gap-4 bg-gray-50 p-4 border border-gray-200 rounded-xl relative group">
-                <img src={formData.receiptUrl} alt="Comprovante" className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                <img src={formData.receiptUrl} alt={tr.finance.receiptAlt} className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm" />
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold text-gray-900">Comprovante Anexado</span>
-                  <a href={formData.receiptUrl} target="_blank" rel="noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#ff7f00] hover:underline">Ver imagem completa</a>
+                  <span className="text-sm font-bold text-gray-900">{tr.finance.receiptAttached}</span>
+                  <a href={formData.receiptUrl} target="_blank" rel="noreferrer" className="text-[10px] font-bold uppercase tracking-widest text-[#ff7f00] hover:underline">{tr.finance.viewFullImage}</a>
                 </div>
                 <button 
                   type="button" 
@@ -1388,7 +1395,7 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
                     <div className="w-12 h-12 bg-white shadow-sm rounded-full flex items-center justify-center mb-3">
                       <Loader2 className="w-5 h-5 text-[#ff7f00] animate-spin" />
                     </div>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center animate-pulse">Comprimindo e enviando...</p>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center animate-pulse">{tr.finance.compressing}</p>
                   </>
                 ) : (
                   <>
@@ -1402,8 +1409,8 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
                       <Upload className="w-5 h-5 text-gray-400 group-hover:text-[#ff7f00] transition-colors" />
                     </div>
                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest text-center">
-                      CLIQUE PARA SELECIONAR A IMAGEM<br/>
-                      <span className="text-[10px] text-gray-400 font-medium normal-case tracking-normal">(JPG, PNG, WEBP) será comprimida automaticamente</span>
+                      {tr.finance.clickToSelect}<br/>
+                      <span className="text-[10px] text-gray-400 font-medium normal-case tracking-normal">{tr.finance.autoCompress}</span>
                     </p>
                   </>
                 )}
@@ -1414,10 +1421,10 @@ function FinanceTransactionModal({ title, type, initialData, budgets, onClose, o
 
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3 shrink-0">
           <button onClick={onClose} type="button" className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">
-            CANCELAR
+            {tr.common.cancel}
           </button>
           <button disabled={isUploading} type="submit" form="transaction-form" className="flex-1 px-4 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 disabled:opacity-50 active:scale-95 flex items-center justify-center gap-2 transition-all">
-            {isUploading ? 'ENVIANDO...' : 'SALVAR'}
+            {isUploading ? tr.finance.sending : tr.common.save}
           </button>
         </div>
       </motion.div>
@@ -1436,6 +1443,7 @@ interface FinanceBudgetModalProps {
 }
 
 function FinanceBudgetModal({ title, initialData, onClose, onSubmit }: FinanceBudgetModalProps) {
+  const { t: tr } = useI18n();
   const defaultYearMonth = initialData ? initialData.date : new Date().toISOString().slice(0, 7);
   
   const [formData, setFormData] = useState({
@@ -1467,27 +1475,27 @@ function FinanceBudgetModal({ title, initialData, onClose, onSubmit }: FinanceBu
           <h3 className={clsx("text-lg font-bold uppercase tracking-widest text-gray-900")}>
             {title}
           </h3>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <button type="button" onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
         
         <form id="budget-form" onSubmit={handleSubmit} className="flex-1 overflow-y-auto flex flex-col p-6 space-y-6 scrollbar-hide">
           <div>
-            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">NOME DO ORÇAMENTO</label>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.budgetName}</label>
             <input 
               type="text" 
               required
               value={formData.name}
               onChange={e => setFormData({ ...formData, name: e.target.value })}
               className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors" 
-              placeholder="Ex: Construção Chassi..." 
+              placeholder={tr.finance.budgetNamePlaceholder} 
             />
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">VALOR (R$)</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.amountLabel}</label>
               <input 
                 type="number" 
                 step="0.01"
@@ -1495,11 +1503,11 @@ function FinanceBudgetModal({ title, initialData, onClose, onSubmit }: FinanceBu
                 value={formData.amount}
                 onChange={e => setFormData({ ...formData, amount: e.target.value })}
                 className="w-full bg-white border border-gray-300 px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#ff7f00] font-bold rounded-lg placeholder-gray-300 transition-colors" 
-                placeholder="0,00" 
+                placeholder={tr.finance.amountPlaceholder} 
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">MÊS DE REFERÊNCIA</label>
+              <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">{tr.finance.referenceMonth}</label>
               <input 
                 type="month"
                 required
@@ -1513,10 +1521,10 @@ function FinanceBudgetModal({ title, initialData, onClose, onSubmit }: FinanceBu
 
         <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3 mt-auto shrink-0">
           <button onClick={onClose} type="button" className="flex-1 px-4 py-3 bg-white border border-gray-300 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-50 transition-colors">
-            CANCELAR
+            {tr.common.cancel}
           </button>
           <button type="submit" form="budget-form" className="flex-1 px-4 py-3 bg-[#ff7f00] text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-orange-600 active:scale-95 flex items-center justify-center gap-2 transition-all">
-            SALVAR
+            {tr.common.save}
           </button>
         </div>
       </motion.div>
@@ -1528,9 +1536,10 @@ function FinanceBudgetModal({ title, initialData, onClose, onSubmit }: FinanceBu
 // Modal for Viewing Budget Details
 // ---------------------------------------------------------
 function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget, transactions: Transaction[], onClose: () => void }) {
+  const { t: tr, locale } = useI18n();
   const linkedTransactions = transactions.filter(t => t.budgetId === budget.id);
   const totalSpent = linkedTransactions.reduce((acc, t) => acc + t.amount, 0);
-  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(val);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -1544,10 +1553,10 @@ function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget,
           <div className="flex items-center gap-3">
              <Wallet className="w-5 h-5 text-[#ff7f00]" />
              <h3 className="text-lg font-bold uppercase tracking-widest text-gray-900">
-               DETALHES DO ORÇAMENTO
+               {tr.finance.budgetDetails}
              </h3>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <button type="button" onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1558,7 +1567,7 @@ function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget,
              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{budget.date}</p>
            </div>
            <div className="text-right">
-             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">DISPONÍVEL / TOTAL</span>
+             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.finance.availableTotal}</span>
              <p className="text-lg font-bold text-gray-900">
                <span className={clsx("mr-2", budget.amount - totalSpent >= 0 ? "text-green-600" : "text-red-600")}>
                   {formatCurrency(budget.amount - totalSpent)}
@@ -1569,12 +1578,12 @@ function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget,
         </div>
 
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6 scrollbar-hide">
-           <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">TRANSAÇÕES VINCULADAS ({linkedTransactions.length})</h4>
+           <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">{tr.finance.linkedTransactions(linkedTransactions.length)}</h4>
            
            {linkedTransactions.length === 0 ? (
              <div className="flex flex-col items-center justify-center opacity-50 py-10">
                 <FileText className="w-10 h-10 text-gray-300 mb-3" />
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">NENHUMA TRANSAÇÃO ENCONTRADA</p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{tr.finance.noTransactionFound}</p>
              </div>
            ) : (
              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -1588,8 +1597,8 @@ function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget,
                             <div className="flex items-center gap-3">
                               {t.type === 'income' ? <TrendingUp className="w-4 h-4 text-green-500 shrink-0" /> : <TrendingDown className="w-4 h-4 text-red-500 shrink-0" />}
                               <div className="flex flex-col">
-                                <span className="font-bold text-gray-900 text-sm">{t.title || 'Sem título'}</span>
-                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{d.toLocaleDateString('pt-BR')}</span>
+                                <span className="font-bold text-gray-900 text-sm">{t.title || tr.finance.untitled}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{d.toLocaleDateString(locale)}</span>
                               </div>
                             </div>
                           </td>
@@ -1616,9 +1625,10 @@ function BudgetDetailsModal({ budget, transactions, onClose }: { budget: Budget,
 // Modal for Viewing Category Details
 // ---------------------------------------------------------
 function CategoryDetailsModal({ categoryName, transactions, onClose }: { categoryName: string, transactions: Transaction[], onClose: () => void }) {
-  const linkedTransactions = transactions.filter(t => t.type === 'expense' && (t.category || 'Sem Categoria') === categoryName);
+  const { t: tr, locale } = useI18n();
+  const linkedTransactions = transactions.filter(t => t.type === 'expense' && (t.category || tr.finance.noCategory) === categoryName);
   const totalSpent = linkedTransactions.reduce((acc, t) => acc + t.amount, 0);
-  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(val);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -1632,10 +1642,10 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
           <div className="flex items-center gap-3">
              <PieChart className="w-5 h-5 text-indigo-500" />
              <h3 className="text-lg font-bold uppercase tracking-widest text-gray-900">
-               DETALHES DA CATEGORIA
+               {tr.finance.categoryDetails}
              </h3>
           </div>
-          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-900 transition-colors">
+          <button type="button" onClick={onClose} aria-label={tr.common.close} className="text-gray-400 hover:text-gray-900 transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -1643,10 +1653,10 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
         <div className="p-6 bg-white border-b border-gray-100 flex justify-between items-center shrink-0">
            <div>
              <h4 className="text-xl font-bold text-gray-900">{categoryName}</h4>
-             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TRANSAÇÕES: {linkedTransactions.length}</p>
+             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.finance.transactionsCount(linkedTransactions.length)}</p>
            </div>
            <div className="text-right">
-             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TOTAL GASTO NESSA CATEGORIA</span>
+             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{tr.finance.totalSpentCategory}</span>
              <p className="text-2xl font-bold text-red-600">
                {formatCurrency(totalSpent)}
              </p>
@@ -1654,12 +1664,12 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
         </div>
 
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6 scrollbar-hide">
-           <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">HISTÓRICO DE DESPESAS</h4>
+           <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">{tr.finance.expenseHistory}</h4>
            
            {linkedTransactions.length === 0 ? (
              <div className="flex flex-col items-center justify-center opacity-50 py-10">
                 <FileText className="w-10 h-10 text-gray-300 mb-3" />
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">NENHUMA DESPESA ENCONTRADA</p>
+                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{tr.finance.noExpenseFound}</p>
              </div>
            ) : (
              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
@@ -1673,8 +1683,8 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
                             <div className="flex items-center gap-3">
                               <TrendingDown className="w-4 h-4 text-red-500 shrink-0" />
                               <div className="flex flex-col">
-                                <span className="font-bold text-gray-900 text-sm">{t.title || 'Sem título'}</span>
-                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{d.toLocaleDateString('pt-BR')}</span>
+                                <span className="font-bold text-gray-900 text-sm">{t.title || tr.finance.untitled}</span>
+                                <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{d.toLocaleDateString(locale)}</span>
                               </div>
                             </div>
                           </td>
@@ -1701,8 +1711,9 @@ function CategoryDetailsModal({ categoryName, transactions, onClose }: { categor
 // ---------------------------------------------------------
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlowData: any[], transactions: Transaction[], onClose: () => void }) {
+  const { t: tr, locale } = useI18n();
   const [granularity, setGranularity] = useState<'dia' | 'semana' | 'mes'>('mes');
-  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
+  const formatCurrency = (val: number) => new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
   // Cumulative Entrada / Saída Interna / Saída Externa series by day or week,
   // same running-total semantics as the monthly `cashFlowData`.
@@ -1716,7 +1727,7 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
     const dyBottom = typeof bottomOffset === 'number' ? bottomOffset : 18;
     return (
       <text x={x} y={position === 'top' ? y - 12 : y + dyBottom} dy={0} fill={fill} fontSize={10} fontWeight="900" textAnchor="middle" stroke="white" strokeWidth={3} paintOrder="stroke" strokeLinecap="round" strokeLinejoin="round">
-        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
+        {new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(value)}
       </text>
     );
   };
@@ -1728,7 +1739,7 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
           <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 border-b border-gray-100 pb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
              <p key={index} style={{ color: entry.color }} className="text-sm font-bold my-1">
-               {entry.name}: {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(entry.value)}
+               {entry.name}: {new Intl.NumberFormat(locale, { style: 'currency', currency: 'BRL' }).format(entry.value)}
              </p>
           ))}
         </div>
@@ -1749,15 +1760,15 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
           <div className="flex items-center gap-3">
              <TrendingUp className="w-6 h-6 text-[#ff7f00]" />
              <h3 className="text-xl font-bold uppercase tracking-widest text-gray-900">
-               FLUXO DE CAIXA
+               {tr.finance.cashFlowUpper}
              </h3>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex bg-gray-100 p-1 rounded-lg">
               {([
-                { id: 'dia', label: 'Dia' },
-                { id: 'semana', label: 'Semana' },
-                { id: 'mes', label: 'Mês' },
+                { id: 'dia', label: tr.finance.day },
+                { id: 'semana', label: tr.finance.week },
+                { id: 'mes', label: tr.finance.month },
               ] as const).map((opt) => (
                 <button
                   key={opt.id}
@@ -1831,15 +1842,15 @@ function CashFlowDetailsModal({ cashFlowData, transactions, onClose }: { cashFlo
         <div className="p-6 border-t border-gray-100 bg-gray-50 flex justify-center gap-10 shrink-0 rounded-b-2xl">
             <div className="flex items-center gap-3">
               <div className="w-4 h-4 rounded-full bg-green-500 shadow-sm border border-green-600"></div>
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">ENTRADA DE CAPITAL</span>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{tr.finance.capitalIn}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-4 h-4 rounded-full bg-red-500 shadow-sm border border-red-600"></div>
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">SAÍDA DE CAPITAL INTERNO</span>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{tr.finance.capitalOutInternal}</span>
             </div>
             <div className="flex items-center gap-3">
               <div className="w-4 h-4 rounded-full bg-purple-500 shadow-sm border border-purple-600"></div>
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">SAÍDA DE CAPITAL EXTERNO</span>
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-widest">{tr.finance.capitalOutExternal}</span>
             </div>
         </div>
       </motion.div>
