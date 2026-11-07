@@ -18,7 +18,9 @@ import ChangeHistorySummaryCards from './changeHistory/ChangeHistorySummaryCards
 import ChangeHistoryTable from './changeHistory/ChangeHistoryTable';
 import NewChangeRequestModal from './changeHistory/NewChangeRequestModal';
 import ReviewChangeModal from './changeHistory/ReviewChangeModal';
-import { CHANGE_SECTORS, CHANGE_STATUSES, computeTotals } from './changeHistory/changeHistoryHelpers';
+import { CHANGE_SECTORS, CHANGE_STATUSES, computeTotals, sourceLabel, toJsDate } from './changeHistory/changeHistoryHelpers';
+import ExportButton from './export/ExportButton';
+import { exportToExcel } from '../utils/export/excelEngine';
 import { useI18n } from '../i18n/LanguageContext';
 
 /** Central de governança e Change Log integrado do projeto. */
@@ -93,6 +95,31 @@ export default function ChangeHistory() {
     });
   }, [entries, searchQuery, statusFilter, sectorFilter]);
 
+  const memberName = (uid?: string | null, fallback?: string) =>
+    (uid ? projectMembers.find((m) => m.uid === uid)?.name : undefined) || fallback || '-';
+
+  const handleExportExcel = async () => {
+    const projectNameStr = (project?.name || t.common.project).replace(/\s+/g, '-');
+    await exportToExcel({
+      filename: `${t.changes.exportFile}-${projectNameStr}-${new Date().toISOString().substring(0, 10)}.xlsx`,
+      sheetName: t.changes.exportSheet,
+      title: t.changes.excelTitle(project?.name || t.common.project),
+      columns: [
+        { header: t.changes.xlsDate, key: 'createdAt', type: 'date', width: 14, value: (row) => toJsDate(row.createdAt) },
+        { header: t.changes.xlsTitle, key: 'title', type: 'string', width: 38 },
+        { header: t.changes.xlsSector, key: 'sector', type: 'string', width: 18, value: (row) => (row.sector ? t.enums.changeSector[row.sector] ?? row.sector : '-') },
+        { header: t.changes.xlsOrigin, key: 'origin', type: 'string', width: 20, value: (row) => sourceLabel(row) },
+        { header: t.changes.xlsRequester, key: 'requestedBy', type: 'string', width: 24, value: (row) => memberName(row.requestedBy, row.requestedByName) },
+        { header: t.changes.xlsScheduleImpact, key: 'impactDays', type: 'number', width: 20, value: (row) => row.impactDays ?? 0 },
+        { header: t.changes.xlsCostImpact, key: 'impactAmount', type: 'currency', width: 20, value: (row) => row.impactAmount ?? 0 },
+        { header: t.changes.xlsQualityRisk, key: 'qualityRisk', type: 'string', width: 16, value: (row) => row.qualityRisk || '-' },
+        { header: t.changes.xlsDecidedBy, key: 'decidedBy', type: 'string', width: 24, value: (row) => memberName(row.decidedBy, row.decidedByName) },
+        { header: t.changes.xlsDecidedAt, key: 'decidedAt', type: 'date', width: 16, value: (row) => toJsDate(row.decidedAt) },
+      ],
+      rows: filteredEntries,
+    });
+  };
+
   const handleDeleteItem = async () => {
     if (!itemToDelete) return;
     try { await commitWrite(deleteDoc(doc(db, CHANGE_HISTORY_COLLECTION, itemToDelete.id)), { label: 'a exclusão da mudança' }); setItemToDelete(null); }
@@ -120,7 +147,16 @@ export default function ChangeHistory() {
               <select value={sectorFilter} onChange={(event) => setSectorFilter(event.target.value as ChangeSector | 'Todos')} className={selectClass}><option value="Todos">{t.changes.allSectors}</option>{CHANGE_SECTORS.map((sector) => <option key={sector} value={sector}>{t.enums.changeSector[sector]}</option>)}</select>
               <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ChangeStatus | 'Todos')} className={selectClass}><option value="Todos">{t.changes.all}</option>{CHANGE_STATUSES.map((status) => <option key={status} value={status}>{status === 'Pendente' ? t.changes.filterPending : status === 'Aprovado' ? t.changes.filterApproved : status === 'Recusado' ? t.changes.filterRejected : t.changes.filterPostponed}</option>)}</select>
             </div>
-            {canWrite && <button onClick={() => { setEditingItem(null); setIsFormOpen(true); }} className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100"><Plus className="w-4 h-4" /><span>{t.changes.newRequest}</span></button>}
+            <div className="flex items-center gap-2 shrink-0">
+              <ExportButton
+                formats={['excel']}
+                title={t.changes.exportTitle}
+                onExportExcel={handleExportExcel}
+                disabledFormats={{ excel: filteredEntries.length === 0 }}
+                compact
+              />
+              {canWrite && <button onClick={() => { setEditingItem(null); setIsFormOpen(true); }} className="bg-[#ff7f00] hover:bg-orange-600 text-white px-4 sm:px-5 py-2 flex items-center justify-center gap-2 transition-all font-bold uppercase tracking-widest text-xs rounded-lg active:scale-95 shadow-md shadow-orange-100"><Plus className="w-4 h-4" /><span>{t.changes.newRequest}</span></button>}
+            </div>
           </div>
           {totals.pending > 0 && canDecide && <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded-lg"><AlertTriangle className="w-3.5 h-3.5 text-yellow-600" /><span className="text-[10px] font-bold text-yellow-800 uppercase tracking-wider">{t.changes.awaiting(totals.pending)}</span><button onClick={() => setStatusFilter('Pendente')} className={clsx('ml-auto text-[10px] font-bold uppercase tracking-widest text-yellow-800 underline', statusFilter === 'Pendente' && 'opacity-40 pointer-events-none')}>{t.changes.viewPending}</button></div>}
         </div>
